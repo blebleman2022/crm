@@ -578,5 +578,8 @@ def main():
         print("  FLASK_ENV - 设置环境 (development/production/testing)")
         print("  PORT      - 设置端口 (默认: 5000)")
 
+# 创建应用实例供Gunicorn使用
+app = create_app()
+
 if __name__ == '__main__':
     main()

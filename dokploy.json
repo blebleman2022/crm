@@ -4,8 +4,8 @@
   "image": "node:18-alpine",
   "ports": [
     {
-      "containerPort": 5000,
-      "hostPort": 5000,
+      "containerPort": 80,
+      "hostPort": 80,
       "protocol": "TCP"
     }
   ],
@@ -26,8 +26,8 @@
   ],
   "healthCheck": {
     "enabled": true,
-    "path": "/auth/login",
-    "port": 5000,
+    "path": "/health",
+    "port": 80,
     "interval": 30,
     "timeout": 10,
     "retries": 3

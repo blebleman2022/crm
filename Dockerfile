@@ -63,11 +63,11 @@ RUN adduser --disabled-password --gecos '' appuser && \
 USER appuser
 
 # 暴露端口
-EXPOSE 5000
+EXPOSE 80
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:5000/auth/login || exit 1
+    CMD curl -f http://localhost:80/health || exit 1
 
-# 启动命令 - 直接使用Gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-", "run:app"]
+# 启动命令 - 使用80端口
+CMD ["gunicorn", "--bind", "0.0.0.0:80", "--workers", "2", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-", "run:app"]
