@@ -63,6 +63,9 @@ docker-compose.yml
 README.md
 *.md
 
+# Requirements files (except the ones we need)
+# requirements-dev.txt will be copied but conditionally used
+
 # Temporary files
 *.tmp
 *.temp
