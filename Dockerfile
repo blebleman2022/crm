@@ -45,8 +45,9 @@ RUN if [ "$INSTALL_DEV" = "true" ] ; then \
     --trusted-host pypi.tuna.tsinghua.edu.cn \
     -r requirements-dev.txt ; fi
 
-# 复制启动脚本
+# 复制启动脚本和配置文件
 COPY start.sh .
+COPY gunicorn.conf.py .
 
 # 复制项目文件
 COPY . .
@@ -69,5 +70,5 @@ EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:80/health || exit 1
 
-# 启动命令 - 使用80端口
-CMD ["gunicorn", "--bind", "0.0.0.0:80", "--workers", "2", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-", "run:app"]
+# 启动命令 - 使用配置文件
+CMD ["gunicorn", "-c", "gunicorn.conf.py"]
