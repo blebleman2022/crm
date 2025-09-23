@@ -66,6 +66,12 @@ README.md
 # Requirements files (except the ones we need)
 # requirements-dev.txt will be copied but conditionally used
 
+# Dokploy specific ignores
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
 # Temporary files
 *.tmp
 *.temp

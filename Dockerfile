@@ -16,16 +16,19 @@ RUN apt-get update && apt-get install -y \
     sqlite3 \
     && rm -rf /var/lib/apt/lists/*
 
+# 升级pip并设置超时
+RUN pip install --upgrade pip
+
 # 复制requirements文件并安装Python依赖
-COPY requirements.txt .
+COPY requirements-minimal.txt requirements.txt
 COPY requirements-dev.txt .
 
-# 安装生产环境依赖
-RUN pip install --no-cache-dir -r requirements.txt
+# 安装生产环境依赖（增加超时和重试机制）
+RUN pip install --no-cache-dir --timeout=1000 --retries=5 -r requirements.txt
 
 # 如果是开发环境，安装开发依赖（通过构建参数控制）
 ARG INSTALL_DEV=false
-RUN if [ "$INSTALL_DEV" = "true" ] ; then pip install --no-cache-dir -r requirements-dev.txt ; fi
+RUN if [ "$INSTALL_DEV" = "true" ] ; then pip install --no-cache-dir --timeout=1000 --retries=5 -r requirements-dev.txt ; fi
 
 # 复制项目文件
 COPY . .
