@@ -1,11 +1,11 @@
 version: '3.8'
 
 services:
-  # CRM应用服务 - Dokploy优化版
+  # CRM应用服务 - Dokploy优化版（使用国内镜像）
   crm-app:
     build:
       context: .
-      dockerfile: Dockerfile.dokploy
+      dockerfile: Dockerfile.china
     container_name: educonnect-crm
     restart: unless-stopped
     ports:
