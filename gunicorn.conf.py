@@ -35,9 +35,9 @@ limit_request_field_size = 8190
 wsgi_module = "run:app"
 pythonpath = "/app"
 
-# 用户和组
-user = "appuser"
-group = "appuser"
+# 用户和组 (在本地测试时注释掉)
+# user = "appuser"
+# group = "appuser"
 
 # 临时目录
 tmp_upload_dir = None
