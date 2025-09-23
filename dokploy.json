@@ -1,0 +1,36 @@
+{
+  "name": "educonnect-crm",
+  "description": "EduConnect CRM System",
+  "image": "node:18-alpine",
+  "ports": [
+    {
+      "containerPort": 5000,
+      "hostPort": 5000,
+      "protocol": "TCP"
+    }
+  ],
+  "environment": {
+    "FLASK_ENV": "production",
+    "SECRET_KEY": "your-production-secret-key-here",
+    "DATABASE_URL": "sqlite:///instance/edu_crm.db"
+  },
+  "volumes": [
+    {
+      "hostPath": "/var/lib/dokploy/data/crm/instance",
+      "containerPath": "/app/instance"
+    },
+    {
+      "hostPath": "/var/lib/dokploy/data/crm/logs",
+      "containerPath": "/app/logs"
+    }
+  ],
+  "healthCheck": {
+    "enabled": true,
+    "path": "/auth/login",
+    "port": 5000,
+    "interval": 30,
+    "timeout": 10,
+    "retries": 3
+  },
+  "restart": "unless-stopped"
+}

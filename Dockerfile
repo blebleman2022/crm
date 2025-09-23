@@ -45,6 +45,9 @@ RUN if [ "$INSTALL_DEV" = "true" ] ; then \
     --trusted-host pypi.tuna.tsinghua.edu.cn \
     -r requirements-dev.txt ; fi
 
+# 复制启动脚本
+COPY start.sh .
+
 # 复制项目文件
 COPY . .
 
@@ -52,7 +55,7 @@ COPY . .
 RUN mkdir -p instance logs
 
 # 设置权限
-RUN chmod +x start.sh || echo "start.sh not found"
+RUN chmod +x start.sh
 
 # 创建非root用户
 RUN adduser --disabled-password --gecos '' appuser && \
@@ -66,5 +69,5 @@ EXPOSE 5000
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:5000/auth/login || exit 1
 
-# 启动命令 - 使用启动脚本
-CMD ["./start.sh"]
+# 启动命令 - 直接使用Gunicorn
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-", "run:app"]

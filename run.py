@@ -66,6 +66,27 @@ def create_app(config_name=None):
     app.register_blueprint(query_bp, url_prefix='/query')
     app.register_blueprint(consultations_bp, url_prefix='/consultations')
     
+    # 健康检查端点
+    @app.route('/health')
+    def health_check():
+        """健康检查端点"""
+        from flask import jsonify
+        try:
+            # 检查数据库连接
+            from models import db
+            db.session.execute('SELECT 1')
+            return jsonify({
+                'status': 'healthy',
+                'service': 'EduConnect CRM',
+                'version': '1.0.0',
+                'database': 'connected'
+            }), 200
+        except Exception as e:
+            return jsonify({
+                'status': 'unhealthy',
+                'error': str(e)
+            }), 500
+
     # 主页路由
     @app.route('/')
     def index():
