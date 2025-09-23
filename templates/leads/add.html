@@ -1,0 +1,457 @@
+{% extends "leads/base.html" %}
+
+{% block title %}添加线索 - EduConnect CRM{% endblock %}
+{% block page_title %}添加线索{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="mb-8">
+        <h2 class="text-3xl font-bold text-gray-900">添加新线索</h2>
+        <p class="mt-2 text-gray-600">录入新的学员线索信息，开始跟进转化流程。</p>
+    </div>
+
+    <div class="bg-white shadow rounded-lg">
+        <form method="POST" class="space-y-6 p-6">
+            <!-- 显示错误消息 -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="rounded-md p-4 {% if category == 'error' %}bg-red-50 border border-red-200{% else %}bg-green-50 border border-green-200{% endif %}">
+                            <div class="flex">
+                                <div class="flex-shrink-0">
+                                    {% if category == 'error' %}
+                                        <span class="material-symbols-outlined text-red-400">error</span>
+                                    {% else %}
+                                        <span class="material-symbols-outlined text-green-400">check_circle</span>
+                                    {% endif %}
+                                </div>
+                                <div class="ml-3">
+                                    <p class="text-sm {% if category == 'error' %}text-red-800{% else %}text-green-800{% endif %}">{{ message }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <div>
+                <label for="parent_wechat_display_name" class="block text-sm font-medium text-gray-700">家长微信名 <span class="text-red-500">*</span></label>
+                <div class="mt-1">
+                    <input type="text" name="parent_wechat_display_name" id="parent_wechat_display_name" required
+                           class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                           placeholder="请输入家长微信名">
+                </div>
+            </div>
+
+            <div>
+                <label for="parent_wechat_name" class="block text-sm font-medium text-gray-700">家长微信号 <span class="text-red-500">*</span></label>
+                <div class="mt-1">
+                    <input type="text" name="parent_wechat_name" id="parent_wechat_name" required
+                           class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                           placeholder="请输入家长微信号">
+                </div>
+            </div>
+
+
+
+            <div>
+                <label for="phone" class="block text-sm font-medium text-gray-700">联系电话</label>
+                <div class="mt-1">
+                    <input type="tel" name="phone" id="phone"
+                           class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                           placeholder="请输入11位手机号（可选）">
+                </div>
+            </div>
+
+            <div>
+                <label for="source" class="block text-sm font-medium text-gray-700">线索来源 <span class="text-red-500">*</span></label>
+                <div class="mt-1">
+                    <select name="source" id="source" required
+                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                        <option value="">请选择线索来源</option>
+                        <option value="周cc">周cc</option>
+                        <option value="李博士">李博士</option>
+                        <option value="喜顺">喜顺</option>
+                        <option value="视频号">视频号</option>
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label for="grade" class="block text-sm font-medium text-gray-700">年级 <span class="text-red-500">*</span></label>
+                <div class="mt-1">
+                    <select name="grade" id="grade" required
+                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                        <option value="">请选择年级</option>
+                        <option value="1年级">1年级</option>
+                        <option value="2年级">2年级</option>
+                        <option value="3年级">3年级</option>
+                        <option value="4年级">4年级</option>
+                        <option value="5年级">5年级</option>
+                        <option value="6年级">6年级</option>
+                        <option value="7年级">7年级</option>
+                        <option value="8年级">8年级</option>
+                        <option value="9年级">9年级</option>
+                        <option value="高一">高一</option>
+                        <option value="高二">高二</option>
+                        <option value="高三">高三</option>
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label for="assigned_sales_id" class="block text-sm font-medium text-gray-700">责任销售 <span class="text-red-500">*</span></label>
+                <div class="mt-1">
+                    <select name="assigned_sales_id" id="assigned_sales_id" required
+                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                        <option value="">请选择责任销售</option>
+                        {% for sales in sales_users %}
+                        <option value="{{ sales.id }}" {% if sales.id == current_user.id %}selected{% endif %}>{{ sales.username }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <p class="mt-2 text-sm text-gray-500">如不选择，系统将自动分配给当前用户。</p>
+            </div>
+
+            <div>
+                <label for="contact_obtained_at" class="block text-sm font-medium text-gray-700">获取联系方式时间</label>
+                <div class="mt-1">
+                    <input type="date" name="contact_obtained_at" id="contact_obtained_at"
+                           class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                </div>
+                <p class="mt-1 text-sm text-gray-500">可选，记录获取联系方式的日期</p>
+            </div>
+
+            <div>
+                <label for="meeting_at" class="block text-sm font-medium text-gray-700">线下见面时间</label>
+                <div class="mt-1">
+                    <div class="flex space-x-2">
+                        <!-- 日期选择 -->
+                        <input type="date" id="meeting_date"
+                               class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+
+                        <!-- 小时选择 -->
+                        <select id="meeting_hour"
+                                class="rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                            <option value="">时</option>
+                            <option value="08">08</option>
+                            <option value="09">09</option>
+                            <option value="10">10</option>
+                            <option value="11">11</option>
+                            <option value="12">12</option>
+                            <option value="13">13</option>
+                            <option value="14">14</option>
+                            <option value="15">15</option>
+                            <option value="16">16</option>
+                            <option value="17">17</option>
+                            <option value="18">18</option>
+                            <option value="19">19</option>
+                            <option value="20">20</option>
+                            <option value="21">21</option>
+                        </select>
+
+                        <!-- 分钟选择 -->
+                        <select id="meeting_minute"
+                                class="rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                            <option value="">分</option>
+                            <option value="00">00</option>
+                            <option value="30">30</option>
+                        </select>
+                    </div>
+                    <!-- 隐藏的输入框用于提交表单 -->
+                    <input type="hidden" name="meeting_at" id="meeting_at">
+                </div>
+                <p class="mt-1 text-sm text-gray-500">可选，记录线下见面的时间（只能选择整点或半点）</p>
+            </div>
+
+            <div id="meeting_location_div" style="display: none;">
+                <label for="meeting_location" class="block text-sm font-medium text-gray-700">见面地点</label>
+                <div class="mt-1">
+                    <select name="meeting_location" id="meeting_location"
+                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                        <option value="">请选择见面地点</option>
+                        <option value="浦东">浦东</option>
+                        <option value="浦西">浦西</option>
+                    </select>
+                </div>
+                <p class="mt-1 text-sm text-gray-500">选择线下见面的地点</p>
+            </div>
+
+            <div>
+                <label for="notes" class="block text-sm font-medium text-gray-700">备注信息</label>
+                <div class="mt-1">
+                    <textarea name="notes" id="notes" rows="4"
+                              class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                              placeholder="请输入备注信息（可选）"></textarea>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between pt-6 border-t border-gray-200">
+                <a href="{{ url_for('leads.list_leads') }}" 
+                   class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                    取消
+                </a>
+                <button type="submit"
+                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    <span class="material-symbols-outlined mr-2">add</span>
+                    确认添加
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// 等待DOM加载完成
+document.addEventListener('DOMContentLoaded', function() {
+    // 手机号格式化
+    document.getElementById('phone').addEventListener('input', function(e) {
+    let value = e.target.value.replace(/\D/g, '');
+    if (value.length > 11) {
+        value = value.slice(0, 11);
+    }
+    e.target.value = value;
+
+    // 清除之前的验证状态
+    clearPhoneValidation();
+});
+
+// 手机号失焦时检查重复
+document.getElementById('phone').addEventListener('blur', function(e) {
+    const phone = e.target.value;
+    const phoneRegex = /^1[0-9]\d{9}$/;
+
+    if (phone && phoneRegex.test(phone)) {
+        checkPhoneDuplicate(phone);
+    } else if (phone) {
+        console.log('Phone format invalid:', phone);
+    }
+});
+
+// 检查手机号重复
+function checkPhoneDuplicate(phone) {
+    fetch('/leads/check-phone', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({phone: phone})
+    })
+    .then(response => response.json())
+    .then(data => {
+        const phoneInput = document.getElementById('phone');
+        const submitBtn = document.querySelector('button[type="submit"]');
+
+        if (data.exists) {
+            showPhoneError('手机号不能重复');
+            submitBtn.disabled = true;
+            submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        } else {
+            showPhoneSuccess('手机号可用');
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+    })
+    .catch(error => {
+        console.error('检查手机号失败:', error);
+    });
+}
+
+// 显示手机号错误信息
+function showPhoneError(message) {
+    clearPhoneValidation();
+    const phoneInput = document.getElementById('phone');
+    phoneInput.classList.add('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
+
+    const errorDiv = document.createElement('div');
+    errorDiv.id = 'phone-error';
+    errorDiv.className = 'mt-1 text-sm text-red-600 flex items-center';
+    errorDiv.innerHTML = `<span class="material-symbols-outlined mr-1 text-sm">error</span>${message}`;
+    phoneInput.parentNode.appendChild(errorDiv);
+}
+
+// 显示手机号成功信息
+function showPhoneSuccess(message) {
+    clearPhoneValidation();
+    const phoneInput = document.getElementById('phone');
+    phoneInput.classList.add('border-green-500', 'focus:border-green-500', 'focus:ring-green-500');
+
+    const successDiv = document.createElement('div');
+    successDiv.id = 'phone-success';
+    successDiv.className = 'mt-1 text-sm text-green-600 flex items-center';
+    successDiv.innerHTML = `<span class="material-symbols-outlined mr-1 text-sm">check_circle</span>${message}`;
+    phoneInput.parentNode.appendChild(successDiv);
+}
+
+// 清除手机号验证状态
+function clearPhoneValidation() {
+    const phoneInput = document.getElementById('phone');
+    phoneInput.classList.remove('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
+    phoneInput.classList.remove('border-green-500', 'focus:border-green-500', 'focus:ring-green-500');
+
+    const errorDiv = document.getElementById('phone-error');
+    const successDiv = document.getElementById('phone-success');
+    if (errorDiv) errorDiv.remove();
+    if (successDiv) successDiv.remove();
+}
+
+
+
+// 家长微信号输入时清除验证状态
+document.getElementById('parent_wechat_name').addEventListener('input', function() {
+    clearWechatValidation();
+});
+
+// 清除微信号验证状态
+function clearWechatValidation() {
+    const input = document.getElementById('parent_wechat_name');
+    const existingError = document.getElementById('wechat-error');
+    const existingSuccess = document.getElementById('wechat-success');
+
+    if (existingError) existingError.remove();
+    if (existingSuccess) existingSuccess.remove();
+    input.classList.remove('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
+    input.classList.remove('border-green-500', 'focus:border-green-500', 'focus:ring-green-500');
+}
+
+// 家长微信号重复检查
+document.getElementById('parent_wechat_name').addEventListener('blur', function() {
+    const wechatName = this.value.trim();
+    if (!wechatName) {
+        clearWechatValidation();
+        return;
+    }
+
+    fetch('/leads/check-wechat', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            wechat_name: wechatName
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        const input = document.getElementById('parent_wechat_name');
+        const existingError = document.getElementById('wechat-error');
+        const existingSuccess = document.getElementById('wechat-success');
+
+        // 清除之前的状态
+        if (existingError) existingError.remove();
+        if (existingSuccess) existingSuccess.remove();
+        input.classList.remove('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
+        input.classList.remove('border-green-500', 'focus:border-green-500', 'focus:ring-green-500');
+
+        if (data.exists) {
+            // 显示错误状态
+            input.classList.add('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
+            const errorDiv = document.createElement('div');
+            errorDiv.id = 'wechat-error';
+            errorDiv.className = 'mt-1 text-sm text-red-600';
+            errorDiv.textContent = '家长微信号不能重复';
+            input.parentNode.appendChild(errorDiv);
+        } else {
+            // 微信号可用时不显示任何提示，只清除错误状态
+            input.classList.remove('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
+        }
+    })
+    .catch(error => {
+        console.error('检查微信号时出错:', error);
+    });
+});
+
+// 表单验证
+document.querySelector('form').addEventListener('submit', function(e) {
+    e.preventDefault(); // 阻止默认提交
+
+    const phone = document.getElementById('phone').value.trim();
+    const parentWechatDisplayName = document.getElementById('parent_wechat_display_name').value.trim();
+    const parentWechatName = document.getElementById('parent_wechat_name').value.trim();
+    const grade = document.getElementById('grade').value.trim();
+    const phoneRegex = /^1[0-9]\d{9}$/;
+
+    // 验证必填字段
+    if (!parentWechatDisplayName) {
+        alert('请填写家长微信名');
+        return false;
+    }
+
+    if (!parentWechatName) {
+        alert('请填写家长微信号');
+        return false;
+    }
+
+    if (!grade) {
+        alert('请选择年级');
+        return false;
+    }
+
+    // 验证手机号格式（如果填写了的话）
+    if (phone && !phoneRegex.test(phone)) {
+        showPhoneError('请输入正确的11位手机号');
+        return false;
+    }
+
+    // 检查是否有重复手机号错误
+    if (document.getElementById('phone-error')) {
+        alert('请解决手机号重复问题后再提交');
+        return false;
+    }
+
+    // 检查是否有重复微信号错误
+    if (document.getElementById('wechat-error')) {
+        alert('请解决家长微信号重复问题后再提交');
+        return false;
+    }
+
+    // 构建确认消息
+    let confirmMessage = `请确认以下信息：\n\n`;
+    confirmMessage += `家长微信名：${parentWechatDisplayName}\n`;
+    confirmMessage += `家长微信号：${parentWechatName}\n`;
+    if (phone) {
+        confirmMessage += `联系电话：${phone}\n`;
+    }
+    confirmMessage += `年级：${grade}\n`;
+    confirmMessage += `\n确认提交吗？`;
+
+    if (confirm(confirmMessage)) {
+        // 用户确认后提交表单
+        this.submit();
+    }
+});
+
+// 更新见面时间的隐藏输入框
+function updateMeetingTime() {
+    const date = document.getElementById('meeting_date').value;
+    const hour = document.getElementById('meeting_hour').value;
+    const minute = document.getElementById('meeting_minute').value;
+    const hiddenInput = document.getElementById('meeting_at');
+    const meetingLocationDiv = document.getElementById('meeting_location_div');
+    const meetingLocationSelect = document.getElementById('meeting_location');
+
+    if (date && hour && minute) {
+        // 组合完整的datetime-local格式
+        const fullDateTime = `${date}T${hour}:${minute}`;
+        hiddenInput.value = fullDateTime;
+
+        // 显示地点选项
+        meetingLocationDiv.style.display = 'block';
+    } else {
+        // 清空隐藏输入框
+        hiddenInput.value = '';
+
+        // 隐藏地点选项并清空选择
+        meetingLocationDiv.style.display = 'none';
+        meetingLocationSelect.value = '';
+    }
+}
+
+// 为所有时间选择器添加事件监听
+document.getElementById('meeting_date').addEventListener('change', updateMeetingTime);
+document.getElementById('meeting_hour').addEventListener('change', updateMeetingTime);
+document.getElementById('meeting_minute').addEventListener('change', updateMeetingTime);
+
+});
+</script>
+{% endblock %}

@@ -1,0 +1,150 @@
+{% extends "leads/base.html" %}
+
+{% block title %}线索管理仪表板 - EduConnect CRM{% endblock %}
+{% block page_title %}线索管理仪表板{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <div class="mb-8">
+        <h2 class="text-3xl font-bold text-gray-900">线索管理概览</h2>
+        <p class="mt-2 text-gray-600">欢迎回来，{{ current_user.username }}！以下是您的核心业务数据。</p>
+    </div>
+
+    <!-- 时间段选择器 -->
+    <div class="bg-white shadow rounded-lg mb-8">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">数据时间段</h3>
+        </div>
+        <div class="p-6">
+            <form method="GET" class="flex items-center space-x-4">
+                <div class="flex items-center space-x-2">
+                    <label for="start_date" class="text-sm font-medium text-gray-700">开始日期：</label>
+                    <input type="date" id="start_date" name="start_date" value="{{ start_date }}"
+                           class="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="flex items-center space-x-2">
+                    <label for="end_date" class="text-sm font-medium text-gray-700">结束日期：</label>
+                    <input type="date" id="end_date" name="end_date" value="{{ end_date }}"
+                           class="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <button type="submit"
+                        class="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    查询
+                </button>
+            </form>
+
+        </div>
+    </div>
+
+    <!-- 核心统计指标 -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <!-- 1. 合同额 -->
+        <a href="{{ url_for('leads.list_leads') }}?has_contract_amount=true&contract_date_start={{ start_date }}&contract_date_end={{ end_date }}"
+           class="bg-green-50 hover:bg-green-100 overflow-hidden shadow-sm hover:shadow-md rounded-lg transition-all duration-200 cursor-pointer block">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <span class="material-symbols-outlined text-2xl text-green-600">attach_money</span>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-600 truncate">合同额</dt>
+                            <dd class="text-lg font-medium text-gray-900">
+                                ¥{{ "{:,.0f}".format(total_contract_amount) }}
+                            </dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </a>
+
+
+
+        <!-- 2. 付款金额 -->
+        <a href="{{ url_for('leads.list_leads') }}?first_payment_date_start={{ start_date }}&first_payment_date_end={{ end_date }}"
+           class="bg-purple-50 hover:bg-purple-100 overflow-hidden shadow-sm hover:shadow-md rounded-lg transition-all duration-200 cursor-pointer block">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <span class="material-symbols-outlined text-2xl text-purple-600">payments</span>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-600 truncate">付款金额</dt>
+                            <dd class="text-lg font-medium text-gray-900">
+                                ¥{{ "{:,.0f}".format(total_payment_amount) }}
+                            </dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </a>
+
+        <!-- 3. 首笔客户数 -->
+        <a href="{{ url_for('leads.list_leads') }}?stage=首笔支付"
+           class="bg-orange-50 hover:bg-orange-100 overflow-hidden shadow-sm hover:shadow-md rounded-lg transition-all duration-200 cursor-pointer block">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <span class="material-symbols-outlined text-2xl text-orange-600">person_add</span>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-600 truncate">首笔客户数</dt>
+                            <dd class="text-lg font-medium text-gray-900">
+                                {{ first_payment_customers }}
+                            </dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </a>
+
+        <!-- 4. 付款客户数 -->
+        <a href="{{ url_for('leads.list_leads') }}?first_payment_date_start={{ start_date }}&first_payment_date_end={{ end_date }}"
+           class="bg-blue-50 hover:bg-blue-100 overflow-hidden shadow-sm hover:shadow-md rounded-lg transition-all duration-200 cursor-pointer block">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <span class="material-symbols-outlined text-2xl text-blue-600">check_circle</span>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-600 truncate">付款客户数</dt>
+                            <dd class="text-lg font-medium text-gray-900">
+                                {{ paid_customers }}
+                            </dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </a>
+
+
+    </div>
+
+
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const startDateInput = document.getElementById('start_date');
+    const endDateInput = document.getElementById('end_date');
+
+    function validateDateRange() {
+        const startDate = new Date(startDateInput.value);
+        const endDate = new Date(endDateInput.value);
+
+        if (startDate && endDate) {
+            if (endDate < startDate) {
+                alert('结束日期不能早于开始日期！');
+                endDateInput.value = startDateInput.value;
+            }
+        }
+    }
+
+    startDateInput.addEventListener('change', validateDateRange);
+    endDateInput.addEventListener('change', validateDateRange);
+});
+</script>
+{% endblock %}

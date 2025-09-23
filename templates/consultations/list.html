@@ -1,0 +1,953 @@
+{% extends "leads/base.html" %}
+
+{% block title %}约见管理列表 - EduConnect CRM{% endblock %}
+{% block page_title %}约见管理{% endblock %}
+
+{% block extra_head %}
+<style>
+.calendar-grid {
+    min-height: 600px;
+}
+
+.calendar-grid .grid {
+    display: grid;
+}
+
+.time-slot:hover {
+    background-color: #f9fafb;
+}
+
+.appointment-item {
+    font-size: 0.75rem;
+    line-height: 1rem;
+    padding: 2px 4px;
+    margin-bottom: 2px;
+    border-radius: 4px;
+    background-color: #dbeafe;
+    color: #1e40af;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.appointment-item:hover {
+    background-color: #bfdbfe;
+    transform: scale(1.02);
+}
+
+.material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white shadow rounded-lg">
+    <!-- 页面标题 -->
+    <div class="px-6 py-4 border-b border-gray-200">
+        <div class="flex items-center justify-between">
+            <div>
+                <h2 class="text-lg font-medium text-gray-900">约见管理</h2>
+                <p class="mt-1 text-sm text-gray-500">管理所有已约见的客户约见信息</p>
+            </div>
+            <div class="flex items-center gap-4">
+                <!-- 视图切换按钮 -->
+                <div class="flex bg-gray-100 rounded-lg p-1">
+                    <button id="listViewBtn" onclick="switchView('list')"
+                            class="px-3 py-1 rounded-md text-sm font-medium transition-colors text-gray-600 hover:text-gray-900">
+                        <span class="material-symbols-outlined text-sm mr-1">list</span>
+                        列表视图
+                    </button>
+                    <button id="calendarViewBtn" onclick="switchView('calendar')"
+                            class="px-3 py-1 rounded-md text-sm font-medium transition-colors bg-white text-blue-600 shadow-sm">
+                        <span class="material-symbols-outlined text-sm mr-1">calendar_month</span>
+                        日历视图
+                    </button>
+                </div>
+                <div class="text-sm text-gray-500">
+                    共 {{ consultation_data|length }} 位已约见客户
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 列表视图 -->
+    <div id="listView" class="overflow-hidden hidden">
+        {% if consultation_data %}
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            客户信息
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            约见时间
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            约见地点
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            线索来源
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            操作
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for lead in consultation_data %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 h-10 w-10">
+                                    <div class="h-10 w-10 rounded-full bg-primary-500 flex items-center justify-center">
+                                        <span class="text-sm font-medium text-white">
+                                            {{ lead.parent_wechat_display_name[0] if lead.parent_wechat_display_name else '客' }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="ml-4">
+                                    <div class="text-sm font-medium text-gray-900">
+                                        {{ lead.parent_wechat_display_name or '未知' }}
+                                    </div>
+                                    <div class="text-sm text-gray-500">
+                                        {{ lead.parent_wechat_name }}
+                                    </div>
+                                    {% if lead.contact_info %}
+                                    <div class="text-sm text-gray-500">
+                                        <i class="fas fa-phone text-xs mr-1"></i>{{ lead.contact_info }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">
+                                <button onclick="editMeetingTime({{ lead.id }}, '{{ lead.meeting_at.strftime('%Y-%m-%d') if lead.meeting_at else '' }}', '{{ lead.meeting_at.strftime('%H') if lead.meeting_at else '' }}', '{{ lead.meeting_at.strftime('%M') if lead.meeting_at else '' }}', '{{ lead.meeting_location or '' }}')"
+                                        class="inline-flex items-center px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 hover:text-blue-800 rounded-lg transition-all duration-200 cursor-pointer border border-blue-200 hover:border-blue-300">
+                                    <i class="fas fa-clock mr-2"></i>
+                                    <div class="flex flex-col items-start">
+                                        {% if lead.meeting_at %}
+                                            <span class="font-medium">{{ lead.meeting_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                                            <span class="text-xs text-blue-500 mt-0.5">
+                                                {% set weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'] %}
+                                                {{ weekdays[lead.meeting_at.weekday()] }}
+                                            </span>
+                                        {% else %}
+                                            <span>点击设置约见时间</span>
+                                        {% endif %}
+                                    </div>
+                                    <i class="fas fa-edit ml-2 text-xs opacity-70"></i>
+                                </button>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <button onclick="editMeetingTime({{ lead.id }}, '{{ lead.meeting_at.strftime('%Y-%m-%d') if lead.meeting_at else '' }}', '{{ lead.meeting_at.strftime('%H') if lead.meeting_at else '' }}', '{{ lead.meeting_at.strftime('%M') if lead.meeting_at else '' }}', '{{ lead.meeting_location or '' }}')"
+                                    class="inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 cursor-pointer border hover:shadow-sm
+                                    {% if lead.meeting_location == '浦东' %}text-blue-700 bg-blue-50 border-blue-200 hover:bg-blue-100 hover:border-blue-300{% elif lead.meeting_location == '浦西' %}text-green-700 bg-green-50 border-green-200 hover:bg-green-100 hover:border-green-300{% else %}text-gray-600 bg-gray-50 border-gray-200 hover:bg-gray-100 hover:border-gray-300{% endif %}">
+                                <i class="fas fa-map-marker-alt mr-2"></i>
+                                <span>{{ lead.meeting_location or '点击设置约见地点' }}</span>
+                                <i class="fas fa-edit ml-2 text-xs opacity-70"></i>
+                            </button>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ lead.lead_source or '未知' }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <button onclick="showConsultationDetails({{ lead.id }})"
+                                    class="text-primary-600 hover:text-primary-900">
+                                <i class="fas fa-eye mr-1"></i>约见明细
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="text-center py-12">
+                <i class="fas fa-calendar-times text-4xl text-gray-400 mb-4"></i>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">暂无约见记录</h3>
+                <p class="text-gray-500">还没有客户约见记录，请先在线索管理中添加约见时间</p>
+                <div class="mt-6">
+                    <a href="{{ url_for('leads.list_leads') }}" 
+                       class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700">
+                        <i class="fas fa-plus mr-2"></i>
+                        前往线索管理
+                    </a>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- 日历视图 -->
+    <div id="calendarView" class="p-6">
+        <div class="calendar-container">
+            <!-- 日历头部 -->
+            <div class="flex items-center justify-between mb-6">
+                <div class="flex items-center space-x-4">
+                    <button id="prevWeek" class="p-2 rounded-md hover:bg-gray-100">
+                        <span class="material-symbols-outlined">chevron_left</span>
+                    </button>
+                    <h4 id="currentWeekRange" class="text-lg font-semibold text-gray-900"></h4>
+                    <button id="nextWeek" class="p-2 rounded-md hover:bg-gray-100">
+                        <span class="material-symbols-outlined">chevron_right</span>
+                    </button>
+                </div>
+                <button id="todayBtn" class="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200">
+                    今天
+                </button>
+            </div>
+
+            <!-- 日历网格 -->
+            <div class="calendar-grid border border-gray-200 rounded-lg overflow-hidden">
+                <!-- 时间轴和日期头部 -->
+                <div class="grid grid-cols-8 bg-gray-50">
+                    <div class="p-3 text-sm font-medium text-gray-500 border-r border-gray-200">时间</div>
+                    <div id="dateHeaders" class="col-span-7 grid grid-cols-7">
+                        <!-- 日期头部将通过JavaScript动态生成 -->
+                    </div>
+                </div>
+
+                <!-- 时间段行 -->
+                <div id="timeSlots" class="divide-y divide-gray-200">
+                    <!-- 时间段将通过JavaScript动态生成 -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑约见时间和地点模态框 -->
+<div id="editMeetingModal" class="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full hidden z-50" onclick="closeMeetingModal()">
+    <div class="relative top-20 mx-auto p-0 w-96 shadow-2xl rounded-2xl bg-white" onclick="event.stopPropagation()">
+        <div class="bg-blue-600 px-6 py-4 rounded-t-2xl">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <i class="fas fa-calendar-alt text-white text-xl mr-3"></i>
+                    <h3 class="text-lg font-semibold text-white">编辑约见信息</h3>
+                </div>
+                <button onclick="closeMeetingModal()"
+                        class="p-2 text-white hover:bg-white hover:bg-opacity-20 rounded-lg transition-all duration-200">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        <div class="p-6">
+            <form id="editMeetingForm" method="POST">
+                <div class="space-y-5">
+                    <div>
+                        <label class="flex items-center text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-calendar mr-2 text-blue-500"></i>约见日期
+                        </label>
+                        <input type="date" id="edit_meeting_date" name="meeting_date"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
+                    </div>
+
+                    <div>
+                        <label class="flex items-center text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-clock mr-2 text-blue-500"></i>约见时间
+                        </label>
+                        <div class="flex space-x-3">
+                            <div class="flex-1">
+                                <select id="edit_meeting_hour" name="meeting_hour"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
+                                    <option value="">选择小时</option>
+                                    {% for hour in range(8, 22) %}
+                                    <option value="{{ '%02d'|format(hour) }}">{{ '%02d'|format(hour) }}:00</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="flex-1">
+                                <select id="edit_meeting_minute" name="meeting_minute"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
+                                    <option value="">选择分钟</option>
+                                    <option value="00">00分</option>
+                                    <option value="30">30分</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="flex items-center text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-map-marker-alt mr-2 text-green-500"></i>约见地点
+                        </label>
+                        <select id="edit_meeting_location" name="meeting_location"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors duration-200">
+                            <option value="">请选择地点</option>
+                            <option value="浦东">🏢 浦东</option>
+                            <option value="浦西">🏙️ 浦西</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="flex justify-end space-x-3 mt-6">
+                    <button type="button" onclick="closeMeetingModal()"
+                            class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 transition-colors duration-200">
+                        <i class="fas fa-times mr-2"></i>取消
+                    </button>
+                    <button type="submit"
+                            class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 transition-all duration-200">
+                        <i class="fas fa-save mr-2"></i>保存
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// 视图切换功能
+let currentView = 'calendar';
+let currentWeekStart = new Date();
+
+// 设置当前周的开始日期（周一）
+function setCurrentWeekStart() {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // 周日为0，需要特殊处理
+
+    // 使用本地时间计算，避免时区问题
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const date = today.getDate();
+
+    currentWeekStart = new Date(year, month, date + diff);
+    currentWeekStart.setHours(0, 0, 0, 0);
+}
+
+// 切换视图
+function switchView(view) {
+    currentView = view;
+    const listView = document.getElementById('listView');
+    const calendarView = document.getElementById('calendarView');
+    const listBtn = document.getElementById('listViewBtn');
+    const calendarBtn = document.getElementById('calendarViewBtn');
+
+    if (view === 'list') {
+        listView.classList.remove('hidden');
+        calendarView.classList.add('hidden');
+        listBtn.classList.add('bg-white', 'text-blue-600', 'shadow-sm');
+        listBtn.classList.remove('text-gray-600', 'hover:text-gray-900');
+        calendarBtn.classList.remove('bg-white', 'text-blue-600', 'shadow-sm');
+        calendarBtn.classList.add('text-gray-600', 'hover:text-gray-900');
+    } else {
+        listView.classList.add('hidden');
+        calendarView.classList.remove('hidden');
+        calendarBtn.classList.add('bg-white', 'text-blue-600', 'shadow-sm');
+        calendarBtn.classList.remove('text-gray-600', 'hover:text-gray-900');
+        listBtn.classList.remove('bg-white', 'text-blue-600', 'shadow-sm');
+        listBtn.classList.add('text-gray-600', 'hover:text-gray-900');
+
+        // 初始化日历
+        initCalendar();
+    }
+}
+
+// 初始化日历
+function initCalendar() {
+    setCurrentWeekStart();
+    renderCalendar();
+}
+
+// 渲染日历
+function renderCalendar() {
+    renderDateHeaders();
+    renderTimeSlots();
+    updateWeekRange();
+}
+
+// 渲染日期头部
+function renderDateHeaders() {
+    const dateHeaders = document.getElementById('dateHeaders');
+    dateHeaders.innerHTML = '';
+
+    const weekDays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+
+    for (let i = 0; i < 7; i++) {
+        const date = new Date(currentWeekStart);
+        date.setDate(currentWeekStart.getDate() + i);
+
+        const headerDiv = document.createElement('div');
+        headerDiv.className = 'p-3 text-center border-r border-gray-200 last:border-r-0';
+        headerDiv.innerHTML = `
+            <div class="text-sm font-medium text-gray-900">${weekDays[i]}</div>
+            <div class="text-xs text-gray-500">${date.getMonth() + 1}/${date.getDate()}</div>
+        `;
+        dateHeaders.appendChild(headerDiv);
+    }
+}
+
+// 渲染时间段
+function renderTimeSlots() {
+    const timeSlots = document.getElementById('timeSlots');
+    timeSlots.innerHTML = '';
+
+    // 生成8:00-21:30的时间段，每30分钟一行
+    for (let hour = 8; hour <= 21; hour++) {
+        for (let minute = 0; minute < 60; minute += 30) {
+            const timeSlotDiv = document.createElement('div');
+            timeSlotDiv.className = 'grid grid-cols-8 min-h-[50px] hover:bg-gray-50 transition-colors duration-200';
+
+            // 时间标签 - 单行显示
+            const timeLabel = document.createElement('div');
+            timeLabel.className = 'p-2 text-xs font-medium text-gray-600 border-r border-gray-200 bg-gray-100 flex items-center justify-center';
+            timeLabel.innerHTML = `
+                <span class="font-bold text-gray-800">${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}</span>
+            `;
+            timeSlotDiv.appendChild(timeLabel);
+
+            // 7天的时间格子
+            for (let day = 0; day < 7; day++) {
+                const date = new Date(currentWeekStart);
+                date.setDate(currentWeekStart.getDate() + day);
+                const isWeekend = day >= 5;
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const isToday = date.getTime() === today.getTime();
+
+                const daySlot = document.createElement('div');
+                daySlot.className = `border-r border-gray-200 last:border-r-0 p-1 cursor-pointer transition-all duration-200 relative ${
+                    isWeekend ? 'bg-orange-25 hover:bg-orange-50' : 'hover:bg-blue-50'
+                } ${isToday ? 'bg-blue-25' : ''}`;
+                daySlot.dataset.date = getDateString(day);
+                daySlot.dataset.hour = hour;
+                daySlot.dataset.minute = minute;
+
+                // 查找该时间段的约见记录
+                const appointments = findAppointmentsForTimeSlot(day, hour, minute);
+                if (appointments.length > 0) {
+                    appointments.forEach((appointment, index) => {
+                        const appointmentDiv = document.createElement('div');
+                        appointmentDiv.className = `appointment-item mb-1 p-2 rounded-lg shadow-sm cursor-pointer transform transition-all duration-300 ${
+                            appointment.location === '浦东' ?
+                            'bg-emerald-500 text-white hover:bg-emerald-600' :
+                            'bg-blue-500 text-white hover:bg-blue-600'
+                        }`;
+
+                        // 显示格式：家长微信名+地点 - 单行显示
+                        appointmentDiv.innerHTML = `
+                            <div class="text-xs font-semibold truncate">
+                                ${appointment.client} · ${appointment.location || '未知地点'}
+                            </div>
+                        `;
+
+                        appointmentDiv.title = `${appointment.time} - ${appointment.client} (${appointment.location || '未知地点'})`;
+
+                        // 添加悬浮效果
+                        appointmentDiv.addEventListener('mouseenter', function() {
+                            this.style.transform = 'translateY(-2px) scale(1.05)';
+                            this.style.boxShadow = '0 8px 25px rgba(0, 0, 0, 0.15)';
+                            this.style.zIndex = '10';
+                        });
+
+                        appointmentDiv.addEventListener('mouseleave', function() {
+                            this.style.transform = 'translateY(0) scale(1)';
+                            this.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+                            this.style.zIndex = '1';
+                        });
+
+                        // 添加点击效果
+                        appointmentDiv.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            // 点击动画效果
+                            this.style.transform = 'scale(0.95)';
+                            setTimeout(() => {
+                                this.style.transform = 'translateY(-2px) scale(1.05)';
+                                showConsultationDetails(appointment.leadId);
+                            }, 150);
+                        });
+
+                        daySlot.appendChild(appointmentDiv);
+                    });
+                } else {
+                    // 空时间段的提示
+                    const emptySlot = document.createElement('div');
+                    emptySlot.className = 'h-full flex items-center justify-center text-gray-300 text-xs opacity-0 hover:opacity-100 transition-opacity duration-200';
+                    emptySlot.innerHTML = '<span class="material-symbols-outlined text-lg">add_circle</span>';
+                    daySlot.appendChild(emptySlot);
+                }
+
+                timeSlotDiv.appendChild(daySlot);
+            }
+
+            timeSlots.appendChild(timeSlotDiv);
+        }
+    }
+}
+
+// 获取日期字符串
+function getDateString(dayOffset) {
+    // 使用本地时间计算，避免时区问题
+    const year = currentWeekStart.getFullYear();
+    const month = currentWeekStart.getMonth();
+    const date = currentWeekStart.getDate();
+
+    const targetDate = new Date(year, month, date + dayOffset);
+
+    // 格式化为YYYY-MM-DD
+    const yyyy = targetDate.getFullYear();
+    const mm = String(targetDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(targetDate.getDate()).padStart(2, '0');
+
+    return `${yyyy}-${mm}-${dd}`;
+}
+
+// 查找指定时间段的约见记录（支持30分钟精度）
+function findAppointmentsForTimeSlot(dayOffset, hour, minute) {
+    const targetDate = getDateString(dayOffset);
+    const appointments = [];
+
+    // 从页面中的约见记录数据中查找
+    {% if consultation_data %}
+    const records = [
+        {% for lead in consultation_data %}
+        {% if lead.meeting_at %}
+        {
+            leadId: {{ lead.id }},
+            time: '{{ lead.meeting_at.strftime('%Y-%m-%d %H:%M') }}',
+            client: '{{ lead.parent_wechat_display_name or '未知客户' }}',
+            location: '{{ lead.meeting_location or '' }}'
+        },
+        {% endif %}
+        {% endfor %}
+    ];
+
+    records.forEach(record => {
+        const recordDate = record.time.split(' ')[0];
+        const recordTime = record.time.split(' ')[1];
+        const recordHour = parseInt(recordTime.split(':')[0]);
+        const recordMinute = parseInt(recordTime.split(':')[1]);
+
+        // 匹配日期和时间段（30分钟为一个时间段）
+        if (recordDate === targetDate && recordHour === hour) {
+            // 检查分钟是否在当前30分钟时间段内
+            if ((minute === 0 && recordMinute >= 0 && recordMinute < 30) ||
+                (minute === 30 && recordMinute >= 30 && recordMinute < 60)) {
+                appointments.push(record);
+            }
+        }
+    });
+    {% endif %}
+
+    return appointments;
+}
+
+// 保留原有函数以兼容其他地方的调用
+function findAppointmentsForSlot(dayOffset, hour) {
+    const targetDate = getDateString(dayOffset);
+    const appointments = [];
+
+    {% if consultation_data %}
+    const records = [
+        {% for lead in consultation_data %}
+        {% if lead.meeting_at %}
+        {
+            leadId: {{ lead.id }},
+            time: '{{ lead.meeting_at.strftime('%Y-%m-%d %H:%M') }}',
+            client: '{{ lead.parent_wechat_display_name or '未知客户' }}',
+            location: '{{ lead.meeting_location or '' }}'
+        },
+        {% endif %}
+        {% endfor %}
+    ];
+
+    records.forEach(record => {
+        const recordDate = record.time.split(' ')[0];
+        const recordHour = parseInt(record.time.split(' ')[1].split(':')[0]);
+
+        if (recordDate === targetDate && recordHour === hour) {
+            appointments.push(record);
+        }
+    });
+    {% endif %}
+
+    return appointments;
+}
+
+// 更新周范围显示
+function updateWeekRange() {
+    const endDate = new Date(currentWeekStart);
+    endDate.setDate(currentWeekStart.getDate() + 6);
+
+    const startStr = `${currentWeekStart.getMonth() + 1}月${currentWeekStart.getDate()}日`;
+    const endStr = `${endDate.getMonth() + 1}月${endDate.getDate()}日`;
+
+    document.getElementById('currentWeekRange').textContent = `${startStr} - ${endStr}`;
+}
+
+// 日历导航功能
+document.addEventListener('DOMContentLoaded', function() {
+    setCurrentWeekStart();
+
+    // 默认显示日历视图
+    initCalendar();
+
+    // 添加事件监听器
+    document.getElementById('prevWeek').addEventListener('click', function() {
+        currentWeekStart.setDate(currentWeekStart.getDate() - 7);
+        renderCalendar();
+    });
+
+    document.getElementById('nextWeek').addEventListener('click', function() {
+        currentWeekStart.setDate(currentWeekStart.getDate() + 7);
+        renderCalendar();
+    });
+
+    document.getElementById('todayBtn').addEventListener('click', function() {
+        setCurrentWeekStart();
+        renderCalendar();
+    });
+});
+
+function editMeetingTime(leadId, date, hour, minute, location) {
+    document.getElementById('editMeetingForm').action = `/consultations/update_meeting_time/${leadId}`;
+    document.getElementById('edit_meeting_date').value = date || '';
+    document.getElementById('edit_meeting_hour').value = hour || '';
+    document.getElementById('edit_meeting_minute').value = minute || '';
+    document.getElementById('edit_meeting_location').value = location || '';
+    document.getElementById('editMeetingModal').classList.remove('hidden');
+}
+
+function closeMeetingModal() {
+    document.getElementById('editMeetingModal').classList.add('hidden');
+}
+
+// 点击模态框外部关闭
+document.getElementById('editMeetingModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeMeetingModal();
+    }
+});
+
+// 咨询明细相关函数
+function showConsultationDetails(leadId) {
+    // 显示加载状态
+    document.getElementById('consultationDetailsContent').innerHTML = `
+        <div class="flex items-center justify-center py-8">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+            <span class="ml-2 text-gray-600">加载中...</span>
+        </div>
+    `;
+    document.getElementById('consultationDetailsModal').classList.remove('hidden');
+
+    // 获取咨询明细数据
+    fetch(`/consultations/details_data/${leadId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                renderConsultationDetails(data.data);
+            } else {
+                document.getElementById('consultationDetailsContent').innerHTML = `
+                    <div class="text-center py-8">
+                        <i class="fas fa-exclamation-triangle text-red-500 text-2xl mb-2"></i>
+                        <p class="text-gray-600">${data.message || '获取咨询明细失败'}</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('consultationDetailsContent').innerHTML = `
+                <div class="text-center py-8">
+                    <i class="fas fa-exclamation-triangle text-red-500 text-2xl mb-2"></i>
+                    <p class="text-gray-600">网络错误，请稍后重试</p>
+                </div>
+            `;
+        });
+}
+
+function renderConsultationDetails(data) {
+    const { lead, customer, communication_records, stats } = data;
+
+    let communicationRecordsHtml = '';
+    if (communication_records && communication_records.length > 0) {
+        communicationRecordsHtml = communication_records.map(record => `
+            <div class="bg-white border border-gray-200 rounded-lg p-4 mb-3 shadow-sm">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${record.stage === '线索阶段' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}">
+                        <i class="fas ${record.stage === '线索阶段' ? 'fa-user-plus' : 'fa-user-check'} mr-1"></i>
+                        ${record.stage}
+                    </span>
+                    <span class="text-xs text-gray-500 flex items-center">
+                        <i class="fas fa-clock mr-1"></i>
+                        ${new Date(record.created_at).toLocaleString('zh-CN')}
+                    </span>
+                </div>
+                <div class="text-sm text-gray-700 leading-relaxed">
+                    ${record.content}
+                </div>
+            </div>
+        `).join('');
+    } else {
+        communicationRecordsHtml = `
+            <div class="text-center py-8 text-gray-500">
+                <i class="fas fa-inbox text-3xl mb-3 text-gray-300"></i>
+                <p class="text-lg font-medium mb-1">暂无沟通记录</p>
+                <p class="text-sm">点击下方按钮添加第一条沟通记录</p>
+            </div>
+        `;
+    }
+
+    const html = `
+        <div class="space-y-6">
+            <!-- 客户基本信息 -->
+            <div class="bg-blue-50 rounded-xl p-6 border border-blue-100">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0 h-16 w-16">
+                            <div class="h-16 w-16 rounded-full bg-blue-600 flex items-center justify-center shadow-lg">
+                                <span class="text-xl font-bold text-white">
+                                    ${lead.parent_wechat_display_name ? lead.parent_wechat_display_name[0] : '客'}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="ml-6">
+                            <h3 class="text-xl font-bold text-gray-900 mb-1">${lead.parent_wechat_display_name || '未知客户'}</h3>
+                            <div class="flex items-center text-sm text-gray-600 mb-1">
+                                <i class="fab fa-weixin text-green-500 mr-2"></i>
+                                <span>${lead.parent_wechat_name || '未知'}</span>
+                            </div>
+                            ${lead.contact_info ? `
+                                <div class="flex items-center text-sm text-gray-600">
+                                    <i class="fas fa-phone text-blue-500 mr-2"></i>
+                                    <span>${lead.contact_info}</span>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            <i class="fas fa-user-graduate mr-1"></i>
+                            ${lead.stage || '咨询中'}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-white rounded-lg p-3 shadow-sm">
+                        <div class="text-xs font-medium text-gray-500 mb-1">学员姓名</div>
+                        <div class="text-sm font-semibold text-gray-900">${lead.student_name || '未填写'}</div>
+                    </div>
+                    <div class="bg-white rounded-lg p-3 shadow-sm">
+                        <div class="text-xs font-medium text-gray-500 mb-1">年级</div>
+                        <div class="text-sm font-semibold text-gray-900">${lead.grade || '未填写'}</div>
+                    </div>
+                    <div class="bg-white rounded-lg p-3 shadow-sm">
+                        <div class="text-xs font-medium text-gray-500 mb-1">见面时间</div>
+                        <div class="text-sm font-semibold text-gray-900">
+                            ${lead.meeting_at ? (() => {
+                                const date = new Date(lead.meeting_at);
+                                const weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+                                const weekday = weekdays[date.getDay() === 0 ? 6 : date.getDay() - 1];
+                                return date.toLocaleString('zh-CN') + ' (' + weekday + ')';
+                            })() : '未设置'}
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg p-3 shadow-sm">
+                        <div class="text-xs font-medium text-gray-500 mb-1">见面地点</div>
+                        <div class="text-sm font-semibold text-gray-900">
+                            ${lead.meeting_location ? `
+                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${lead.meeting_location === '浦东' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}">
+                                    <i class="fas fa-map-marker-alt mr-1"></i>
+                                    ${lead.meeting_location}
+                                </span>
+                            ` : '未设置'}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 咨询记录 -->
+            <div class="bg-white rounded-xl border border-gray-200 shadow-sm">
+                <div class="flex items-center justify-between p-6 border-b border-gray-200">
+                    <div class="flex items-center">
+                        <i class="fas fa-comments text-blue-500 mr-3 text-lg"></i>
+                        <h4 class="text-lg font-semibold text-gray-900">沟通记录</h4>
+                        <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                            ${stats ? stats.total_count : 0} 条记录
+                        </span>
+                        ${stats && stats.lead_stage_count > 0 ? `
+                            <span class="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                线索: ${stats.lead_stage_count}
+                            </span>
+                        ` : ''}
+                        ${stats && stats.customer_stage_count > 0 ? `
+                            <span class="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                客户: ${stats.customer_stage_count}
+                            </span>
+                        ` : ''}
+                    </div>
+                    <button onclick="showAddFeedbackForm(${lead.id})"
+                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-all duration-200">
+                        <i class="fas fa-plus mr-2"></i>新增沟通记录
+                    </button>
+                </div>
+                <div class="p-6">
+                    <div class="space-y-4">
+                        ${communicationRecordsHtml}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.getElementById('consultationDetailsContent').innerHTML = html;
+}
+
+function closeConsultationDetails() {
+    document.getElementById('consultationDetailsModal').classList.add('hidden');
+    // 清空内容
+    document.getElementById('consultationDetailsContent').innerHTML = '';
+}
+
+function showAddFeedbackForm(leadId) {
+    // 隐藏咨询明细，显示添加反馈表单
+    document.getElementById('consultationDetailsContent').innerHTML = `
+        <div class="space-y-6">
+            <div class="flex items-center justify-between">
+                <h4 class="text-lg font-semibold text-gray-900">新增沟通记录</h4>
+                <button onclick="showConsultationDetails(${leadId})"
+                        class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-arrow-left mr-1"></i>返回
+                </button>
+            </div>
+
+            <form onsubmit="submitConsultationFeedback(event, ${leadId})" class="space-y-4">
+                <div>
+                    <label for="consultationContent" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-edit mr-1"></i>沟通内容
+                    </label>
+                    <textarea id="consultationContent" name="content" rows="4"
+                              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                              placeholder="请输入沟通内容或反馈信息..." required></textarea>
+                </div>
+
+                <div>
+                    <label for="consultationTime" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-clock mr-1"></i>沟通时间
+                    </label>
+                    <input type="datetime-local" id="consultationTime" name="communication_time"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                           value="${new Date().toISOString().slice(0, 16)}">
+                </div>
+
+                <div class="flex items-center justify-end space-x-3 pt-4">
+                    <button type="button" onclick="showConsultationDetails(${leadId})"
+                            class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+                        取消
+                    </button>
+                    <button type="submit"
+                            class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200">
+                        <i class="fas fa-save mr-1"></i>保存记录
+                    </button>
+                </div>
+            </form>
+        </div>
+    `;
+}
+
+function submitConsultationFeedback(event, leadId) {
+    event.preventDefault();
+
+    const formData = new FormData(event.target);
+
+    // 显示提交状态
+    const submitBtn = event.target.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>保存中...';
+    submitBtn.disabled = true;
+
+    fetch(`/consultations/add_communication/${leadId}`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => {
+        // 检查响应类型
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            return response.json();
+        } else {
+            // 如果不是JSON响应，读取文本内容
+            return response.text().then(text => {
+                throw new Error(`服务器返回了非JSON响应: ${text.substring(0, 100)}...`);
+            });
+        }
+    })
+    .then(data => {
+        if (data.success) {
+            // 成功后重新加载咨询明细
+            showConsultationDetails(leadId);
+            // 可以添加成功提示
+            showNotification('沟通记录添加成功！', 'success');
+        } else {
+            throw new Error(data.message || '添加失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('添加沟通记录失败：' + error.message, 'error');
+        // 恢复按钮状态
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    });
+}
+
+function showNotification(message, type = 'info') {
+    // 简单的通知功能
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 ${
+        type === 'success' ? 'bg-green-500 text-white' :
+        type === 'error' ? 'bg-red-500 text-white' :
+        'bg-blue-500 text-white'
+    }`;
+    notification.innerHTML = `
+        <div class="flex items-center">
+            <i class="fas ${type === 'success' ? 'fa-check' : type === 'error' ? 'fa-exclamation-triangle' : 'fa-info'} mr-2"></i>
+            ${message}
+        </div>
+    `;
+
+    document.body.appendChild(notification);
+
+    // 3秒后自动移除
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
+</script>
+
+<!-- 咨询明细模态框 -->
+<div id="consultationDetailsModal" class="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full hidden z-50" onclick="closeConsultationDetails()">
+    <div class="relative top-8 mx-auto p-0 w-11/12 max-w-5xl min-h-[80vh]" onclick="event.stopPropagation()">
+        <div class="bg-white rounded-2xl shadow-2xl overflow-hidden">
+            <!-- 模态框头部 -->
+            <div class="bg-blue-600 px-6 py-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <span class="material-symbols-outlined text-white text-2xl mr-3">account_circle</span>
+                        <h3 class="text-xl font-semibold text-white">咨询明细</h3>
+                    </div>
+                    <button onclick="closeConsultationDetails()"
+                            class="w-8 h-8 flex items-center justify-center text-white hover:bg-white hover:bg-opacity-20 rounded transition-all duration-200"
+                            title="关闭">
+                        <span class="material-symbols-outlined text-white text-lg">close</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 模态框内容 -->
+            <div class="max-h-[70vh] overflow-y-auto">
+                <div id="consultationDetailsContent" class="p-6">
+                    <!-- 内容将通过JavaScript动态加载 -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

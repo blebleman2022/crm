@@ -1,0 +1,194 @@
+{% extends "admin/base.html" %}
+
+{% block title %}用户管理 - EduConnect CRM{% endblock %}
+{% block page_title %}用户管理{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <div class="flex items-center justify-between mb-8">
+        <h2 class="text-3xl font-bold">用户账号</h2>
+        <a href="{{ url_for('admin.add_user') }}" 
+           class="flex items-center justify-center gap-2 rounded-md bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-primary-500">
+            <span class="material-symbols-outlined">add</span>
+            <span>添加账号</span>
+        </a>
+    </div>
+
+    <div class="bg-white p-6 rounded-lg shadow-sm">
+        <!-- 搜索和筛选 -->
+        <form method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="md:col-span-2">
+                <label class="sr-only" for="search">搜索</label>
+                <div class="relative">
+                    <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                        <span class="material-symbols-outlined text-gray-400">search</span>
+                    </div>
+                    <input class="block w-full rounded-md border-0 py-2.5 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-primary-600 sm:text-sm" 
+                           id="search" name="search" placeholder="搜索用户名或手机号" type="search" value="{{ search }}"/>
+                </div>
+            </div>
+            
+            <div>
+                <select class="block w-full rounded-md border-0 py-2.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-primary-600 sm:text-sm" 
+                        name="role">
+                    <option value="">所有角色</option>
+                    <option value="admin" {% if role_filter == 'admin' %}selected{% endif %}>管理员</option>
+                    <option value="sales" {% if role_filter == 'sales' %}selected{% endif %}>销售管理</option>
+                    <option value="teacher" {% if role_filter == 'teacher' %}selected{% endif %}>班主任</option>
+                </select>
+            </div>
+            
+            <div>
+                <select class="block w-full rounded-md border-0 py-2.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-primary-600 sm:text-sm" 
+                        name="group">
+                    <option value="">所有组别</option>
+                    {% for group in groups %}
+                        <option value="{{ group }}" {% if group_filter == group %}selected{% endif %}>{{ group }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <button type="submit" class="hidden">搜索</button>
+        </form>
+
+        <!-- 用户列表 -->
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">用户名</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">手机号</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">角色</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">组别</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">状态</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">创建时间</th>
+                        <th class="relative px-6 py-3">
+                            <span class="sr-only">操作</span>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 bg-white">
+                    {% for user in users.items %}
+                    <tr>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">{{ user.username }}</td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ user.phone }}</td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                            {% if user.role == 'admin' %}管理员
+                            {% elif user.role == 'sales' %}销售管理
+                            {% elif user.role == 'teacher' %}班主任
+                            {% else %}{{ user.role }}{% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ user.group_name or '-' }}</td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm">
+                            {% if user.status %}
+                                <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">启用</span>
+                            {% else %}
+                                <span class="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">禁用</span>
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ user.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td class="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
+                            <a class="text-primary-600 hover:text-primary-800 mr-3" href="{{ url_for('admin.edit_user', user_id=user.id) }}">编辑</a>
+                            {% if user.id != current_user.id %}
+                                <button onclick="toggleUserStatus({{ user.id }}, '{{ user.username }}', {{ user.status|lower }})" 
+                                        class="{% if user.status %}text-red-600 hover:text-red-800{% else %}text-green-600 hover:text-green-800{% endif %}">
+                                    {% if user.status %}禁用{% else %}启用{% endif %}
+                                </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 分页 -->
+        {% if users.pages > 1 %}
+        <div class="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-4">
+            <div class="flex flex-1 justify-between sm:hidden">
+                {% if users.has_prev %}
+                    <a href="{{ url_for('admin.users', page=users.prev_num, search=search, role=role_filter, group=group_filter) }}" 
+                       class="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">上一页</a>
+                {% endif %}
+                {% if users.has_next %}
+                    <a href="{{ url_for('admin.users', page=users.next_num, search=search, role=role_filter, group=group_filter) }}" 
+                       class="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">下一页</a>
+                {% endif %}
+            </div>
+            <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                <div>
+                    <p class="text-sm text-gray-700">
+                        显示第 <span class="font-medium">{{ (users.page - 1) * users.per_page + 1 }}</span> 到 
+                        <span class="font-medium">{{ users.page * users.per_page if users.page * users.per_page < users.total else users.total }}</span> 条，
+                        共 <span class="font-medium">{{ users.total }}</span> 条记录
+                    </p>
+                </div>
+                <div>
+                    <nav class="isolate inline-flex -space-x-px rounded-md shadow-sm">
+                        {% if users.has_prev %}
+                            <a href="{{ url_for('admin.users', page=users.prev_num, search=search, role=role_filter, group=group_filter) }}" 
+                               class="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                                <span class="material-symbols-outlined h-5 w-5">chevron_left</span>
+                            </a>
+                        {% endif %}
+                        
+                        {% for page_num in users.iter_pages() %}
+                            {% if page_num %}
+                                {% if page_num != users.page %}
+                                    <a href="{{ url_for('admin.users', page=page_num, search=search, role=role_filter, group=group_filter) }}" 
+                                       class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">{{ page_num }}</a>
+                                {% else %}
+                                    <span class="relative z-10 inline-flex items-center bg-primary-600 px-4 py-2 text-sm font-semibold text-white">{{ page_num }}</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-700 ring-1 ring-inset ring-gray-300">…</span>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if users.has_next %}
+                            <a href="{{ url_for('admin.users', page=users.next_num, search=search, role=role_filter, group=group_filter) }}" 
+                               class="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                                <span class="material-symbols-outlined h-5 w-5">chevron_right</span>
+                            </a>
+                        {% endif %}
+                    </nav>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+// 自动提交搜索表单
+document.querySelectorAll('select[name="role"], select[name="group"]').forEach(select => {
+    select.addEventListener('change', function() {
+        this.form.submit();
+    });
+});
+
+// 切换用户状态
+function toggleUserStatus(userId, username, currentStatus) {
+    const action = currentStatus ? '禁用' : '启用';
+    if (confirm(`确定要${action}用户 ${username} 吗？`)) {
+        fetch(`/admin/users/${userId}/toggle_status`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert(data.message);
+            }
+        })
+        .catch(error => {
+            alert('操作失败，请重试');
+        });
+    }
+}
+</script>
+{% endblock %}

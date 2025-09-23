@@ -1,0 +1,88 @@
+<!-- 顶部导航栏 -->
+<header class="bg-white shadow-sm border-b border-gray-200">
+    <div class="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
+        <!-- 移动端菜单按钮 -->
+        <button type="button" class="lg:hidden text-gray-500 hover:text-gray-600" onclick="toggleMobileSidebar()">
+            <span class="material-symbols-outlined">menu</span>
+        </button>
+        
+        <!-- 页面标题区域 -->
+        <div class="flex-1 lg:flex lg:items-center lg:justify-between">
+            <div class="min-w-0 flex-1">
+                <!-- 这里可以放置页面特定的标题或面包屑 -->
+            </div>
+            
+            <!-- 右侧用户菜单 -->
+            <div class="flex items-center space-x-4">
+                <!-- 通知图标 -->
+                <button type="button" class="text-gray-400 hover:text-gray-500">
+                    <span class="material-symbols-outlined">notifications</span>
+                </button>
+                
+                <!-- 用户菜单 -->
+                <div class="relative">
+                    <button type="button" class="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" 
+                            onclick="toggleUserMenu()">
+                        <span class="sr-only">打开用户菜单</span>
+                        <div class="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center">
+                            <span class="text-sm font-medium text-white">
+                                {{ current_user.username[0].upper() }}
+                            </span>
+                        </div>
+                        <span class="ml-2 text-sm font-medium text-gray-700">{{ current_user.username }}</span>
+                        <span class="ml-1 text-gray-400 material-symbols-outlined">expand_more</span>
+                    </button>
+                    
+                    <!-- 下拉菜单 -->
+                    <div class="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 hidden" 
+                         id="user-menu">
+                        <div class="px-4 py-2 text-sm text-gray-500 border-b border-gray-100">
+                            <div class="font-medium">{{ current_user.username }}</div>
+                            <div class="text-xs">
+                                {% if current_user.is_admin() %}
+                                    系统管理员
+                                {% elif current_user.is_sales() %}
+                                    销售人员
+                                {% elif current_user.is_teacher() %}
+                                    班主任
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                            个人设置
+                        </a>
+                        <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                            修改密码
+                        </a>
+                        <a href="{{ url_for('auth.logout') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                            退出登录
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+<script>
+function toggleMobileSidebar() {
+    const overlay = document.getElementById('sidebar-overlay');
+    overlay.classList.toggle('hidden');
+}
+
+function toggleUserMenu() {
+    const menu = document.getElementById('user-menu');
+    menu.classList.toggle('hidden');
+}
+
+// 点击外部关闭用户菜单
+document.addEventListener('click', function(event) {
+    const userMenu = document.getElementById('user-menu');
+    const userButton = event.target.closest('[onclick="toggleUserMenu()"]');
+    
+    if (!userButton && !userMenu.contains(event.target)) {
+        userMenu.classList.add('hidden');
+    }
+});
+</script>
