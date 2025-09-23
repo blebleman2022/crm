@@ -70,5 +70,5 @@ EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:80/health || exit 1
 
-# 启动命令 - 使用配置文件
-CMD ["gunicorn", "-c", "gunicorn.conf.py"]
+# 启动命令 - 使用启动脚本
+CMD ["./start.sh"]
