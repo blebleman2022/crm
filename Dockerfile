@@ -42,13 +42,10 @@ COPY . .
 
 # 创建必要的目录并设置权限
 RUN mkdir -p instance logs && \
-    chmod 755 instance logs && \
-    chmod +x start.sh
+    chmod 755 instance logs
 
-# 确保数据库文件权限正确
-RUN if [ -f "instance/edu_crm.db" ]; then \
-        chmod 666 instance/edu_crm.db; \
-    fi
+# 确保数据库文件权限正确（如果存在）
+RUN if [ -f "instance/edu_crm.db" ]; then chmod 666 instance/edu_crm.db; fi
 
 # 暴露开发环境端口
 EXPOSE 5000
