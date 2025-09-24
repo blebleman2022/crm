@@ -54,5 +54,5 @@ EXPOSE 5000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:5000/auth/login || exit 1
 
-# 开发环境启动命令（使用Flask开发服务器）
-CMD ["python", "run.py"]
+# 开发环境启动命令（使用简化启动脚本进行测试）
+CMD ["python", "simple_start.py"]

@@ -12,7 +12,8 @@ services:
     container_name: crm-development
     restart: unless-stopped
     ports:
-      - "5000:5000"  # 使用开发环境默认端口
+      - "5000:5000"  # 开发环境端口
+      - "80:5000"    # 生产环境端口映射
     environment:
       # 完全复制本地开发环境配置
       - FLASK_ENV=development
