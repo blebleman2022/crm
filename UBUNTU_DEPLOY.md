@@ -24,15 +24,14 @@ sudo usermod -aG docker $USER
 # 注意：添加用户组后需要重新登录才能生效
 ```
 
-3. **安装Docker Compose**
+3. **验证Docker Compose**
 ```bash
-# 下载Docker Compose
+# 新版Docker已内置Compose插件，直接验证
+docker compose version
+
+# 如果上述命令失败，则安装独立的docker-compose
 sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-
-# 设置执行权限
 sudo chmod +x /usr/local/bin/docker-compose
-
-# 验证安装
 docker-compose --version
 ```
 
@@ -74,6 +73,15 @@ mkdir -p logs
 chmod 755 logs
 ```
 
+3. **检查Docker Compose命令**
+```bash
+# 优先使用新版命令（推荐）
+docker compose version
+
+# 如果上述命令失败，使用旧版命令
+docker-compose --version
+```
+
 ### 第四步：配置环境变量（可选）
 
 1. **创建环境配置文件**
@@ -98,22 +106,30 @@ echo "SECRET_KEY=你生成的密钥" >> .env
 
 1. **构建Docker镜像**
 ```bash
-# 构建镜像（第一次运行会比较慢）
+# 新版Docker命令（推荐）
+docker compose build
+
+# 或使用旧版命令
 docker-compose build
 ```
 
 2. **启动服务**
 ```bash
-# 启动服务（后台运行）
+# 新版Docker命令（推荐）
+docker compose up -d
+
+# 或使用旧版命令
 docker-compose up -d
 ```
 
 3. **检查服务状态**
 ```bash
-# 查看容器状态
-docker-compose ps
+# 新版Docker命令（推荐）
+docker compose ps
+docker compose logs -f
 
-# 查看日志
+# 或使用旧版命令
+docker-compose ps
 docker-compose logs -f
 ```
 
@@ -149,32 +165,43 @@ sudo iptables -A INPUT -p tcp --dport 80 -j ACCEPT
 
 ### 服务管理
 ```bash
-# 启动服务
-docker-compose up -d
+# 启动服务（新版命令）
+docker compose up -d
 
-# 停止服务
-docker-compose down
+# 停止服务（新版命令）
+docker compose down
 
-# 重启服务
-docker-compose restart
+# 重启服务（新版命令）
+docker compose restart
 
-# 查看状态
-docker-compose ps
+# 查看状态（新版命令）
+docker compose ps
 
-# 查看日志
-docker-compose logs -f crm-app
+# 查看日志（新版命令）
+docker compose logs -f crm-app
+
+# 如果新版命令不可用，使用旧版命令：
+# docker-compose up -d
+# docker-compose down
+# docker-compose restart
+# docker-compose ps
+# docker-compose logs -f crm-app
 ```
 
 ### 更新部署
 ```bash
 # 1. 停止服务
-docker-compose down
+docker compose down
 
 # 2. 拉取最新代码
 git pull
 
 # 3. 重新构建并启动
-docker-compose up -d --build
+docker compose up -d --build
+
+# 旧版命令替代方案：
+# docker-compose down
+# docker-compose up -d --build
 ```
 
 ### 数据库备份
