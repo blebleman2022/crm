@@ -53,5 +53,6 @@ if [ "$FLASK_ENV" = "development" ]; then
     python run.py
 else
     echo "🚀 生产模式启动..."
-    gunicorn --bind 0.0.0.0:80 --workers 2 --timeout 120 --access-logfile - --error-logfile - run:app
+    # 使用gunicorn配置文件启动
+    gunicorn -c gunicorn.conf.py run:app
 fi

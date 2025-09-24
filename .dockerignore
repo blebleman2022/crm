@@ -47,12 +47,12 @@ ehthumbs.db
 Thumbs.db
 
 # Project specific
-instance/
+# instance/ - 注释掉，允许数据库文件被包含在镜像中
 logs/
 backups/
-*.db
-*.sqlite
-*.sqlite3
+# *.db - 注释掉，允许数据库文件被包含
+# *.sqlite - 注释掉，允许数据库文件被包含
+# *.sqlite3 - 注释掉，允许数据库文件被包含
 
 # Docker
 Dockerfile

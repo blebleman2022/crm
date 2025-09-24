@@ -52,23 +52,29 @@ COPY gunicorn.conf.py .
 # 复制项目文件
 COPY . .
 
-# 创建必要的目录
-RUN mkdir -p instance logs
+# 创建必要的目录并设置权限
+RUN mkdir -p instance logs && \
+    chmod 755 instance logs && \
+    touch instance/edu_crm.db && \
+    chmod 666 instance/edu_crm.db
 
 # 设置权限
 RUN chmod +x start.sh
 
 # 创建非root用户
 RUN adduser --disabled-password --gecos '' appuser && \
-    chown -R appuser:appuser /app
-USER appuser
+    chown -R appuser:appuser /app && \
+    chmod -R 755 /app/instance /app/logs
 
 # 暴露端口
 EXPOSE 80
 
-# 健康检查
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:80/health || exit 1
+# 健康检查 - 增加启动时间，因为Flask应用需要时间初始化
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
+    CMD curl -f http://localhost:80/health || curl -f http://localhost:80/auth/login || exit 1
+
+# 切换到非root用户
+USER appuser
 
 # 启动命令 - 使用启动脚本
 CMD ["./start.sh"]

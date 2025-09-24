@@ -35,7 +35,7 @@ limit_request_field_size = 8190
 wsgi_module = "run:app"
 pythonpath = "/app"
 
-# 用户和组 (在本地测试时注释掉)
+# 用户和组 (Docker中已经切换用户，这里不需要再设置)
 # user = "appuser"
 # group = "appuser"
 
