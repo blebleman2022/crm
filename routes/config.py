@@ -1,0 +1,156 @@
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask_login import login_required, current_user
+from functools import wraps
+from models import CompetitionName, db
+from datetime import datetime
+
+config_bp = Blueprint('config', __name__)
+
+def admin_required(f):
+    """管理员权限装饰器"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or not current_user.is_admin():
+            flash('您没有权限访问此页面', 'error')
+            return redirect(url_for('auth.login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+@config_bp.route('/competitions')
+@login_required
+@admin_required
+def competition_list():
+    """竞赛名称配置列表"""
+    page = request.args.get('page', 1, type=int)
+    search = request.args.get('search', '', type=str)
+    
+    query = CompetitionName.query
+    
+    # 搜索过滤
+    if search:
+        query = query.filter(CompetitionName.name.contains(search))
+    
+    # 分页
+    competitions = query.order_by(CompetitionName.created_at.desc()).paginate(
+        page=page, per_page=20, error_out=False
+    )
+    
+    return render_template('config/competition_list.html', 
+                         competitions=competitions, 
+                         search=search)
+
+@config_bp.route('/competitions/add', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def add_competition():
+    """添加竞赛名称"""
+    if request.method == 'POST':
+        competition_name = request.form.get('competition_name', '').strip()
+        description = request.form.get('description', '').strip()
+        
+        # 验证必填字段
+        if not competition_name:
+            flash('竞赛名称为必填项', 'error')
+            return render_template('config/add_competition.html')
+        
+        # 检查重复
+        existing = CompetitionConfig.query.filter_by(competition_name=competition_name).first()
+        if existing:
+            flash('竞赛名称已存在', 'error')
+            return render_template('config/add_competition.html')
+        
+        try:
+            competition = CompetitionConfig(
+                competition_name=competition_name,
+                description=description
+            )
+            db.session.add(competition)
+            db.session.commit()
+            
+            flash(f'竞赛名称 {competition_name} 添加成功', 'success')
+            return redirect(url_for('config.competition_list'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'添加竞赛名称失败: {str(e)}', 'error')
+    
+    return render_template('config/add_competition.html')
+
+@config_bp.route('/competitions/<int:competition_id>/edit', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def edit_competition(competition_id):
+    """编辑竞赛名称"""
+    competition = CompetitionConfig.query.get_or_404(competition_id)
+    
+    if request.method == 'POST':
+        competition_name = request.form.get('competition_name', '').strip()
+        description = request.form.get('description', '').strip()
+        
+        # 验证必填字段
+        if not competition_name:
+            flash('竞赛名称为必填项', 'error')
+            return render_template('config/edit_competition.html', competition=competition)
+        
+        # 检查重复（排除自己）
+        existing = CompetitionConfig.query.filter(
+            CompetitionConfig.competition_name == competition_name,
+            CompetitionConfig.id != competition_id
+        ).first()
+        if existing:
+            flash('竞赛名称已存在', 'error')
+            return render_template('config/edit_competition.html', competition=competition)
+        
+        try:
+            competition.competition_name = competition_name
+            competition.description = description
+            competition.updated_at = datetime.utcnow()
+            
+            db.session.commit()
+            flash(f'竞赛名称 {competition_name} 更新成功', 'success')
+            return redirect(url_for('config.competition_list'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'更新竞赛名称失败: {str(e)}', 'error')
+    
+    return render_template('config/edit_competition.html', competition=competition)
+
+@config_bp.route('/competitions/<int:competition_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def delete_competition(competition_id):
+    """删除竞赛名称"""
+    competition = CompetitionConfig.query.get_or_404(competition_id)
+    
+    try:
+        # 检查是否有关联的交付记录
+        from models import CompetitionDelivery
+        delivery_count = CompetitionDelivery.query.filter_by(competition_name=competition.competition_name).count()
+        
+        if delivery_count > 0:
+            return jsonify({
+                'success': False, 
+                'message': f'无法删除，该竞赛名称已被 {delivery_count} 个交付记录使用'
+            })
+        
+        db.session.delete(competition)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'竞赛名称 {competition.competition_name} 删除成功'
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'删除失败: {str(e)}'})
+
+@config_bp.route('/api/competitions')
+@login_required
+def api_competitions():
+    """获取竞赛名称列表API（用于下拉选择）"""
+    competitions = CompetitionConfig.query.order_by(CompetitionConfig.competition_name).all()
+    
+    return jsonify([{
+        'id': comp.id,
+        'name': comp.competition_name,
+        'description': comp.description
+    } for comp in competitions])

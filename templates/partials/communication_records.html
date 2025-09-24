@@ -1,0 +1,291 @@
+<!-- 统一沟通记录组件 -->
+<div id="communication-records-{{ lead_id }}" class="communication-records-container">
+    <!-- 沟通记录列表 -->
+    <div id="communication-records-list-{{ lead_id }}" class="space-y-4">
+        <div class="text-center py-8 text-gray-500">
+            <i class="fas fa-spinner fa-spin text-2xl mb-3"></i>
+            <p class="text-sm">正在加载沟通记录...</p>
+        </div>
+    </div>
+
+    <!-- 添加沟通记录按钮 -->
+    {% if show_add_button|default(true) %}
+    <div class="mt-6 text-center">
+        <button onclick="showAddCommunicationForm({{ lead_id }})"
+                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-all duration-200">
+            <i class="fas fa-plus mr-2"></i>新增沟通记录
+        </button>
+    </div>
+    {% endif %}
+
+    <!-- 统计信息 -->
+    <div id="communication-stats-{{ lead_id }}" class="mt-4 flex items-center justify-center space-x-4 text-sm text-gray-500">
+        <span id="total-records-{{ lead_id }}">总计: 0 条</span>
+        <span id="lead-stage-records-{{ lead_id }}">线索阶段: 0 条</span>
+        <span id="customer-stage-records-{{ lead_id }}">客户阶段: 0 条</span>
+    </div>
+</div>
+
+<!-- 添加沟通记录模态框 -->
+<div id="add-communication-modal-{{ lead_id }}" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" style="display: none;">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-900">新增沟通记录</h3>
+                <button onclick="closeCommunicationForm({{ lead_id }})" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <form id="add-communication-form-{{ lead_id }}" onsubmit="submitCommunicationRecord(event, {{ lead_id }})" class="space-y-4">
+                <div>
+                    <label for="communication-content-{{ lead_id }}" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-edit mr-1"></i>沟通内容
+                    </label>
+                    <textarea id="communication-content-{{ lead_id }}"
+                              name="content"
+                              rows="4"
+                              required
+                              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="请输入沟通内容或反馈信息..."></textarea>
+                </div>
+                
+                <div>
+                    <label for="communication-time-{{ lead_id }}" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-clock mr-1"></i>沟通时间
+                    </label>
+                    <input type="datetime-local"
+                           id="communication-time-{{ lead_id }}"
+                           name="communication_time"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button"
+                            onclick="closeCommunicationForm({{ lead_id }})"
+                            class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        取消
+                    </button>
+                    <button type="submit"
+                            class="px-4 py-2 bg-blue-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-blue-700">
+                        <i class="fas fa-save mr-1"></i>保存记录
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// 页面加载时自动加载沟通记录
+document.addEventListener('DOMContentLoaded', function() {
+    loadCommunicationRecords({{ lead_id }}, {% if customer_id %}{{ customer_id }}{% else %}null{% endif %});
+});
+
+// 加载沟通记录
+function loadCommunicationRecords(leadId, customerId = null) {
+    const container = document.getElementById(`communication-records-list-${leadId}`);
+    
+    // 构建API URL
+    let apiUrl = `/consultations/details_data/${leadId}`;
+    if (customerId) {
+        apiUrl += '?customer_only=true';
+    }
+    
+    fetch(apiUrl)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data && data.data.communication_records) {
+                const records = data.data.communication_records;
+                const stats = data.data.stats || {};
+                
+                // 更新统计信息
+                updateCommunicationStats(leadId, stats);
+                
+                if (records.length > 0) {
+                    // 按时间倒序排列
+                    records.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+                    // 创建表格形式的紧凑显示
+                    const recordsHtml = `
+                        <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                            <table class="min-w-full divide-y divide-gray-300">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">阶段</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">时间</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">沟通内容</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    ${records.map(record => `
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${record.stage === '线索阶段' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}">
+                                                    ${record.stage === '线索阶段' ? '线索' : '客户'}
+                                                </span>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
+                                                ${new Date(record.created_at).toLocaleString('zh-CN', {
+                                                    month: '2-digit',
+                                                    day: '2-digit',
+                                                    hour: '2-digit',
+                                                    minute: '2-digit'
+                                                })}
+                                            </td>
+                                            <td class="px-4 py-3 text-sm text-gray-900">
+                                                <div class="max-w-xs truncate" title="${record.content}">
+                                                    ${record.content.length > 50 ? record.content.substring(0, 50) + '...' : record.content}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+
+                    container.innerHTML = recordsHtml;
+                } else {
+                    container.innerHTML = `
+                        <div class="text-center py-8 text-gray-500">
+                            <i class="fas fa-inbox text-3xl mb-3 text-gray-300"></i>
+                            <p class="text-lg font-medium mb-1">暂无沟通记录</p>
+                            <p class="text-sm">点击下方按钮添加第一条沟通记录</p>
+                        </div>
+                    `;
+                }
+            } else {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-red-500">
+                        <i class="fas fa-exclamation-triangle text-2xl mb-3"></i>
+                        <p class="text-sm">加载沟通记录失败</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error loading communication records:', error);
+            container.innerHTML = `
+                <div class="text-center py-8 text-red-500">
+                    <i class="fas fa-exclamation-triangle text-2xl mb-3"></i>
+                    <p class="text-sm">网络错误，请稍后重试</p>
+                </div>
+            `;
+        });
+}
+
+// 更新统计信息
+function updateCommunicationStats(leadId, stats) {
+    const totalElement = document.getElementById(`total-records-${leadId}`);
+    const leadStageElement = document.getElementById(`lead-stage-records-${leadId}`);
+    const customerStageElement = document.getElementById(`customer-stage-records-${leadId}`);
+    
+    if (totalElement) totalElement.textContent = `总计: ${stats.total_count || 0} 条`;
+    if (leadStageElement) leadStageElement.textContent = `线索阶段: ${stats.lead_stage_count || 0} 条`;
+    if (customerStageElement) customerStageElement.textContent = `客户阶段: ${stats.customer_stage_count || 0} 条`;
+}
+
+// 显示添加沟通记录表单
+function showAddCommunicationForm(leadId) {
+    const modal = document.getElementById(`add-communication-modal-${leadId}`);
+    if (modal) {
+        modal.style.display = 'block';
+        
+        // 设置默认时间为当前时间
+        const timeInput = document.getElementById(`communication-time-${leadId}`);
+        if (timeInput) {
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            timeInput.value = now.toISOString().slice(0, 16);
+        }
+        
+        // 聚焦到内容输入框
+        const contentInput = document.getElementById(`communication-content-${leadId}`);
+        if (contentInput) {
+            setTimeout(() => contentInput.focus(), 100);
+        }
+    }
+}
+
+// 关闭添加沟通记录表单
+function closeCommunicationForm(leadId) {
+    const modal = document.getElementById(`add-communication-modal-${leadId}`);
+    if (modal) {
+        modal.style.display = 'none';
+        
+        // 清空表单
+        const form = document.getElementById(`add-communication-form-${leadId}`);
+        if (form) {
+            form.reset();
+        }
+    }
+}
+
+// 提交沟通记录
+function submitCommunicationRecord(event, leadId) {
+    event.preventDefault();
+    
+    const form = event.target;
+    const formData = new FormData(form);
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    
+    // 禁用提交按钮
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>保存中...';
+    submitBtn.disabled = true;
+    
+    fetch(`/consultations/add_communication/${leadId}`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 关闭表单
+            closeCommunicationForm(leadId);
+            
+            // 重新加载沟通记录
+            loadCommunicationRecords(leadId, {% if customer_id %}{{ customer_id }}{% else %}null{% endif %});
+            
+            // 显示成功提示
+            showNotification('沟通记录添加成功！', 'success');
+        } else {
+            throw new Error(data.message || '添加失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('添加沟通记录失败：' + error.message, 'error');
+    })
+    .finally(() => {
+        // 恢复按钮状态
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    });
+}
+
+// 显示通知
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    const bgColor = type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500';
+    notification.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 text-white ${bgColor}`;
+    notification.innerHTML = `
+        <div class="flex items-center">
+            <i class="fas ${type === 'success' ? 'fa-check' : type === 'error' ? 'fa-exclamation-triangle' : 'fa-info'} mr-2"></i>
+            ${message}
+        </div>
+    `;
+
+    document.body.appendChild(notification);
+
+    // 3秒后自动移除
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
+</script>

@@ -1,0 +1,841 @@
+{% extends "leads/base.html" %}
+
+{% block title %}客户管理 - EduConnect CRM{% endblock %}
+{% block page_title %}客户管理{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <div class="flex items-center justify-between mb-8">
+        <h2 class="text-3xl font-bold">成交客户</h2>
+    </div>
+
+    <div class="bg-white p-6 rounded-lg shadow-sm">
+        <!-- 搜索和筛选 -->
+        <form method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="md:col-span-2">
+                <label class="sr-only" for="search">搜索</label>
+                <div class="relative">
+                    <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                        <span class="material-symbols-outlined text-gray-400">search</span>
+                    </div>
+                    <input class="block w-full rounded-md border-0 py-2.5 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"
+                           id="search" name="search" placeholder="搜索学员姓名" type="search" value="{{ search }}"/>
+                </div>
+            </div>
+            
+            <div>
+                <select class="block w-full rounded-md border-0 py-2.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm" 
+                        name="teacher">
+                    <option value="">所有班主任</option>
+                    {% for teacher in teachers %}
+                        <option value="{{ teacher.id }}" {% if teacher_filter == teacher.id|string %}selected{% endif %}>{{ teacher.username }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div>
+                <select class="block w-full rounded-md border-0 py-2.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm" 
+                        name="award">
+                    <option value="">所有奖项要求</option>
+                    <option value="市奖" {% if award_filter == '市奖' %}selected{% endif %}>市奖</option>
+                    <option value="国奖" {% if award_filter == '国奖' %}selected{% endif %}>国奖</option>
+                </select>
+            </div>
+            
+            <button type="submit" class="hidden">搜索</button>
+        </form>
+
+        <!-- 客户列表 -->
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-24">学员姓名</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">责任销售</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">班主任</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">奖项要求</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">中高考时间</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">课程进度</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">奖项完成</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">升学陪跑</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-20">新增时间</th>
+                        <th class="relative px-6 py-3">
+                            <span class="sr-only">操作</span>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 bg-white">
+                    {% for customer in customers.items %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="whitespace-nowrap px-3 py-4 text-sm font-medium text-gray-900 w-24">
+                            <div class="flex items-center space-x-2">
+                                {% if customer.is_priority %}
+                                    <span class="material-symbols-outlined text-yellow-500 text-lg" title="重点关注客户">star</span>
+                                {% endif %}
+                                <a href="{{ url_for('customers.customer_detail', customer_id=customer.id) }}" class="text-blue-600 hover:text-blue-800">
+                                    {{ customer.lead.student_name }}
+                                </a>
+                            </div>
+                        </td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ customer.sales_user.username }}</td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                            {% if customer.teacher_user %}
+                                {{ customer.teacher_user.username }}
+                            {% else %}
+                                <button onclick="showAssignTeacherModal({{ customer.id }}, '{{ customer.lead.student_name }}')"
+                                        class="text-red-600 hover:text-red-800 cursor-pointer underline">待分配</button>
+                            {% endif %}
+                        </td>
+
+                        <td class="whitespace-nowrap px-6 py-4 text-sm">
+                            {% if customer.award_requirement == '市奖' %}
+                                <span class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">市奖</span>
+                            {% elif customer.award_requirement == '国奖' %}
+                                <span class="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">国奖</span>
+                            {% elif customer.award_requirement == '无' %}
+                                <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">无</span>
+                            {% else %}
+                                <span class="text-gray-400">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                            {% if customer.exam_year %}
+                                {{ customer.exam_year }}年
+                            {% else %}
+                                <span class="text-gray-400">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm">
+                            {% if customer.tutoring_delivery %}
+                                <div class="flex items-center">
+                                    <div class="flex-1">
+                                        <div class="text-sm font-medium text-gray-900">
+                                            {{ customer.tutoring_delivery.completed_sessions }}/{{ customer.tutoring_delivery.total_sessions }}
+                                        </div>
+                                        <div class="w-full bg-gray-200 rounded-full h-2">
+                                            {% set progress = (customer.tutoring_delivery.completed_sessions / customer.tutoring_delivery.total_sessions * 100) if customer.tutoring_delivery.total_sessions > 0 else 0 %}
+                                            <div class="bg-blue-600 h-2 rounded-full" style="width: {{ progress }}%"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <span class="text-gray-400">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm">
+                            {% if customer.competition_delivery %}
+                                {% if customer.competition_delivery.award_obtained_at %}
+                                    <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">已获奖</span>
+                                {% elif customer.competition_delivery.delivery_status in ['已报名待竞赛', '竞赛进行中', '等待竞赛结果'] %}
+                                    <span class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">已报名</span>
+                                {% else %}
+                                    <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">未报名</span>
+                                {% endif %}
+                            {% elif customer.award_requirement != '无' %}
+                                <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">未报名</span>
+                            {% else %}
+                                <span class="text-gray-400">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm">
+                            {% set service_types = customer.lead.get_service_types_list() %}
+                            {% if 'upgrade_guidance' in service_types %}
+                                <span class="inline-flex items-center rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-medium text-purple-800">包含</span>
+                            {% else %}
+                                <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">不包含</span>
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 w-20">
+                            {% if customer.converted_at %}
+                                {{ customer.converted_at.year }}/{{ customer.converted_at.month }}/{{ customer.converted_at.day }}
+                            {% else %}
+                                <span class="text-gray-400">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
+                            <button onclick="openProgressModal({{ customer.id }})" class="text-blue-600 hover:text-blue-800">进度更新</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 分页 -->
+        {% if customers.pages > 1 %}
+        <div class="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-4">
+            <div class="flex flex-1 justify-between sm:hidden">
+                {% if customers.has_prev %}
+                    <a href="{{ url_for('customers.list_customers', page=customers.prev_num, search=search, teacher=teacher_filter, award=award_filter) }}" 
+                       class="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">上一页</a>
+                {% endif %}
+                {% if customers.has_next %}
+                    <a href="{{ url_for('customers.list_customers', page=customers.next_num, search=search, teacher=teacher_filter, award=award_filter) }}" 
+                       class="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">下一页</a>
+                {% endif %}
+            </div>
+            <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                <div>
+                    <p class="text-sm text-gray-700">
+                        显示第 <span class="font-medium">{{ (customers.page - 1) * customers.per_page + 1 }}</span> 到 
+                        <span class="font-medium">{{ customers.page * customers.per_page if customers.page * customers.per_page < customers.total else customers.total }}</span> 条，
+                        共 <span class="font-medium">{{ customers.total }}</span> 条记录
+                    </p>
+                </div>
+                <div>
+                    <nav class="isolate inline-flex -space-x-px rounded-md shadow-sm">
+                        {% if customers.has_prev %}
+                            <a href="{{ url_for('customers.list_customers', page=customers.prev_num, search=search, teacher=teacher_filter, award=award_filter) }}" 
+                               class="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                                <span class="material-symbols-outlined h-5 w-5">chevron_left</span>
+                            </a>
+                        {% endif %}
+                        
+                        {% for page_num in customers.iter_pages() %}
+                            {% if page_num %}
+                                {% if page_num != customers.page %}
+                                    <a href="{{ url_for('customers.list_customers', page=page_num, search=search, teacher=teacher_filter, award=award_filter) }}" 
+                                       class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">{{ page_num }}</a>
+                                {% else %}
+                                    <span class="relative z-10 inline-flex items-center bg-blue-600 px-4 py-2 text-sm font-semibold text-white">{{ page_num }}</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-700 ring-1 ring-inset ring-gray-300">…</span>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if customers.has_next %}
+                            <a href="{{ url_for('customers.list_customers', page=customers.next_num, search=search, teacher=teacher_filter, award=award_filter) }}" 
+                               class="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                                <span class="material-symbols-outlined h-5 w-5">chevron_right</span>
+                            </a>
+                        {% endif %}
+                    </nav>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 分配班主任模态框 -->
+<div id="assignTeacherModal" class="fixed inset-0 z-50 hidden overflow-y-auto">
+    <div class="flex min-h-screen items-center justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+        <div class="inline-block transform overflow-hidden rounded-lg bg-white text-left align-bottom shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:align-middle">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <h3 class="text-lg font-medium leading-6 text-gray-900 mb-4">分配班主任</h3>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">选择班主任</label>
+                    <select id="teacherSelect" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <option value="">请选择班主任</option>
+                        {% for teacher in teachers %}
+                            <option value="{{ teacher.id }}">{{ teacher.username }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+                <button type="button" onclick="assignTeacher()" 
+                        class="inline-flex w-full justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm">
+                    确定
+                </button>
+                <button type="button" onclick="hideAssignTeacherModal()" 
+                        class="mt-3 inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:mt-0 sm:w-auto sm:text-sm">
+                    取消
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// 自动提交搜索表单
+document.querySelectorAll('select[name="teacher"], select[name="award"]').forEach(select => {
+    select.addEventListener('change', function() {
+        this.form.submit();
+    });
+});
+
+let currentCustomerId = null;
+let currentStudentName = null;
+
+// 显示分配班主任模态框
+function showAssignTeacherModal(customerId, studentName) {
+    currentCustomerId = customerId;
+    currentStudentName = studentName;
+    document.getElementById('assignTeacherModal').classList.remove('hidden');
+}
+
+// 隐藏分配班主任模态框
+function hideAssignTeacherModal() {
+    currentCustomerId = null;
+    currentStudentName = null;
+    document.getElementById('assignTeacherModal').classList.add('hidden');
+    document.getElementById('teacherSelect').value = '';
+}
+
+// 分配班主任
+function assignTeacher() {
+    const teacherId = document.getElementById('teacherSelect').value;
+    if (!teacherId) {
+        alert('请选择班主任');
+        return;
+    }
+    
+    fetch(`/customers/${currentCustomerId}/assign_teacher`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            teacher_id: parseInt(teacherId)
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            hideAssignTeacherModal();
+            location.reload();
+        } else {
+            alert(data.message);
+        }
+    })
+    .catch(error => {
+        alert('操作失败，请重试');
+    });
+}
+
+// 进度更新模态窗口功能
+function openProgressModal(customerId) {
+    // 获取客户详细信息
+    fetch(`/customers/${customerId}/progress`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const customer = data.customer;
+
+                // 设置全局变量
+                currentCustomerLeadId = customer.lead_id;
+                currentCustomerId = customerId;
+
+                // 填充表单数据
+                document.getElementById('progressCustomerId').value = customerId;
+                document.getElementById('progressStudentName').textContent = customer.student_name;
+
+                // 课程进度
+                if (customer.tutoring_delivery) {
+                    document.getElementById('totalSessions').value = customer.tutoring_delivery.total_sessions || 0;
+                    document.getElementById('completedSessions').value = customer.tutoring_delivery.completed_sessions || 0;
+                } else {
+                    document.getElementById('totalSessions').value = 0;
+                    document.getElementById('completedSessions').value = 0;
+                }
+
+                // 奖项状态
+                const awardStatus = document.getElementById('awardStatus');
+                if (customer.competition_delivery) {
+                    if (customer.competition_delivery.award_obtained_at) {
+                        awardStatus.value = '已获奖';
+                    } else if (customer.competition_delivery.delivery_status === '已报名待竞赛' ||
+                               customer.competition_delivery.delivery_status === '竞赛进行中' ||
+                               customer.competition_delivery.delivery_status === '等待竞赛结果') {
+                        awardStatus.value = '已报名';
+                    } else {
+                        awardStatus.value = '未报名';
+                    }
+                } else {
+                    awardStatus.value = '未报名';
+                }
+
+                // 设置星标状态
+                updatePriorityStarDisplay(customer.is_priority);
+
+                // 加载客户阶段沟通记录
+                loadCustomerCommunicationRecords(customer.lead_id, customerId);
+
+                // 显示模态窗口
+                document.getElementById('progressModal').classList.remove('hidden');
+            } else {
+                alert('获取客户信息失败');
+            }
+        })
+        .catch(error => {
+            alert('获取客户信息失败，请重试');
+        });
+}
+
+function closeProgressModal() {
+    document.getElementById('progressModal').classList.add('hidden');
+    // 清理全局变量
+    currentCustomerLeadId = null;
+    currentCustomerId = null;
+}
+
+function updateProgress() {
+    const customerId = document.getElementById('progressCustomerId').value;
+    const totalSessions = document.getElementById('totalSessions').value;
+    const completedSessions = document.getElementById('completedSessions').value;
+    const awardStatus = document.getElementById('awardStatus').value;
+
+    // 验证数据
+    if (parseInt(completedSessions) > parseInt(totalSessions)) {
+        alert('已完成课程数量不能大于总课程数量');
+        return;
+    }
+
+    fetch(`/customers/${customerId}/update_progress`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            total_sessions: parseInt(totalSessions),
+            completed_sessions: parseInt(completedSessions),
+            award_status: awardStatus
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            closeProgressModal();
+            location.reload();
+        } else {
+            alert(data.message);
+        }
+    })
+    .catch(error => {
+        alert('更新失败，请重试');
+    });
+}
+
+// 加载客户阶段沟通记录
+function loadCustomerCommunicationRecords(leadId, customerId) {
+    const container = document.getElementById('customerCommunicationRecords');
+    const statsContainer = document.getElementById('customerCommunicationStats');
+
+    // 显示加载状态
+    container.innerHTML = `
+        <div class="text-center text-gray-500 text-sm py-4">
+            <span class="material-symbols-outlined text-2xl mb-2 text-gray-300">hourglass_empty</span>
+            <p>加载中...</p>
+        </div>
+    `;
+
+    // 获取客户阶段沟通记录
+    fetch(`/consultations/details_data/${leadId}?customer_only=true`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data && data.data.communication_records) {
+                const records = data.data.communication_records;
+                const stats = data.data.stats || {};
+
+                // 更新统计信息
+                if (statsContainer) {
+                    statsContainer.textContent = `客户阶段: ${stats.customer_stage_count || 0} 条记录`;
+                }
+
+                if (records.length > 0) {
+                    // 按时间倒序排列
+                    records.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+                    // 创建表格形式显示
+                    const recordsHtml = `
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">时间</th>
+                                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">沟通内容</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                ${records.map(record => `
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-2 whitespace-nowrap text-xs text-gray-500">
+                                            ${new Date(record.created_at).toLocaleString('zh-CN', {
+                                                month: '2-digit',
+                                                day: '2-digit',
+                                                hour: '2-digit',
+                                                minute: '2-digit'
+                                            })}
+                                        </td>
+                                        <td class="px-3 py-2 text-sm text-gray-900">
+                                            <div class="max-w-xs" title="${record.content}">
+                                                ${record.content}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+
+                    container.innerHTML = recordsHtml;
+                } else {
+                    container.innerHTML = `
+                        <div class="text-center text-gray-500 text-sm py-8">
+                            <span class="material-symbols-outlined text-3xl mb-3 text-gray-300">inbox</span>
+                            <p class="text-lg font-medium mb-1">暂无沟通记录</p>
+                            <p class="text-sm">点击上方按钮添加第一条沟通记录</p>
+                        </div>
+                    `;
+                }
+            } else {
+                container.innerHTML = `
+                    <div class="text-center text-red-500 text-sm py-4">
+                        <span class="material-symbols-outlined mr-2">error</span>
+                        加载沟通记录失败
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error loading communication records:', error);
+            container.innerHTML = `
+                <div class="text-center text-red-500 text-sm py-4">
+                    <span class="material-symbols-outlined mr-2">error</span>
+                    网络错误，请稍后重试
+                </div>
+            `;
+        });
+}
+
+// 全局变量存储当前客户信息
+let currentCustomerLeadId = null;
+
+// 显示新增客户沟通记录表单
+function showAddCustomerCommunicationForm() {
+    const modal = document.getElementById('addCustomerCommunicationModal');
+    if (modal && currentCustomerLeadId) {
+        // 设置lead_id
+        document.getElementById('customerCommunicationLeadId').value = currentCustomerLeadId;
+
+        // 设置默认时间为当前时间
+        const timeInput = document.getElementById('customerCommunicationTime');
+        if (timeInput) {
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            timeInput.value = now.toISOString().slice(0, 16);
+        }
+
+        modal.classList.remove('hidden');
+
+        // 聚焦到内容输入框
+        const contentInput = document.getElementById('customerCommunicationContent');
+        if (contentInput) {
+            setTimeout(() => contentInput.focus(), 100);
+        }
+    }
+}
+
+// 关闭新增客户沟通记录表单
+function closeAddCustomerCommunicationModal() {
+    const modal = document.getElementById('addCustomerCommunicationModal');
+    if (modal) {
+        modal.classList.add('hidden');
+
+        // 清空表单
+        const form = document.getElementById('addCustomerCommunicationForm');
+        if (form) {
+            form.reset();
+        }
+    }
+}
+
+// 提交客户沟通记录
+function submitCustomerCommunicationRecord(event) {
+    event.preventDefault();
+
+    const form = event.target;
+    const formData = new FormData(form);
+    const leadId = document.getElementById('customerCommunicationLeadId').value;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+
+    // 禁用提交按钮
+    submitBtn.innerHTML = '<span class="material-symbols-outlined text-sm mr-1 animate-spin">hourglass_empty</span>保存中...';
+    submitBtn.disabled = true;
+
+    fetch(`/consultations/add_communication/${leadId}`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 关闭表单
+            closeAddCustomerCommunicationModal();
+
+            // 重新加载沟通记录
+            loadCustomerCommunicationRecords(leadId, currentCustomerId);
+
+            // 显示成功提示
+            showCustomerNotification('沟通记录添加成功！', 'success');
+        } else {
+            throw new Error(data.message || '添加失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showCustomerNotification('添加沟通记录失败：' + error.message, 'error');
+    })
+    .finally(() => {
+        // 恢复按钮状态
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    });
+}
+
+// 显示通知
+function showCustomerNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    const bgColor = type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500';
+    notification.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 text-white ${bgColor}`;
+    notification.innerHTML = `
+        <div class="flex items-center">
+            <span class="material-symbols-outlined mr-2">${type === 'success' ? 'check_circle' : type === 'error' ? 'error' : 'info'}</span>
+            ${message}
+        </div>
+    `;
+
+    document.body.appendChild(notification);
+
+    // 3秒后自动移除
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
+
+// 重点关注客户星标功能
+function updatePriorityStarDisplay(isPriority) {
+    const starIcon = document.getElementById('priorityStarIcon');
+    const starButton = document.getElementById('priorityStarButton');
+
+    if (isPriority) {
+        starIcon.textContent = 'star';
+        starIcon.className = 'material-symbols-outlined text-lg text-yellow-500';
+        starButton.title = '点击取消重点关注';
+    } else {
+        starIcon.textContent = 'star_border';
+        starIcon.className = 'material-symbols-outlined text-lg text-gray-300';
+        starButton.title = '点击标记为重点关注客户';
+    }
+}
+
+function togglePriorityCustomer() {
+    const customerId = document.getElementById('progressCustomerId').value;
+    const starIcon = document.getElementById('priorityStarIcon');
+    const starButton = document.getElementById('priorityStarButton');
+
+    if (!customerId) {
+        showCustomerNotification('客户ID获取失败', 'error');
+        return;
+    }
+
+    // 获取当前状态
+    const currentIsPriority = starIcon.textContent === 'star';
+    const newIsPriority = !currentIsPriority;
+
+    // 禁用按钮，显示加载状态
+    starButton.disabled = true;
+    starIcon.textContent = 'hourglass_empty';
+    starIcon.className = 'material-symbols-outlined text-lg text-gray-400 animate-spin';
+
+    // 发送请求
+    fetch(`/customers/${customerId}/toggle_priority`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+            is_priority: newIsPriority
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 更新星标显示
+            updatePriorityStarDisplay(data.is_priority);
+
+            // 显示成功提示
+            const message = data.is_priority ? '已标记为重点关注客户' : '已取消重点关注标记';
+            showCustomerNotification(message, 'success');
+
+            // 刷新页面以更新列表中的星标显示
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            throw new Error(data.message || '操作失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showCustomerNotification('操作失败：' + error.message, 'error');
+
+        // 恢复原状态
+        updatePriorityStarDisplay(currentIsPriority);
+    })
+    .finally(() => {
+        // 恢复按钮状态
+        starButton.disabled = false;
+    });
+}
+</script>
+
+<!-- 进度更新模态窗口 -->
+<div id="progressModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-medium text-gray-900">进度更新</h3>
+                <button onclick="closeProgressModal()" class="text-gray-400 hover:text-gray-600">
+                    <span class="material-icons">close</span>
+                </button>
+            </div>
+
+            <div class="mb-4">
+                <div class="flex items-center space-x-2">
+                    <p class="text-sm text-gray-600">学员：<span id="progressStudentName" class="font-medium"></span></p>
+                    <button type="button"
+                            id="priorityStarButton"
+                            onclick="togglePriorityCustomer()"
+                            class="focus:outline-none hover:scale-110 transition-transform duration-200"
+                            title="点击标记/取消重点关注客户">
+                        <span id="priorityStarIcon" class="material-symbols-outlined text-lg text-gray-300">star</span>
+                    </button>
+                </div>
+            </div>
+
+            <form onsubmit="event.preventDefault(); updateProgress();">
+                <input type="hidden" id="progressCustomerId">
+
+                <!-- 课程进度 -->
+                <div class="mb-4">
+                    <h4 class="text-sm font-medium text-gray-900 mb-2">课程进度</h4>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">总课程数量</label>
+                            <input type="number" id="totalSessions" min="0"
+                                   class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">已完成数量</label>
+                            <input type="number" id="completedSessions" min="0"
+                                   class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 奖项状态 -->
+                <div class="mb-4">
+                    <h4 class="text-sm font-medium text-gray-900 mb-2">奖项状态</h4>
+                    <select id="awardStatus" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        <option value="未报名">未报名</option>
+                        <option value="已报名">已报名</option>
+                        <option value="已获奖">已获奖</option>
+                    </select>
+                </div>
+
+
+
+                <!-- 客户阶段沟通记录 -->
+                <div class="mb-6">
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="text-sm font-medium text-gray-900">客户阶段沟通记录</h4>
+                        <button type="button" onclick="showAddCustomerCommunicationForm()"
+                                class="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                            <span class="material-symbols-outlined text-sm mr-1">add</span>
+                            新增记录
+                        </button>
+                    </div>
+
+                    <!-- 沟通记录表格 -->
+                    <div id="customerCommunicationRecords" class="max-h-60 overflow-y-auto border border-gray-200 rounded-md bg-white">
+                        <div class="text-center text-gray-500 text-sm py-4">
+                            <span class="material-symbols-outlined text-2xl mb-2 text-gray-300">hourglass_empty</span>
+                            <p>加载中...</p>
+                        </div>
+                    </div>
+
+                    <!-- 统计信息 -->
+                    <div id="customerCommunicationStats" class="mt-2 text-xs text-gray-500 text-center">
+                        客户阶段: 0 条记录
+                    </div>
+                </div>
+
+                <div class="flex justify-end space-x-3">
+                    <button type="button" onclick="closeProgressModal()"
+                            class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200">
+                        取消
+                    </button>
+                    <button type="submit"
+                            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700">
+                        保存
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 新增客户沟通记录模态框 -->
+<div id="addCustomerCommunicationModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-900">新增客户沟通记录</h3>
+                <button onclick="closeAddCustomerCommunicationModal()" class="text-gray-400 hover:text-gray-600">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+
+            <form id="addCustomerCommunicationForm" onsubmit="submitCustomerCommunicationRecord(event)" class="space-y-4">
+                <input type="hidden" id="customerCommunicationLeadId">
+
+                <div>
+                    <label for="customerCommunicationContent" class="block text-sm font-medium text-gray-700 mb-2">
+                        <span class="material-symbols-outlined text-sm mr-1">edit</span>沟通内容
+                    </label>
+                    <textarea id="customerCommunicationContent"
+                              name="content"
+                              rows="4"
+                              required
+                              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="请输入客户阶段的沟通内容或反馈信息..."></textarea>
+                </div>
+
+                <div>
+                    <label for="customerCommunicationTime" class="block text-sm font-medium text-gray-700 mb-2">
+                        <span class="material-symbols-outlined text-sm mr-1">schedule</span>沟通时间
+                    </label>
+                    <input type="datetime-local"
+                           id="customerCommunicationTime"
+                           name="communication_time"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button"
+                            onclick="closeAddCustomerCommunicationModal()"
+                            class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        取消
+                    </button>
+                    <button type="submit"
+                            class="px-4 py-2 bg-blue-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-blue-700">
+                        <span class="material-symbols-outlined text-sm mr-1">save</span>保存记录
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,244 @@
+{% extends "leads/base.html" %}
+
+{% block title %}线索列表 - EduConnect CRM{% endblock %}
+{% block page_title %}线索管理{% endblock %}
+
+{% block content %}
+<div class="max-w-full mx-auto px-4">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h2 class="text-2xl font-bold">学员线索</h2>
+            {% if filter_type and filter_period %}
+            <p class="text-sm text-gray-600 mt-1">
+                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    {{ filter_type }}
+                </span>
+                <span class="ml-2">{{ filter_period }}</span>
+                <a href="{{ url_for('leads.list_leads') }}" class="ml-2 text-blue-600 hover:text-blue-800 text-xs">
+                    清除筛选
+                </a>
+            </p>
+            {% endif %}
+        </div>
+        <a href="{{ url_for('leads.add_lead') }}"
+           class="flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">
+            <span class="material-symbols-outlined">add</span>
+            <span>添加线索</span>
+        </a>
+    </div>
+
+    <div class="bg-white p-4 rounded-lg shadow-sm">
+        <!-- 搜索和筛选 -->
+        <form method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+            <div class="md:col-span-2">
+                <label class="sr-only" for="search">搜索</label>
+                <div class="relative">
+                    <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                        <span class="material-symbols-outlined text-gray-400">search</span>
+                    </div>
+                    <input class="block w-full rounded-md border-0 py-2.5 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm" 
+                           id="search" name="search" placeholder="搜索学员姓名或家长微信名" type="search" value="{{ search }}"/>
+                </div>
+            </div>
+            
+            <div>
+                <select class="block w-full rounded-md border-0 py-2.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm" 
+                        name="stage">
+                    <option value="">所有阶段</option>
+                    {% for stage in stages %}
+                        <option value="{{ stage }}" {% if stage_filter == stage %}selected{% endif %}>{{ stage }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div>
+                <select class="block w-full rounded-md border-0 py-2.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm" 
+                        name="sales">
+                    <option value="">所有销售</option>
+                    {% for sales in sales_users %}
+                        <option value="{{ sales.id }}" {% if sales_filter == sales.id|string %}selected{% endif %}>{{ sales.username }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <button type="submit" class="hidden">搜索</button>
+        </form>
+
+        <!-- 线索列表 -->
+        <div>
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">学员姓名</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">家长微信名</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">年级</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">线索来源</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">合同金额</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">责任销售</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">线索阶段</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">最后更新</th>
+                        <th class="relative px-3 py-3">
+                            <span class="sr-only">操作</span>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 bg-white">
+                    {% for lead in leads.items %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="whitespace-nowrap px-3 py-3 text-sm font-medium text-gray-900">
+                            <a href="{{ url_for('leads.lead_detail', lead_id=lead.id) }}" class="text-blue-600 hover:text-blue-800">
+                                {{ lead.student_name or '-' }}
+                            </a>
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
+                            {% if lead.parent_wechat_display_name %}
+                                <span class="text-sm">{{ lead.parent_wechat_display_name }}</span>
+                            {% else %}
+                                <span class="text-gray-400">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
+                            {% if lead.grade %}
+                                <span class="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                                    {{ lead.grade }}
+                                </span>
+                            {% else %}
+                                <span class="text-gray-400">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
+                            {% if lead.lead_source %}
+                                <span class="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
+                                    {{ lead.lead_source }}
+                                </span>
+                            {% else %}
+                                <span class="text-gray-400">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
+                            {% if lead.contract_amount %}
+                                <span class="font-medium text-green-600">¥{{ "%.0f"|format(lead.contract_amount) }}</span>
+                            {% else %}
+                                <span class="text-gray-400">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">{{ lead.sales_user.username }}</td>
+                        <td class="whitespace-nowrap px-3 py-3 text-sm">
+                            {% if lead.stage == '获取联系方式' %}
+                                <span class="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800">{{ lead.stage }}</span>
+                            {% elif lead.stage == '线下见面' %}
+                                <span class="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">{{ lead.stage }}</span>
+                            {% elif lead.stage == '首笔支付' %}
+                                <span class="inline-flex items-center rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800">{{ lead.stage }}</span>
+                            {% elif lead.stage == '次笔支付' %}
+                                <span class="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">{{ lead.stage }}</span>
+                            {% elif lead.stage == '全款支付' %}
+                                <span class="inline-flex items-center rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800">{{ lead.stage }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">{{ lead.updated_at.strftime('%m-%d') }}</td>
+                        <td class="whitespace-nowrap px-3 py-3 text-right text-sm font-medium">
+                            <div class="flex items-center justify-end gap-2">
+                                <a class="text-blue-600 hover:text-blue-800" href="{{ url_for('leads.edit_lead', lead_id=lead.id) }}">编辑</a>
+                                {% if lead.stage in ['次笔支付', '全款支付'] and not lead.customer %}
+                                    <button onclick="convertToCustomer({{ lead.id }}, '{{ lead.student_name }}')" 
+                                            class="text-green-600 hover:text-green-800">转客户</button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 分页 -->
+        {% if leads.pages > 1 %}
+        <div class="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-4">
+            <div class="flex flex-1 justify-between sm:hidden">
+                {% if leads.has_prev %}
+                    <a href="{{ url_for('leads.list_leads', page=leads.prev_num, search=search, stage=stage_filter, sales=sales_filter) }}" 
+                       class="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">上一页</a>
+                {% endif %}
+                {% if leads.has_next %}
+                    <a href="{{ url_for('leads.list_leads', page=leads.next_num, search=search, stage=stage_filter, sales=sales_filter) }}" 
+                       class="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">下一页</a>
+                {% endif %}
+            </div>
+            <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                <div>
+                    <p class="text-sm text-gray-700">
+                        显示第 <span class="font-medium">{{ (leads.page - 1) * leads.per_page + 1 }}</span> 到 
+                        <span class="font-medium">{{ leads.page * leads.per_page if leads.page * leads.per_page < leads.total else leads.total }}</span> 条，
+                        共 <span class="font-medium">{{ leads.total }}</span> 条记录
+                    </p>
+                </div>
+                <div>
+                    <nav class="isolate inline-flex -space-x-px rounded-md shadow-sm">
+                        {% if leads.has_prev %}
+                            <a href="{{ url_for('leads.list_leads', page=leads.prev_num, search=search, stage=stage_filter, sales=sales_filter) }}" 
+                               class="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                                <span class="material-symbols-outlined h-5 w-5">chevron_left</span>
+                            </a>
+                        {% endif %}
+                        
+                        {% for page_num in leads.iter_pages() %}
+                            {% if page_num %}
+                                {% if page_num != leads.page %}
+                                    <a href="{{ url_for('leads.list_leads', page=page_num, search=search, stage=stage_filter, sales=sales_filter) }}" 
+                                       class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">{{ page_num }}</a>
+                                {% else %}
+                                    <span class="relative z-10 inline-flex items-center bg-blue-600 px-4 py-2 text-sm font-semibold text-white">{{ page_num }}</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-700 ring-1 ring-inset ring-gray-300">…</span>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if leads.has_next %}
+                            <a href="{{ url_for('leads.list_leads', page=leads.next_num, search=search, stage=stage_filter, sales=sales_filter) }}" 
+                               class="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                                <span class="material-symbols-outlined h-5 w-5">chevron_right</span>
+                            </a>
+                        {% endif %}
+                    </nav>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+// 自动提交搜索表单
+document.querySelectorAll('select[name="stage"], select[name="sales"]').forEach(select => {
+    select.addEventListener('change', function() {
+        this.form.submit();
+    });
+});
+
+// 转换为客户
+function convertToCustomer(leadId, studentName) {
+    if (confirm(`确定要将线索 ${studentName} 转换为客户吗？`)) {
+        fetch(`/leads/${leadId}/convert`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert(data.message);
+            }
+        })
+        .catch(error => {
+            alert('操作失败，请重试');
+        });
+    }
+}
+</script>
+{% endblock %}

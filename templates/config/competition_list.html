@@ -1,0 +1,150 @@
+{% extends "admin/base.html" %}
+
+{% block title %}竞赛名称配置 - EduConnect CRM{% endblock %}
+{% block page_title %}竞赛名称配置{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <div class="flex items-center justify-between mb-8">
+        <h2 class="text-3xl font-bold">竞赛名称配置</h2>
+        <a href="{{ url_for('config.add_competition') }}" 
+           class="flex items-center justify-center gap-2 rounded-md bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-primary-500">
+            <span class="material-symbols-outlined">add</span>
+            <span>添加竞赛</span>
+        </a>
+    </div>
+
+    <div class="bg-white p-6 rounded-lg shadow-sm">
+        <!-- 搜索 -->
+        <form method="GET" class="mb-6">
+            <div class="max-w-md">
+                <label class="sr-only" for="search">搜索</label>
+                <div class="relative">
+                    <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                        <span class="material-symbols-outlined text-gray-400">search</span>
+                    </div>
+                    <input class="block w-full rounded-md border-0 py-2.5 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-primary-600 sm:text-sm" 
+                           id="search" name="search" placeholder="搜索竞赛名称" type="search" value="{{ search }}"/>
+                </div>
+            </div>
+        </form>
+
+        <!-- 竞赛列表 -->
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">竞赛名称</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">描述</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">创建时间</th>
+                        <th class="relative px-6 py-3">
+                            <span class="sr-only">操作</span>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 bg-white">
+                    {% for competition in competitions.items %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
+                            {{ competition.competition_name }}
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-500">
+                            <div class="max-w-xs truncate">{{ competition.description or '-' }}</div>
+                        </td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ competition.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td class="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
+                            <div class="flex items-center justify-end gap-2">
+                                <a class="text-primary-600 hover:text-primary-800" href="{{ url_for('config.edit_competition', competition_id=competition.id) }}">编辑</a>
+                                <button onclick="deleteCompetition({{ competition.id }}, '{{ competition.competition_name }}')" 
+                                        class="text-red-600 hover:text-red-800">删除</button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 分页 -->
+        {% if competitions.pages > 1 %}
+        <div class="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-4">
+            <div class="flex flex-1 justify-between sm:hidden">
+                {% if competitions.has_prev %}
+                    <a href="{{ url_for('config.competition_list', page=competitions.prev_num, search=search) }}" 
+                       class="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">上一页</a>
+                {% endif %}
+                {% if competitions.has_next %}
+                    <a href="{{ url_for('config.competition_list', page=competitions.next_num, search=search) }}" 
+                       class="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">下一页</a>
+                {% endif %}
+            </div>
+            <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                <div>
+                    <p class="text-sm text-gray-700">
+                        显示第 <span class="font-medium">{{ (competitions.page - 1) * competitions.per_page + 1 }}</span> 到 
+                        <span class="font-medium">{{ competitions.page * competitions.per_page if competitions.page * competitions.per_page < competitions.total else competitions.total }}</span> 条，
+                        共 <span class="font-medium">{{ competitions.total }}</span> 条记录
+                    </p>
+                </div>
+                <div>
+                    <nav class="isolate inline-flex -space-x-px rounded-md shadow-sm">
+                        {% if competitions.has_prev %}
+                            <a href="{{ url_for('config.competition_list', page=competitions.prev_num, search=search) }}" 
+                               class="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                                <span class="material-symbols-outlined h-5 w-5">chevron_left</span>
+                            </a>
+                        {% endif %}
+                        
+                        {% for page_num in competitions.iter_pages() %}
+                            {% if page_num %}
+                                {% if page_num != competitions.page %}
+                                    <a href="{{ url_for('config.competition_list', page=page_num, search=search) }}" 
+                                       class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">{{ page_num }}</a>
+                                {% else %}
+                                    <span class="relative z-10 inline-flex items-center bg-primary-600 px-4 py-2 text-sm font-semibold text-white">{{ page_num }}</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-700 ring-1 ring-inset ring-gray-300">…</span>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if competitions.has_next %}
+                            <a href="{{ url_for('config.competition_list', page=competitions.next_num, search=search) }}" 
+                               class="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                                <span class="material-symbols-outlined h-5 w-5">chevron_right</span>
+                            </a>
+                        {% endif %}
+                    </nav>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+// 删除竞赛名称
+function deleteCompetition(competitionId, competitionName) {
+    if (confirm(`确定要删除竞赛名称 ${competitionName} 吗？`)) {
+        fetch(`/config/competitions/${competitionId}/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert(data.message);
+            }
+        })
+        .catch(error => {
+            alert('操作失败，请重试');
+        });
+    }
+}
+</script>
+{% endblock %}

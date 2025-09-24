@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}EduConnect CRM{% endblock %}</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Material Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .form-input:focus {
+            border-color: #177ccf;
+            box-shadow: 0 0 0 2px rgba(23, 124, 207, 0.2);
+        }
+        .error-message {
+            background-color: #fef2f2;
+            border-color: #fecaca;
+            color: #b91c1c;
+        }
+        .success-message {
+            background-color: #f0fdf4;
+            border-color: #bbf7d0;
+            color: #166534;
+        }
+        .info-message {
+            background-color: #eff6ff;
+            border-color: #bfdbfe;
+            color: #1e40af;
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="bg-slate-50">
+    {% block content %}{% endblock %}
+    
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div id="flash-messages" class="fixed top-4 right-4 z-50 space-y-2">
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} rounded-md border p-4 text-sm max-w-md
+                        {% if category == 'error' %}error-message{% endif %}
+                        {% if category == 'success' %}success-message{% endif %}
+                        {% if category == 'info' %}info-message{% endif %}">
+                        <div class="flex items-center justify-between">
+                            <p>{{ message }}</p>
+                            <button onclick="this.parentElement.parentElement.remove()" class="ml-2 text-gray-400 hover:text-gray-600">
+                                <span class="material-symbols-outlined text-sm">close</span>
+                            </button>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+            <script>
+                // 自动隐藏flash消息
+                setTimeout(function() {
+                    const flashMessages = document.getElementById('flash-messages');
+                    if (flashMessages) {
+                        flashMessages.style.opacity = '0';
+                        setTimeout(() => flashMessages.remove(), 300);
+                    }
+                }, 5000);
+            </script>
+        {% endif %}
+    {% endwith %}
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

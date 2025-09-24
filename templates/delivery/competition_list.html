@@ -1,0 +1,169 @@
+{% extends "delivery/base.html" %}
+
+{% block title %}竞赛奖项交付 - EduConnect CRM{% endblock %}
+{% block page_title %}竞赛奖项交付{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <div class="flex items-center justify-between mb-8">
+        <h2 class="text-3xl font-bold">竞赛奖项交付</h2>
+    </div>
+
+    <div class="bg-white p-6 rounded-lg shadow-sm">
+        <!-- 搜索和筛选 -->
+        <form method="GET" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="md:col-span-2">
+                <label class="sr-only" for="search">搜索</label>
+                <div class="relative">
+                    <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                        <span class="material-symbols-outlined text-gray-400">search</span>
+                    </div>
+                    <input class="block w-full rounded-md border-0 py-2.5 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-green-600 sm:text-sm" 
+                           id="search" name="search" placeholder="搜索学员姓名" type="search" value="{{ search }}"/>
+                </div>
+            </div>
+            
+            <div>
+                <select class="block w-full rounded-md border-0 py-2.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-green-600 sm:text-sm" 
+                        name="status">
+                    <option value="">所有状态</option>
+                    <option value="未报名" {% if status_filter == '未报名' %}selected{% endif %}>未报名</option>
+                    <option value="已报名待竞赛" {% if status_filter == '已报名待竞赛' %}selected{% endif %}>已报名待竞赛</option>
+                    <option value="竞赛进行中" {% if status_filter == '竞赛进行中' %}selected{% endif %}>竞赛进行中</option>
+                    <option value="等待竞赛结果" {% if status_filter == '等待竞赛结果' %}selected{% endif %}>等待竞赛结果</option>
+                    <option value="奖项已获取" {% if status_filter == '奖项已获取' %}selected{% endif %}>奖项已获取</option>
+                    <option value="服务完结" {% if status_filter == '服务完结' %}selected{% endif %}>服务完结</option>
+                </select>
+            </div>
+            
+            <button type="submit" class="hidden">搜索</button>
+        </form>
+
+        <!-- 交付列表 -->
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">学员姓名</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">联系方式</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">竞赛名称</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">交付状态</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">报名时间</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">竞赛时间</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">奖项结果</th>
+                        <th class="relative px-6 py-3">
+                            <span class="sr-only">操作</span>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 bg-white">
+                    {% for delivery in deliveries.items %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
+                            {{ delivery.customer.lead.student_name }}
+                        </td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ delivery.customer.lead.contact_info }}</td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ delivery.competition_name or '-' }}</td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm">
+                            {% if delivery.delivery_status == '未报名' %}
+                                <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">未报名</span>
+                            {% elif delivery.delivery_status == '已报名待竞赛' %}
+                                <span class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">已报名待竞赛</span>
+                            {% elif delivery.delivery_status == '竞赛进行中' %}
+                                <span class="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800">竞赛进行中</span>
+                            {% elif delivery.delivery_status == '等待竞赛结果' %}
+                                <span class="inline-flex items-center rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-medium text-purple-800">等待竞赛结果</span>
+                            {% elif delivery.delivery_status == '奖项已获取' %}
+                                <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">奖项已获取</span>
+                            {% elif delivery.delivery_status == '服务完结' %}
+                                <span class="inline-flex items-center rounded-full bg-green-200 px-2.5 py-0.5 text-xs font-medium text-green-900">服务完结</span>
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                            {% if delivery.registration_date %}
+                                {{ delivery.registration_date.strftime('%Y-%m-%d') }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                            {% if delivery.competition_date %}
+                                {{ delivery.competition_date.strftime('%Y-%m-%d') }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ delivery.award_result or '-' }}</td>
+                        <td class="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
+                            <a class="text-green-600 hover:text-green-800" href="{{ url_for('delivery.edit_competition', delivery_id=delivery.id) }}">编辑</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 分页 -->
+        {% if deliveries.pages > 1 %}
+        <div class="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-4">
+            <div class="flex flex-1 justify-between sm:hidden">
+                {% if deliveries.has_prev %}
+                    <a href="{{ url_for('delivery.competition_list', page=deliveries.prev_num, search=search, status=status_filter) }}" 
+                       class="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">上一页</a>
+                {% endif %}
+                {% if deliveries.has_next %}
+                    <a href="{{ url_for('delivery.competition_list', page=deliveries.next_num, search=search, status=status_filter) }}" 
+                       class="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">下一页</a>
+                {% endif %}
+            </div>
+            <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                <div>
+                    <p class="text-sm text-gray-700">
+                        显示第 <span class="font-medium">{{ (deliveries.page - 1) * deliveries.per_page + 1 }}</span> 到 
+                        <span class="font-medium">{{ deliveries.page * deliveries.per_page if deliveries.page * deliveries.per_page < deliveries.total else deliveries.total }}</span> 条，
+                        共 <span class="font-medium">{{ deliveries.total }}</span> 条记录
+                    </p>
+                </div>
+                <div>
+                    <nav class="isolate inline-flex -space-x-px rounded-md shadow-sm">
+                        {% if deliveries.has_prev %}
+                            <a href="{{ url_for('delivery.competition_list', page=deliveries.prev_num, search=search, status=status_filter) }}" 
+                               class="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                                <span class="material-symbols-outlined h-5 w-5">chevron_left</span>
+                            </a>
+                        {% endif %}
+                        
+                        {% for page_num in deliveries.iter_pages() %}
+                            {% if page_num %}
+                                {% if page_num != deliveries.page %}
+                                    <a href="{{ url_for('delivery.competition_list', page=page_num, search=search, status=status_filter) }}" 
+                                       class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">{{ page_num }}</a>
+                                {% else %}
+                                    <span class="relative z-10 inline-flex items-center bg-green-600 px-4 py-2 text-sm font-semibold text-white">{{ page_num }}</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-700 ring-1 ring-inset ring-gray-300">…</span>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if deliveries.has_next %}
+                            <a href="{{ url_for('delivery.competition_list', page=deliveries.next_num, search=search, status=status_filter) }}" 
+                               class="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                                <span class="material-symbols-outlined h-5 w-5">chevron_right</span>
+                            </a>
+                        {% endif %}
+                    </nav>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+// 自动提交搜索表单
+document.querySelector('select[name="status"]').addEventListener('change', function() {
+    this.form.submit();
+});
+</script>
+{% endblock %}

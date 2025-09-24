@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}管理员后台 - EduConnect CRM{% endblock %}</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Material Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        :root {
+            --primary-50: #eff6ff;
+            --primary-100: #dbeafe;
+            --primary-200: #bfdbfe;
+            --primary-300: #93c5fd;
+            --primary-400: #60a5fa;
+            --primary-500: #3b82f6;
+            --primary-600: #2563eb;
+            --primary-700: #1d4ed8;
+            --primary-800: #1e40af;
+            --primary-900: #1e3a8a;
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="bg-gray-50 text-gray-900">
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <aside class="w-64 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col">
+            <div class="h-16 flex items-center px-6 gap-3">
+                <div class="text-primary-600 size-8">
+                    <svg fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M24 45.8096C19.6865 45.8096 15.4698 44.5305 11.8832 42.134C8.29667 39.7376 5.50128 36.3314 3.85056 32.3462C2.19985 28.361 1.76794 23.9758 2.60947 19.7452C3.451 15.5145 5.52816 11.6284 8.57829 8.5783C11.6284 5.52817 15.5145 3.45101 19.7452 2.60948C23.9758 1.76795 28.361 2.19986 32.3462 3.85057C36.3314 5.50129 39.7376 8.29668 42.134 11.8833C44.5305 15.4698 45.8096 19.6865 45.8096 24L24 24L24 45.8096Z" fill="currentColor"></path>
+                    </svg>
+                </div>
+                <h1 class="text-lg font-bold">EduConnect CRM</h1>
+            </div>
+            
+            <nav class="flex-1 px-4 py-4 space-y-2">
+                <a class="flex items-center gap-3 px-4 py-2 text-sm font-medium rounded-md 
+                   {% if request.endpoint == 'admin.dashboard' %}text-white bg-primary-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}" 
+                   href="{{ url_for('admin.dashboard') }}">
+                    <span class="material-symbols-outlined text-gray-500">dashboard</span>
+                    <span>仪表板</span>
+                </a>
+                
+                <a class="flex items-center gap-3 px-4 py-2 text-sm font-medium rounded-md
+                   {% if request.endpoint in ['admin.users', 'admin.add_user', 'admin.edit_user'] %}text-white bg-primary-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}" 
+                   href="{{ url_for('admin.users') }}">
+                    <span class="material-symbols-outlined">manage_accounts</span>
+                    <span>用户管理</span>
+                </a>
+                
+                <a class="flex items-center gap-3 px-4 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100" 
+                   href="{{ url_for('admin.login_logs') }}">
+                    <span class="material-symbols-outlined text-gray-500">history</span>
+                    <span>登录日志</span>
+                </a>
+                
+                <a class="flex items-center gap-3 px-4 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100" 
+                   href="#">
+                    <span class="material-symbols-outlined text-gray-500">settings</span>
+                    <span>系统设置</span>
+                </a>
+            </nav>
+        </aside>
+
+        <div class="flex-1 flex flex-col">
+            <!-- Header -->
+            <header class="h-16 flex items-center justify-between px-6 border-b border-gray-200 bg-white">
+                <div class="flex items-center">
+                    <h2 class="text-xl font-semibold text-gray-900">{% block page_title %}管理员后台{% endblock %}</h2>
+                </div>
+                <div class="flex items-center gap-4">
+                    <button class="relative">
+                        <span class="material-symbols-outlined text-gray-600">notifications</span>
+                        <span class="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
+                    </button>
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm text-gray-700">{{ current_user.username }}</span>
+                        <a href="{{ url_for('auth.logout') }}" class="text-sm text-gray-500 hover:text-gray-700">退出</a>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Main Content -->
+            <main class="flex-1 p-8 overflow-y-auto">
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div id="flash-messages" class="fixed top-4 right-4 z-50 space-y-2">
+                {% for category, message in messages %}
+                    <div class="alert rounded-md border p-4 text-sm max-w-md
+                        {% if category == 'error' %}bg-red-50 border-red-200 text-red-800{% endif %}
+                        {% if category == 'success' %}bg-green-50 border-green-200 text-green-800{% endif %}
+                        {% if category == 'info' %}bg-blue-50 border-blue-200 text-blue-800{% endif %}">
+                        <div class="flex items-center justify-between">
+                            <p>{{ message }}</p>
+                            <button onclick="this.parentElement.parentElement.remove()" class="ml-2 text-gray-400 hover:text-gray-600">
+                                <span class="material-symbols-outlined text-sm">close</span>
+                            </button>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+            <script>
+                setTimeout(function() {
+                    const flashMessages = document.getElementById('flash-messages');
+                    if (flashMessages) {
+                        flashMessages.style.opacity = '0';
+                        setTimeout(() => flashMessages.remove(), 300);
+                    }
+                }, 5000);
+            </script>
+        {% endif %}
+    {% endwith %}
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

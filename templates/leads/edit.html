@@ -1,0 +1,935 @@
+{% extends "leads/base.html" %}
+
+{% block title %}编辑线索 - EduConnect CRM{% endblock %}
+{% block page_title %}编辑线索{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="mb-8">
+        <div class="flex items-center justify-between">
+            <div>
+                <h2 class="text-3xl font-bold text-gray-900">编辑线索</h2>
+                <p class="mt-2 text-gray-600">修改学员线索信息和跟进状态</p>
+            </div>
+            <a href="{{ url_for('leads.list_leads') }}" 
+               class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                <span class="material-symbols-outlined mr-2">arrow_back</span>
+                返回列表
+            </a>
+        </div>
+    </div>
+
+    <!-- 表单 -->
+    <div class="bg-white shadow rounded-lg">
+        <form method="POST" class="space-y-6 p-6">
+            <!-- 显示错误消息 -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="rounded-md p-4 {% if category == 'error' %}bg-red-50 border border-red-200{% else %}bg-green-50 border border-green-200{% endif %}">
+                            <div class="flex">
+                                <div class="flex-shrink-0">
+                                    {% if category == 'error' %}
+                                        <span class="material-symbols-outlined text-red-400">error</span>
+                                    {% else %}
+                                        <span class="material-symbols-outlined text-green-400">check_circle</span>
+                                    {% endif %}
+                                </div>
+                                <div class="ml-3">
+                                    <p class="text-sm {% if category == 'error' %}text-red-800{% else %}text-green-800{% endif %}">{{ message }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <!-- 基本信息 -->
+            <div class="border-b border-gray-200 pb-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">基本信息</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="parent_wechat_display_name" class="block text-sm font-medium text-gray-700 mb-2">
+                            家长微信名
+                            {% if is_field_locked(lead.parent_wechat_display_name) %}
+                            <span class="text-sm text-gray-500">(已锁定，无法修改)</span>
+                            {% endif %}
+                        </label>
+                        <input type="text"
+                               id="parent_wechat_display_name"
+                               name="parent_wechat_display_name"
+                               value="{{ lead.parent_wechat_display_name or '' }}"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm {% if is_field_locked(lead.parent_wechat_display_name) %}bg-gray-100 cursor-not-allowed{% else %}focus:outline-none focus:ring-primary-500 focus:border-primary-500{% endif %}"
+                               placeholder="请输入家长微信名"
+                               {% if is_field_locked(lead.parent_wechat_display_name) %}readonly{% endif %}>
+                        {% if is_field_locked(lead.parent_wechat_display_name) %}
+                        <p class="mt-1 text-sm text-gray-500">家长微信名已锁定，如需修改请联系管理员</p>
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        <label for="parent_wechat_name" class="block text-sm font-medium text-gray-700 mb-2">
+                            家长微信号 <span class="text-red-500">*</span>
+                            {% if is_field_locked(lead.parent_wechat_name) %}
+                            <span class="text-sm text-gray-500">(已锁定，无法修改)</span>
+                            {% endif %}
+                        </label>
+                        <input type="text"
+                               id="parent_wechat_name"
+                               name="parent_wechat_name"
+                               value="{{ lead.parent_wechat_name }}"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm {% if is_field_locked(lead.parent_wechat_name) %}bg-gray-100 cursor-not-allowed{% else %}focus:outline-none focus:ring-primary-500 focus:border-primary-500{% endif %}"
+                               {% if is_field_locked(lead.parent_wechat_name) %}readonly{% endif %}
+                               required>
+                        {% if is_field_locked(lead.parent_wechat_name) %}
+                        <p class="mt-1 text-sm text-gray-500">家长微信号已锁定，如需修改请联系管理员</p>
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        <label for="student_name" class="block text-sm font-medium text-gray-700 mb-2">
+                            学员姓名
+                            {% if is_field_locked(lead.student_name) %}
+                            <span class="text-sm text-gray-500">(已锁定，无法修改)</span>
+                            {% endif %}
+                        </label>
+                        <input type="text"
+                               id="student_name"
+                               name="student_name"
+                               value="{{ lead.student_name or '' }}"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm {% if is_field_locked(lead.student_name) %}bg-gray-100 cursor-not-allowed{% else %}focus:outline-none focus:ring-primary-500 focus:border-primary-500{% endif %}"
+                               {% if is_field_locked(lead.student_name) %}readonly{% endif %}
+                               placeholder="请输入学员姓名（可选）">
+                        {% if is_field_locked(lead.student_name) %}
+                        <p class="mt-1 text-sm text-gray-500">学员姓名已锁定，如需修改请联系管理员</p>
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        <label for="contact_info" class="block text-sm font-medium text-gray-700 mb-2">
+                            联系电话
+                            {% if lead.contact_info and lead.contact_locked %}
+                            <span class="text-sm text-gray-500">(已锁定，无法修改)</span>
+                            {% endif %}
+                        </label>
+                        <input type="tel"
+                               id="contact_info"
+                               name="contact_info"
+                               value="{{ lead.contact_info or '' }}"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm {% if lead.contact_info and lead.contact_locked %}bg-gray-100 cursor-not-allowed{% else %}focus:outline-none focus:ring-primary-500 focus:border-primary-500{% endif %}"
+                               {% if lead.contact_info and lead.contact_locked %}readonly{% endif %}
+                               placeholder="请输入联系电话（可选）">
+                        {% if lead.contact_info and lead.contact_locked %}
+                        <p class="mt-1 text-sm text-gray-500">联系方式已锁定，如需修改请联系管理员</p>
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        <label for="lead_source" class="block text-sm font-medium text-gray-700 mb-2">
+                            线索来源
+                            {% if not is_field_locked(lead.lead_source) %}<span class="text-red-500">*</span>{% endif %}
+                            {% if is_field_locked(lead.lead_source) %}
+                            <span class="text-sm text-gray-500">(已锁定，无法修改)</span>
+                            {% endif %}
+                        </label>
+                        <select id="lead_source"
+                                name="lead_source"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm {% if is_field_locked(lead.lead_source) %}bg-gray-100 cursor-not-allowed{% else %}focus:outline-none focus:ring-primary-500 focus:border-primary-500{% endif %}"
+                                {% if not is_field_locked(lead.lead_source) %}required{% endif %}
+                                {% if is_field_locked(lead.lead_source) %}disabled{% endif %}>
+                            <option value="">请选择线索来源</option>
+                            <option value="周cc" {% if lead.lead_source == '周cc' %}selected{% endif %}>周cc</option>
+                            <option value="李博士" {% if lead.lead_source == '李博士' %}selected{% endif %}>李博士</option>
+                            <option value="喜顺" {% if lead.lead_source == '喜顺' %}selected{% endif %}>喜顺</option>
+                            <option value="视频号" {% if lead.lead_source == '视频号' %}selected{% endif %}>视频号</option>
+                        </select>
+                        {% if is_field_locked(lead.lead_source) %}
+                        <p class="mt-1 text-sm text-gray-500">线索来源已锁定，如需修改请联系管理员</p>
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        <label for="sales_user_id" class="block text-sm font-medium text-gray-700 mb-2">
+                            责任销售
+                            {% if not is_field_locked(lead.sales_user_id) %}<span class="text-red-500">*</span>{% endif %}
+                            {% if is_field_locked(lead.sales_user_id) %}
+                            <span class="text-sm text-gray-500">(已锁定，无法修改)</span>
+                            {% endif %}
+                        </label>
+                        <select id="sales_user_id"
+                                name="sales_user_id"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm {% if is_field_locked(lead.sales_user_id) %}bg-gray-100 cursor-not-allowed{% else %}focus:outline-none focus:ring-primary-500 focus:border-primary-500{% endif %}"
+                                {% if not is_field_locked(lead.sales_user_id) %}required{% endif %}
+                                {% if is_field_locked(lead.sales_user_id) %}disabled{% endif %}>
+                            <option value="">请选择销售</option>
+                            {% for user in sales_users %}
+                                <option value="{{ user.id }}" {% if user.id == lead.sales_user_id %}selected{% endif %}>{{ user.username }}</option>
+                            {% endfor %}
+                        </select>
+                        {% if is_field_locked(lead.sales_user_id) %}
+                        <p class="mt-1 text-sm text-gray-500">责任销售已锁定，如需修改请联系管理员</p>
+                        {% endif %}
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- 服务内容 -->
+            <div class="border-b border-gray-200 pb-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">服务内容</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-3">服务类型 <span class="text-red-500">*</span></label>
+                        {% set service_types = lead.get_service_types_list() %}
+                        <div class="space-y-2">
+                            <div class="flex items-center">
+                                <input type="checkbox" name="service_types" value="tutoring" id="service_tutoring"
+                                       class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                                       {% if 'tutoring' in service_types %}checked{% endif %}>
+                                <label for="service_tutoring" class="ml-2 text-sm text-gray-700">课题辅导</label>
+                            </div>
+                            <div class="flex items-center">
+                                <input type="checkbox" name="service_types" value="competition" id="service_competition"
+                                       class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                                       {% if 'competition' in service_types %}checked{% endif %}>
+                                <label for="service_competition" class="ml-2 text-sm text-gray-700">竞赛辅导</label>
+                            </div>
+                            <div class="flex items-center">
+                                <input type="checkbox" name="service_types" value="upgrade_guidance" id="service_upgrade"
+                                       class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                                       {% if 'upgrade_guidance' in service_types %}checked{% endif %}>
+                                <label for="service_upgrade" class="ml-2 text-sm text-gray-700">升学陪跑</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="competition_award_div" style="display: none;">
+                        <label for="competition_award_level" class="block text-sm font-medium text-gray-700 mb-2">
+                            竞赛奖项等级 <span class="text-red-500">*</span>
+                        </label>
+                        <select id="competition_award_level"
+                                name="competition_award_level"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500">
+                            <option value="">请选择奖项等级</option>
+                            <option value="市奖" {% if lead.competition_award_level == '市奖' %}selected{% endif %}>市奖</option>
+                            <option value="国奖" {% if lead.competition_award_level == '国奖' %}selected{% endif %}>国奖</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 额外要求 -->
+                <div class="mt-6">
+                    <label for="additional_requirements" class="block text-sm font-medium text-gray-700 mb-2">
+                        额外要求
+                    </label>
+                    <textarea id="additional_requirements"
+                              name="additional_requirements"
+                              rows="3"
+                              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                              placeholder="请输入额外要求（可选）">{{ lead.additional_requirements or '' }}</textarea>
+                    <p class="mt-1 text-sm text-gray-500">可选，记录客户的特殊需求或额外要求</p>
+                </div>
+
+
+            </div>
+
+
+
+            <!-- 线索状态 -->
+            <div class="border-b border-gray-200 pb-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">线索状态</h3>
+
+                <!-- 阶段时间记录 -->
+                <div class="mt-6">
+                    <h4 class="text-md font-medium text-gray-900 mb-4">阶段时间记录</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="contact_obtained_at" class="block text-sm font-medium text-gray-700 mb-2">
+                                获取联系方式时间
+                            </label>
+                            <input type="date"
+                                   id="contact_obtained_at"
+                                   name="contact_obtained_at"
+                                   value="{{ lead.contact_obtained_at.strftime('%Y-%m-%d') if lead.contact_obtained_at else '' }}"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500">
+                        </div>
+
+                        <div>
+                            <label for="meeting_at" class="block text-sm font-medium text-gray-700">线下见面时间</label>
+                            <div class="mt-1">
+                                <div class="flex space-x-2">
+                                    <!-- 日期选择 -->
+                                    <input type="date" id="meeting_date"
+                                           value="{{ lead.meeting_at.strftime('%Y-%m-%d') if lead.meeting_at else '' }}"
+                                           class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+
+                                    <!-- 小时选择 -->
+                                    <select id="meeting_hour"
+                                            class="rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                                        <option value="">时</option>
+                                        <option value="08" {{ 'selected' if lead.meeting_at and lead.meeting_at.strftime('%H') == '08' else '' }}>08</option>
+                                        <option value="09" {{ 'selected' if lead.meeting_at and lead.meeting_at.strftime('%H') == '09' else '' }}>09</option>
+                                        <option value="10" {{ 'selected' if lead.meeting_at and lead.meeting_at.strftime('%H') == '10' else '' }}>10</option>
+                                        <option value="11" {{ 'selected' if lead.meeting_at and lead.meeting_at.strftime('%H') == '11' else '' }}>11</option>
+                                        <option value="12" {{ 'selected' if lead.meeting_at and lead.meeting_at.strftime('%H') == '12' else '' }}>12</option>
+                                        <option value="13" {{ 'selected' if lead.meeting_at and lead.meeting_at.strftime('%H') == '13' else '' }}>13</option>
+                                        <option value="14" {{ 'selected' if lead.meeting_at and lead.meeting_at.strftime('%H') == '14' else '' }}>14</option>
+                                        <option value="15" {{ 'selected' if lead.meeting_at and lead.meeting_at.strftime('%H') == '15' else '' }}>15</option>
+                                        <option value="16" {{ 'selected' if lead.meeting_at and lead.meeting_at.strftime('%H') == '16' else '' }}>16</option>
+                                        <option value="17" {{ 'selected' if lead.meeting_at and lead.meeting_at.strftime('%H') == '17' else '' }}>17</option>
+                                        <option value="18" {{ 'selected' if lead.meeting_at and lead.meeting_at.strftime('%H') == '18' else '' }}>18</option>
+                                        <option value="19" {{ 'selected' if lead.meeting_at and lead.meeting_at.strftime('%H') == '19' else '' }}>19</option>
+                                        <option value="20" {{ 'selected' if lead.meeting_at and lead.meeting_at.strftime('%H') == '20' else '' }}>20</option>
+                                        <option value="21" {{ 'selected' if lead.meeting_at and lead.meeting_at.strftime('%H') == '21' else '' }}>21</option>
+                                    </select>
+
+                                    <!-- 分钟选择 -->
+                                    <select id="meeting_minute"
+                                            class="rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                                        <option value="">分</option>
+                                        <option value="00" {{ 'selected' if lead.meeting_at and lead.meeting_at.strftime('%M') == '00' else '' }}>00</option>
+                                        <option value="30" {{ 'selected' if lead.meeting_at and lead.meeting_at.strftime('%M') == '30' else '' }}>30</option>
+                                    </select>
+                                </div>
+                                <!-- 隐藏的输入框用于提交表单 -->
+                                <input type="hidden" name="meeting_at" id="meeting_at" value="{{ lead.meeting_at.strftime('%Y-%m-%dT%H:%M') if lead.meeting_at else '' }}">
+                            </div>
+                            <p class="mt-1 text-sm text-gray-500">可选，记录线下见面的时间（只能选择整点或半点）</p>
+                        </div>
+
+                        <div id="meeting_location_div" style="display: {{ 'block' if lead.meeting_at else 'none' }};">
+                            <label for="meeting_location" class="block text-sm font-medium text-gray-700">见面地点</label>
+                            <div class="mt-1">
+                                <select name="meeting_location" id="meeting_location"
+                                        class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                                    <option value="">请选择见面地点</option>
+                                    <option value="浦东" {{ 'selected' if lead.meeting_location == '浦东' else '' }}>浦东</option>
+                                    <option value="浦西" {{ 'selected' if lead.meeting_location == '浦西' else 'selected' if not lead.meeting_location else '' }}>浦西</option>
+                                </select>
+                            </div>
+                            <p class="mt-1 text-sm text-gray-500">选择线下见面的地点</p>
+                        </div>
+
+
+                    </div>
+                </div>
+            </div>
+
+
+
+            <!-- 付款管理 -->
+            <div class="border-b border-gray-200 pb-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-medium text-gray-900">付款管理</h3>
+                    <button type="button"
+                            onclick="showAddPaymentModal()"
+                            class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                        <span class="material-symbols-outlined mr-1 text-sm">add</span>
+                        添加付款
+                    </button>
+                </div>
+
+                <!-- 付款状态统计 -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <div class="text-sm font-medium text-blue-600">合同金额</div>
+                        <div class="text-2xl font-bold text-blue-900 relative">
+                            ¥<span id="contract-amount-display"
+                                   class="editable-amount cursor-pointer hover:bg-blue-100 px-1 rounded"
+                                   data-original-value="{{ lead.contract_amount or 0 }}"
+                                   onclick="makeEditable(this)"
+                                   title="点击编辑合同金额">{{ "%.2f"|format(lead.contract_amount or 0) }}</span>
+                        </div>
+                        <div class="text-xs text-blue-500 mt-1">点击金额可直接编辑</div>
+                    </div>
+                    <div class="bg-green-50 p-4 rounded-lg">
+                        <div class="text-sm font-medium text-green-600">已付款</div>
+                        <div class="text-2xl font-bold text-green-900">
+                            ¥<span id="paid-amount-display">{{ "%.2f"|format(paid_amount or 0) }}</span>
+                        </div>
+                    </div>
+                    <div class="bg-red-50 p-4 rounded-lg">
+                        <div class="text-sm font-medium text-red-600">待付款</div>
+                        <div class="text-2xl font-bold text-red-900">
+                            ¥<span id="unpaid-amount-display">{{ "%.2f"|format((lead.contract_amount or 0) - (paid_amount or 0)) }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 付款记录列表 -->
+                <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                    <table class="min-w-full divide-y divide-gray-300">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">付款日期</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">付款金额</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">备注</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200" id="payments-table-body">
+                            {% for payment in payments %}
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {{ payment.payment_date.strftime('%Y-%m-%d') }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    ¥{{ "%.2f"|format(payment.amount) }}
+                                </td>
+                                <td class="px-6 py-4 text-sm text-gray-900">
+                                    {{ payment.payment_notes or '-' }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                    <button type="button"
+                                            onclick="deletePayment({{ payment.id }})"
+                                            class="text-red-600 hover:text-red-900">删除</button>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr id="no-payments-row">
+                                <td colspan="4" class="px-6 py-4 text-center text-sm text-gray-500">
+                                    暂无付款记录
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+
+
+            <!-- 操作按钮 -->
+            <div class="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200">
+                <a href="{{ url_for('leads.list_leads') }}" 
+                   class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                    取消
+                </a>
+                <button type="submit"
+                        class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    <span class="material-symbols-outlined mr-2">save</span>
+                    保存修改
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- 沟通记录 -->
+    <div class="mt-8 bg-white shadow rounded-lg">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">沟通记录</h3>
+            <p class="mt-1 text-sm text-gray-500">查看与该线索相关的所有沟通记录（包括线索和客户阶段）</p>
+        </div>
+        <div class="p-6">
+            {% set lead_id = lead.id %}
+            {% set title = "沟通记录" %}
+            {% include 'partials/communication_records.html' with context %}
+        </div>
+    </div>
+
+    <!-- 操作历史 -->
+    <div class="mt-8 bg-white shadow rounded-lg">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">操作历史</h3>
+        </div>
+        <div class="p-6">
+            <div class="flow-root">
+                <ul class="-mb-8">
+                    <li>
+                        <div class="relative pb-8">
+                            <div class="relative flex space-x-3">
+                                <div>
+                                    <span class="h-8 w-8 rounded-full bg-green-500 flex items-center justify-center ring-8 ring-white">
+                                        <span class="material-symbols-outlined text-white text-sm">add</span>
+                                    </span>
+                                </div>
+                                <div class="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
+                                    <div>
+                                        <p class="text-sm text-gray-500">线索创建 <span class="font-medium text-gray-900">{{ lead.created_at.strftime('%Y-%m-%d %H:%M') if lead.created_at else '-' }}</span></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+                    {% if lead.contact_obtained_at %}
+                    <li>
+                        <div class="relative pb-8">
+                            <div class="relative flex space-x-3">
+                                <div>
+                                    <span class="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center ring-8 ring-white">
+                                        <span class="material-symbols-outlined text-white text-sm">phone</span>
+                                    </span>
+                                </div>
+                                <div class="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
+                                    <div>
+                                        <p class="text-sm text-gray-500">获取联系方式 <span class="font-medium text-gray-900">{{ lead.contact_obtained_at.strftime('%Y-%m-%d %H:%M') }}</span></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+                    {% endif %}
+                    {% if lead.meeting_at %}
+                    <li>
+                        <div class="relative pb-8">
+                            <div class="relative flex space-x-3">
+                                <div>
+                                    <span class="h-8 w-8 rounded-full bg-yellow-500 flex items-center justify-center ring-8 ring-white">
+                                        <span class="material-symbols-outlined text-white text-sm">groups</span>
+                                    </span>
+                                </div>
+                                <div class="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
+                                    <div>
+                                        <p class="text-sm text-gray-500">线下见面 <span class="font-medium text-gray-900">{{ lead.meeting_at.strftime('%Y-%m-%d %H:%M') }}</span></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+                    {% endif %}
+                    {% if lead.deposit_paid_at %}
+                    <li>
+                        <div class="relative pb-8">
+                            <div class="relative flex space-x-3">
+                                <div>
+                                    <span class="h-8 w-8 rounded-full bg-orange-500 flex items-center justify-center ring-8 ring-white">
+                                        <span class="material-symbols-outlined text-white text-sm">payments</span>
+                                    </span>
+                                </div>
+                                <div class="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
+                                    <div>
+                                        <p class="text-sm text-gray-500">首笔支付 <span class="font-medium text-gray-900">{{ lead.deposit_paid_at.strftime('%Y-%m-%d %H:%M') }}</span></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+                    {% endif %}
+                    {% if lead.first_payment_at %}
+                    <li>
+                        <div class="relative">
+                            <div class="relative flex space-x-3">
+                                <div>
+                                    <span class="h-8 w-8 rounded-full bg-green-500 flex items-center justify-center ring-8 ring-white">
+                                        <span class="material-symbols-outlined text-white text-sm">payments</span>
+                                    </span>
+                                </div>
+                                <div class="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
+                                    <div>
+                                        <p class="text-sm text-gray-500">首笔支付 <span class="font-medium text-gray-900">{{ lead.first_payment_at.strftime('%Y-%m-%d %H:%M') }}</span></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+                    {% endif %}
+                    {% if lead.second_payment_at %}
+                    <li>
+                        <div class="relative">
+                            <div class="relative flex space-x-3">
+                                <div>
+                                    <span class="h-8 w-8 rounded-full bg-green-500 flex items-center justify-center ring-8 ring-white">
+                                        <span class="material-symbols-outlined text-white text-sm">check</span>
+                                    </span>
+                                </div>
+                                <div class="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
+                                    <div>
+                                        <p class="text-sm text-gray-500">次笔支付 <span class="font-medium text-gray-900">{{ lead.second_payment_at.strftime('%Y-%m-%d %H:%M') }}</span></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 添加付款模态框 -->
+<div id="addPaymentModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">添加付款记录</h3>
+            <form id="addPaymentForm">
+                <div class="mb-4">
+                    <label for="payment_date" class="block text-sm font-medium text-gray-700 mb-2">
+                        付款日期 <span class="text-red-500">*</span>
+                    </label>
+                    <input type="date"
+                           id="payment_date"
+                           name="payment_date"
+                           required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500">
+                </div>
+                <div class="mb-4">
+                    <label for="payment_amount" class="block text-sm font-medium text-gray-700 mb-2">
+                        付款金额 <span class="text-red-500">*</span>
+                    </label>
+                    <input type="number"
+                           id="payment_amount"
+                           name="payment_amount"
+                           step="0.01"
+                           min="0"
+                           required
+                           placeholder="请输入付款金额"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500">
+                </div>
+                <div class="mb-4">
+                    <label for="payment_notes" class="block text-sm font-medium text-gray-700 mb-2">
+                        付款备注
+                    </label>
+                    <textarea id="payment_notes"
+                              name="payment_notes"
+                              rows="3"
+                              placeholder="请输入付款备注"
+                              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"></textarea>
+                </div>
+                <div class="flex items-center justify-end space-x-4">
+                    <button type="button"
+                            onclick="hideAddPaymentModal()"
+                            class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                        取消
+                    </button>
+                    <button type="submit"
+                            class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700">
+                        添加
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// 付款管理相关函数
+function showAddPaymentModal() {
+    document.getElementById('addPaymentModal').classList.remove('hidden');
+    // 设置默认日期为今天
+    document.getElementById('payment_date').value = new Date().toISOString().split('T')[0];
+}
+
+function hideAddPaymentModal() {
+    document.getElementById('addPaymentModal').classList.add('hidden');
+    document.getElementById('addPaymentForm').reset();
+}
+
+// 添加付款
+document.getElementById('addPaymentForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+    formData.append('lead_id', {{ lead.id }});
+
+    fetch('{{ url_for("leads.add_payment") }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 刷新页面以显示新的付款记录
+            location.reload();
+        } else {
+            alert(data.message || '添加付款失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('添加付款失败，请重试');
+    });
+});
+
+// 删除付款
+function deletePayment(paymentId) {
+    if (confirm('确定要删除这条付款记录吗？')) {
+        fetch(`{{ url_for("leads.delete_payment", payment_id=0) }}`.replace('0', paymentId), {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // 刷新页面以更新付款记录
+                location.reload();
+            } else {
+                alert(data.message || '删除付款失败');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('删除付款失败，请重试');
+        });
+    }
+}
+
+// 内联编辑合同金额
+function makeEditable(element) {
+    // 如果已经在编辑状态，直接返回
+    if (element.querySelector('input')) {
+        return;
+    }
+
+    const currentValue = parseFloat(element.textContent) || 0;
+    const originalValue = parseFloat(element.dataset.originalValue) || 0;
+
+    // 创建输入框
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.step = '0.01';
+    input.min = '0';
+    input.value = currentValue;
+    input.className = 'w-full bg-transparent border-none outline-none text-2xl font-bold text-blue-900 p-0';
+    input.style.width = '120px';
+
+    // 替换显示内容
+    element.innerHTML = '';
+    element.appendChild(input);
+    input.focus();
+    input.select();
+
+    // 保存函数
+    function saveValue() {
+        const newValue = parseFloat(input.value) || 0;
+
+        if (newValue < 0) {
+            alert('合同金额不能为负数');
+            input.focus();
+            return;
+        }
+
+        // 如果值没有变化，直接恢复显示
+        if (newValue === originalValue) {
+            element.innerHTML = newValue.toFixed(2);
+            element.dataset.originalValue = newValue;
+            return;
+        }
+
+        // 发送AJAX请求更新合同金额
+        const formData = new FormData();
+        formData.append('contract_amount', newValue);
+        formData.append('lead_id', {{ lead.id }});
+
+        fetch('{{ url_for("leads.update_contract_amount") }}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // 更新显示
+                element.innerHTML = newValue.toFixed(2);
+                element.dataset.originalValue = newValue;
+                updatePaymentDisplay(newValue);
+
+                // 显示成功提示（简短提示）
+                showSuccessToast('合同金额已更新');
+            } else {
+                alert(data.message || '更新合同金额失败');
+                // 恢复原值
+                element.innerHTML = originalValue.toFixed(2);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('更新合同金额失败，请重试');
+            // 恢复原值
+            element.innerHTML = originalValue.toFixed(2);
+        });
+    }
+
+    // 取消编辑函数
+    function cancelEdit() {
+        element.innerHTML = originalValue.toFixed(2);
+    }
+
+    // 绑定事件
+    input.addEventListener('blur', saveValue);
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            saveValue();
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            cancelEdit();
+        }
+    });
+}
+
+// 更新付款显示
+function updatePaymentDisplay(contractAmount) {
+    const paidAmount = parseFloat(document.getElementById('paid-amount-display').textContent) || 0;
+    const unpaidAmount = contractAmount - paidAmount;
+
+    document.getElementById('unpaid-amount-display').textContent = unpaidAmount.toFixed(2);
+}
+
+// 显示成功提示
+function showSuccessToast(message) {
+    // 创建提示元素
+    const toast = document.createElement('div');
+    toast.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-md shadow-lg z-50 transition-opacity duration-300';
+    toast.textContent = message;
+
+    document.body.appendChild(toast);
+
+    // 3秒后自动消失
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => {
+            document.body.removeChild(toast);
+        }, 300);
+    }, 2000);
+}
+
+// 阶段现在由系统自动管理，不需要手动设置
+
+// 服务类型变化处理（多选）
+function updateCompetitionAwardVisibility() {
+    const competitionCheckbox = document.getElementById('service_competition');
+    const awardDiv = document.getElementById('competition_award_div');
+    const awardSelect = document.getElementById('competition_award_level');
+
+    if (competitionCheckbox.checked) {
+        awardDiv.style.display = 'block';
+        awardSelect.required = true;
+    } else {
+        awardDiv.style.display = 'none';
+        awardSelect.required = false;
+        awardSelect.value = '';
+    }
+}
+
+// 监听竞赛辅导复选框变化
+document.getElementById('service_competition').addEventListener('change', updateCompetitionAwardVisibility);
+
+// 页面加载时检查服务类型
+document.addEventListener('DOMContentLoaded', function() {
+    updateCompetitionAwardVisibility();
+});
+
+// 家长微信号已锁定，不需要重复检查功能
+
+// 基本信息确认功能
+let originalBasicInfo = {};
+
+// 页面加载时记录原始基本信息
+document.addEventListener('DOMContentLoaded', function() {
+    // 记录基本信息的原始值
+    originalBasicInfo = {
+        student_name: document.getElementById('student_name').value,
+        contact_info: document.getElementById('contact_info').value,
+        lead_source: document.getElementById('lead_source').value,
+        sales_user_id: document.getElementById('sales_user_id').value
+    };
+});
+
+// 表单提交时检查基本信息是否有变化
+document.querySelector('form').addEventListener('submit', function(e) {
+    // 获取当前基本信息值
+    const currentBasicInfo = {
+        student_name: document.getElementById('student_name').value,
+        contact_info: document.getElementById('contact_info').value,
+        lead_source: document.getElementById('lead_source').value,
+        sales_user_id: document.getElementById('sales_user_id').value
+    };
+
+    // 检查哪些字段发生了变化
+    const changedFields = [];
+    const changedValues = {};
+
+    // 检查学员姓名（只有在不锁定时才检查）
+    const studentNameInput = document.getElementById('student_name');
+    if (!studentNameInput.readOnly && currentBasicInfo.student_name !== originalBasicInfo.student_name) {
+        changedFields.push('学员姓名');
+        changedValues['学员姓名'] = currentBasicInfo.student_name || '(空)';
+    }
+
+    // 检查联系电话（只有在不锁定时才检查）
+    const contactInput = document.getElementById('contact_info');
+    if (!contactInput.readOnly && currentBasicInfo.contact_info !== originalBasicInfo.contact_info) {
+        changedFields.push('联系电话');
+        changedValues['联系电话'] = currentBasicInfo.contact_info || '(空)';
+    }
+
+    // 检查线索来源（只有在不锁定时才检查）
+    const leadSourceSelect = document.getElementById('lead_source');
+    if (!leadSourceSelect.disabled && currentBasicInfo.lead_source !== originalBasicInfo.lead_source) {
+        changedFields.push('线索来源');
+        const selectedOption = leadSourceSelect.options[leadSourceSelect.selectedIndex];
+        changedValues['线索来源'] = selectedOption.text;
+    }
+
+    // 检查责任销售（只有在不锁定时才检查）
+    const salesSelect = document.getElementById('sales_user_id');
+    if (!salesSelect.disabled && currentBasicInfo.sales_user_id !== originalBasicInfo.sales_user_id) {
+        changedFields.push('责任销售');
+        const selectedOption = salesSelect.options[salesSelect.selectedIndex];
+        changedValues['责任销售'] = selectedOption.text;
+    }
+
+    // 如果有字段发生变化，显示确认对话框
+    if (changedFields.length > 0) {
+        e.preventDefault(); // 阻止表单提交
+
+        let confirmMessage = '您修改了以下基本信息：\n\n';
+        changedFields.forEach(field => {
+            confirmMessage += `${field}: ${changedValues[field]}\n`;
+        });
+        confirmMessage += '\n⚠️ 注意：基本信息保存后将无法修改，请确认信息无误。\n\n确定要保存这些修改吗？';
+
+        if (confirm(confirmMessage)) {
+            // 用户确认，提交表单
+            this.submit();
+        }
+        // 用户取消，不做任何操作
+    }
+    // 如果没有基本信息变化，正常提交表单
+});
+
+// 移除自动转客户的确认逻辑，用户可以手动选择转客户时机
+
+// 更新见面时间的隐藏输入框
+function updateMeetingTime() {
+    const date = document.getElementById('meeting_date').value;
+    const hour = document.getElementById('meeting_hour').value;
+    const minute = document.getElementById('meeting_minute').value;
+    const hiddenInput = document.getElementById('meeting_at');
+    const meetingLocationDiv = document.getElementById('meeting_location_div');
+    const meetingLocationSelect = document.getElementById('meeting_location');
+
+    if (date && hour && minute) {
+        // 组合完整的datetime-local格式
+        const datetimeValue = `${date}T${hour}:${minute}`;
+        hiddenInput.value = datetimeValue;
+
+        // 显示地点选择框
+        meetingLocationDiv.style.display = 'block';
+
+        // 如果还没有选择地点，默认选择浦西
+        if (!meetingLocationSelect.value) {
+            meetingLocationSelect.value = '浦西';
+        }
+    } else {
+        // 清空隐藏输入框
+        hiddenInput.value = '';
+
+        // 隐藏地点选择框
+        meetingLocationDiv.style.display = 'none';
+
+        // 清空地点选择
+        meetingLocationSelect.value = '';
+    }
+}
+
+// 为所有时间选择器添加事件监听
+document.getElementById('meeting_date').addEventListener('change', updateMeetingTime);
+document.getElementById('meeting_hour').addEventListener('change', updateMeetingTime);
+document.getElementById('meeting_minute').addEventListener('change', updateMeetingTime);
+
+// 页面加载时初始化地点选择框的显示状态
+document.addEventListener('DOMContentLoaded', function() {
+    updateMeetingTime();
+});
+</script>
+{% endblock %}
