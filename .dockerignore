@@ -54,14 +54,16 @@ backups/
 # *.sqlite - 注释掉，允许数据库文件被包含
 # *.sqlite3 - 注释掉，允许数据库文件被包含
 
-# Docker
+# Docker构建文件（这些文件用于构建和编排，不需要在容器内部）
 Dockerfile
-docker-compose.yml
+Dockerfile.*
+docker-compose*.yml
 .dockerignore
 
-# Documentation
+# 文档文件（运行时不需要）
 README.md
 *.md
+DOCKER_COMPOSE_DEPLOY.md
 
 # Requirements files (except the ones we need)
 # requirements-dev.txt will be copied but conditionally used
