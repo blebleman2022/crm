@@ -93,7 +93,6 @@ stop_existing() {
     
     # 停止Docker Compose服务
     docker-compose down 2>/dev/null || true
-    docker-compose -f docker-compose.prod.yml down 2>/dev/null || true
     
     # 停止单独运行的容器
     docker stop crm-app crm-production 2>/dev/null || true
@@ -104,7 +103,7 @@ stop_existing() {
 
 # 构建和启动服务
 start_services() {
-    local compose_file=${1:-docker-compose.prod.yml}
+    local compose_file=${1:-docker-compose.yml}
     
     log_info "使用 $compose_file 启动服务..."
     
@@ -125,7 +124,7 @@ wait_for_services() {
     local attempt=1
     
     while [ $attempt -le $max_attempts ]; do
-        if docker-compose -f docker-compose.prod.yml ps | grep "Up" > /dev/null; then
+        if docker-compose ps | grep "Up" > /dev/null; then
             log_success "服务已启动"
             break
         fi
@@ -176,15 +175,15 @@ show_status() {
     echo "================================"
     
     # 显示容器状态
-    docker-compose -f docker-compose.prod.yml ps
+    docker-compose ps
     
     echo ""
     log_info "应用信息:"
     echo "  🌐 访问地址: http://$(curl -s ifconfig.me 2>/dev/null || echo 'YOUR_SERVER_IP')"
     echo "  📊 本地访问: http://localhost"
-    echo "  📝 查看日志: docker-compose -f docker-compose.prod.yml logs -f"
-    echo "  🛑 停止服务: docker-compose -f docker-compose.prod.yml down"
-    echo "  🔄 重启服务: docker-compose -f docker-compose.prod.yml restart"
+    echo "  📝 查看日志: docker-compose logs -f"
+    echo "  🛑 停止服务: docker-compose down"
+    echo "  🔄 重启服务: docker-compose restart"
     
     echo ""
     log_info "数据库信息:"
@@ -199,7 +198,7 @@ show_status() {
 # 显示日志
 show_logs() {
     log_info "显示应用日志..."
-    docker-compose -f docker-compose.prod.yml logs -f crm-app
+    docker-compose logs -f crm-app
 }
 
 # 主函数
@@ -220,17 +219,17 @@ main() {
             ;;
         start)
             log_info "启动服务..."
-            docker-compose -f docker-compose.prod.yml up -d
+            docker-compose up -d
             wait_for_services
             show_status
             ;;
         stop)
             log_info "停止服务..."
-            docker-compose -f docker-compose.prod.yml down
+            docker-compose down
             ;;
         restart)
             log_info "重启服务..."
-            docker-compose -f docker-compose.prod.yml restart
+            docker-compose restart
             show_status
             ;;
         logs)
@@ -241,7 +240,7 @@ main() {
             ;;
         clean)
             log_info "清理服务和镜像..."
-            docker-compose -f docker-compose.prod.yml down --rmi all --volumes
+            docker-compose down --rmi all --volumes
             ;;
         help|*)
             echo "使用方法: $0 [action]"
