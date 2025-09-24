@@ -1,24 +1,35 @@
 services:
-  # CRM应用服务 - 生产环境
+  # CRM应用服务 - 统一配置
   crm-app:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        INSTALL_DEV: false
     image: crm-app:latest
     container_name: crm-production
     restart: unless-stopped
     ports:
       - "80:80"
     environment:
-      - FLASK_ENV=production
-      - DATABASE_URL=sqlite:///instance/edu_crm.db
+      # 应用环境配置
+      - FLASK_ENV=${FLASK_ENV:-production}
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///instance/edu_crm.db}
       - SECRET_KEY=${SECRET_KEY:-crm-production-secret-key-2024}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+
+      # Python环境配置
       - PYTHONUNBUFFERED=1
       - PYTHONDONTWRITEBYTECODE=1
-      - GUNICORN_WORKERS=2
-      - GUNICORN_TIMEOUT=120
+
+      # Gunicorn配置
+      - GUNICORN_WORKERS=${GUNICORN_WORKERS:-2}
+      - GUNICORN_TIMEOUT=${GUNICORN_TIMEOUT:-120}
+
+      # 邮件配置（可选）
+      - MAIL_SERVER=${MAIL_SERVER:-}
+      - MAIL_PORT=${MAIL_PORT:-587}
+      - MAIL_USE_TLS=${MAIL_USE_TLS:-true}
+      - MAIL_USERNAME=${MAIL_USERNAME:-}
+      - MAIL_PASSWORD=${MAIL_PASSWORD:-}
     volumes:
       # 数据库文件持久化
       - ./instance:/app/instance
