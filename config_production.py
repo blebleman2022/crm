@@ -8,7 +8,7 @@ class ProductionConfig:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'your-production-secret-key-change-this'
     
     # 数据库配置
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///instance/edu_crm.db'
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:////app/instance/edu_crm.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_pre_ping': True,
