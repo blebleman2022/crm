@@ -1,41 +1,35 @@
 version: '3.8'
 
 services:
-  # CRM应用服务 - 开发环境配置（完全复制本地环境）
+  # CRM应用服务 - 开发环境配置
   crm-app:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        - BUILDKIT_INLINE_CACHE=1
     image: crm-app:development
     container_name: crm-development
     restart: unless-stopped
     ports:
-      - "5000:5000"  # 使用开发环境默认端口
+      - "5000:5000"  # 使用开发环境端口
     environment:
-      # 完全复制本地开发环境配置
+      # 开发环境配置
       - FLASK_ENV=development
       - DATABASE_URL=sqlite:///instance/edu_crm.db
       - SECRET_KEY=edu-crm-secret-key-2024
       - LOG_LEVEL=DEBUG
       - PORT=5000
-
+      
       # Python环境配置
       - PYTHONUNBUFFERED=1
       - PYTHONDONTWRITEBYTECODE=1
-
+      
     volumes:
-      # 代码热重载 - 挂载源代码（完全复制本地开发）
+      # 代码热重载
       - .:/app
       # 数据库文件持久化
       - ./instance:/app/instance
       # 日志文件持久化
       - ./logs:/app/logs
-      # 排除Python缓存和虚拟环境
-      - /app/__pycache__
-      - /app/venv
-    working_dir: /app
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/auth/login"]
       interval: 30s
@@ -43,13 +37,10 @@ services:
       retries: 3
       start_period: 60s
     networks:
-      - crm-dev-network
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+      - crm-network
+    # 开发环境启动命令
+    command: python run.py
 
 networks:
-  crm-dev-network:
+  crm-network:
     driver: bridge

@@ -1,0 +1,42 @@
+services:
+  # CRM应用服务 - Dokploy部署版本
+  crm-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: crm-app:dokploy
+    container_name: crm-dokploy
+    restart: unless-stopped
+    ports:
+      - "3000:80"  # Dokploy常用端口
+    environment:
+      # 应用环境配置
+      - FLASK_ENV=production
+      - DATABASE_URL=sqlite:///instance/edu_crm.db
+      - SECRET_KEY=crm-production-secret-key-2024
+      - LOG_LEVEL=INFO
+      
+      # Python环境配置
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      
+      # Gunicorn配置
+      - GUNICORN_WORKERS=2
+      - GUNICORN_TIMEOUT=120
+      
+    volumes:
+      # 数据库文件持久化
+      - ./instance:/app/instance
+      # 日志文件持久化
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/auth/login"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

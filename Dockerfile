@@ -4,11 +4,12 @@ FROM python:3.11-slim
 # 设置工作目录
 WORKDIR /app
 
-# 设置环境变量
+# 设置环境变量（开发环境）
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     FLASK_APP=run.py \
-    FLASK_ENV=production
+    FLASK_ENV=development \
+    PORT=5000
 
 # 配置国内镜像源加速
 RUN echo "deb https://mirrors.aliyun.com/debian/ bullseye main non-free contrib" > /etc/apt/sources.list && \
@@ -49,12 +50,12 @@ RUN if [ -f "instance/edu_crm.db" ]; then \
         chmod 666 instance/edu_crm.db; \
     fi
 
-# 暴露端口
-EXPOSE 80
+# 暴露开发环境端口
+EXPOSE 5000
 
-# 健康检查
+# 健康检查（开发环境端口）
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:80/auth/login || exit 1
+    CMD curl -f http://localhost:5000/auth/login || exit 1
 
-# 启动命令
-CMD ["./start.sh"]
+# 开发环境启动命令（使用Flask开发服务器）
+CMD ["python", "run.py"]

@@ -10,6 +10,13 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 
+# 加载环境变量文件
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # 如果没有安装python-dotenv，忽略
+
 def create_app(config_name=None):
     """应用工厂函数"""
     
@@ -548,10 +555,19 @@ def main():
             print("生产环境请使用: gunicorn -w 4 -b 0.0.0.0:8000 run:app")
         else:
             # 开发环境直接启动
+            port = int(os.environ.get('PORT', 5000))
+            debug_mode = (config_name == 'development')
+            print(f"启动Flask开发服务器:")
+            print(f"  地址: http://0.0.0.0:{port}")
+            print(f"  调试模式: {debug_mode}")
+            print(f"  热重载: {debug_mode}")
+
             app.run(
                 host='0.0.0.0',
-                port=int(os.environ.get('PORT', 5000)),
-                debug=(config_name == 'development')
+                port=port,
+                debug=debug_mode,
+                use_reloader=debug_mode,
+                threaded=True
             )
     
     elif command == 'test':
