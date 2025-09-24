@@ -56,7 +56,7 @@ db.sqlite3
 db.sqlite3-journal
 
 # Flask stuff:
-instance/
+# instance/  # 注释掉，允许数据库文件被提交
 .webassets-cache
 
 # Scrapy stuff:
@@ -119,9 +119,9 @@ dmypy.json
 .pyre/
 
 # CRM specific
-*.db
-*.sqlite
-*.sqlite3
+# *.db        # 注释掉，允许主数据库文件
+# *.sqlite    # 注释掉，允许主数据库文件
+# *.sqlite3   # 注释掉，允许主数据库文件
 app.log
 error_screenshot_*.png
 test_*.py
