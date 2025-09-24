@@ -22,7 +22,8 @@ wheels/
 MANIFEST
 
 # Flask
-instance/
+instance/*.log
+instance/*_backup_*.db
 .webassets-cache
 
 # Environment variables
@@ -34,8 +35,8 @@ ENV/
 env.bak/
 venv.bak/
 
-# Database
-*.db
+# Database (exclude backup files but keep main db)
+*_backup_*.db
 *.sqlite
 *.sqlite3
 
