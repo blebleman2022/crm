@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # CRM应用服务 - 生产环境
   crm-app:
