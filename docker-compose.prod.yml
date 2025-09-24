@@ -23,7 +23,7 @@ services:
       - GUNICORN_WORKERS=2
       - GUNICORN_TIMEOUT=120
     volumes:
-      # 使用项目中的数据库文件 - 绑定挂载确保数据持久化
+      # 使用绑定挂载，但会在初始化时从镜像复制数据库文件
       - ./instance:/app/instance
       # 日志文件持久化
       - ./logs:/app/logs

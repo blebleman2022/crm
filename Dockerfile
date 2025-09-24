@@ -47,19 +47,28 @@ RUN if [ "$INSTALL_DEV" = "true" ] ; then \
 
 # 复制启动脚本和配置文件
 COPY start.sh .
+COPY init-database.sh .
 COPY gunicorn.conf.py .
 
 # 复制项目文件
 COPY . .
 
-# 创建必要的目录并设置权限
-RUN mkdir -p instance logs && \
+# 创建必要的目录
+RUN mkdir -p instance logs
+
+# 确保数据库文件存在并设置权限
+RUN if [ -f "instance/edu_crm.db" ]; then \
+        echo "✅ 找到数据库文件: instance/edu_crm.db"; \
+        ls -la instance/edu_crm.db; \
+    else \
+        echo "❌ 数据库文件不存在，将在运行时创建"; \
+        touch instance/edu_crm.db; \
+    fi && \
     chmod 755 instance logs && \
-    touch instance/edu_crm.db && \
     chmod 666 instance/edu_crm.db
 
 # 设置权限
-RUN chmod +x start.sh
+RUN chmod +x start.sh init-database.sh
 
 # 创建非root用户
 RUN adduser --disabled-password --gecos '' appuser && \
@@ -76,5 +85,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
 # 切换到非root用户
 USER appuser
 
-# 启动命令 - 使用启动脚本
-CMD ["./start.sh"]
+# 启动命令 - 使用初始化脚本
+CMD ["./init-database.sh", "./start.sh"]
