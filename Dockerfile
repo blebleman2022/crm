@@ -4,7 +4,7 @@ FROM python:3.11-slim
 # 设置工作目录
 WORKDIR /app
 
-# 设置环境变量（开发环境）
+# 设置环境变量
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     FLASK_APP=run.py \
@@ -50,9 +50,9 @@ RUN if [ -f "instance/edu_crm.db" ]; then chmod 666 instance/edu_crm.db; fi
 # 暴露开发环境端口
 EXPOSE 5000
 
-# 健康检查（开发环境端口）
+# 健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:5000/auth/login || exit 1
 
-# 开发环境启动命令（使用简化启动脚本进行测试）
-CMD ["python", "simple_start.py"]
+# 开发环境启动命令
+CMD ["python", "run.py"]

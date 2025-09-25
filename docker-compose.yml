@@ -12,8 +12,7 @@ services:
     container_name: crm-development
     restart: unless-stopped
     ports:
-      - "5000:5000"  # 开发环境端口
-      - "80:5000"    # 生产环境端口映射
+      - "5000:5000"  # 使用开发环境默认端口
     environment:
       # 完全复制本地开发环境配置
       - FLASK_ENV=development
@@ -27,16 +26,16 @@ services:
       - PYTHONDONTWRITEBYTECODE=1
 
     volumes:
-      # 代码热重载 - 挂载源代码（完全复制本地开发）
-      - .:/app
-      # 数据库文件持久化
+      # 数据库文件持久化（最重要）
       - ./instance:/app/instance
       # 日志文件持久化
       - ./logs:/app/logs
-      # 排除Python缓存和虚拟环境
-      - /app/__pycache__
-      - /app/venv
+      # 代码热重载 - 仅在开发时需要（可选）
+      # 注意：如果遇到启动问题，可以注释掉下面这行
+      - .:/app
     working_dir: /app
+    # 明确指定启动命令，避免与Dockerfile冲突
+    command: ["python", "run.py"]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/auth/login"]
       interval: 30s
