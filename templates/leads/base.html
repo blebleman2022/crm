@@ -4,7 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}线索管理 - EduConnect CRM{% endblock %}</title>
-    
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo1.png') }}">
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     
@@ -25,41 +28,48 @@
 <body class="bg-gray-50 text-gray-900">
     <div class="flex h-screen w-full">
         <!-- Sidebar -->
-        <aside class="flex w-64 flex-col border-r border-gray-200 bg-white">
+        <aside class="flex flex-shrink-0 flex-col border-r border-gray-200 bg-white" style="width: 200px;">
             <div class="flex h-16 shrink-0 items-center justify-center border-b border-gray-200 px-4">
-                <div class="flex items-center gap-3">
-                    <span class="material-symbols-outlined text-3xl text-blue-600">school</span>
-                    <h2 class="text-gray-900 text-xl font-bold leading-tight tracking-[-0.015em]">EduConnect CRM</h2>
-                </div>
+                {% set custom_logo = get_logo_url() %}
+                {% if custom_logo %}
+                    <img src="{{ url_for('static', filename=custom_logo) }}" alt="Logo" style="width: 150px; height: 50px; object-fit: contain;">
+                {% else %}
+                    <div class="flex items-center gap-3">
+                        <span class="material-symbols-outlined text-3xl text-blue-600">school</span>
+                        <h2 class="text-gray-900 text-xl font-bold leading-tight tracking-[-0.015em]">EduConnect CRM</h2>
+                    </div>
+                {% endif %}
             </div>
-            
+
             <nav class="flex-1 overflow-y-auto">
                 <ul class="space-y-1 p-4">
                     <li>
-                        <a class="{% if request.endpoint == 'leads.dashboard' %}text-blue-600 font-semibold{% else %}text-gray-700 hover:text-blue-600{% endif %} flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium" 
-                           href="{{ url_for('leads.dashboard') }}">
-                            <span class="material-symbols-outlined text-lg">dashboard</span>
+                        <a class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium {% if request.endpoint in ['leads.dashboard', 'delivery.dashboard'] %}text-white bg-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}"
+                           href="{% if current_user.role == 'teacher' %}{{ url_for('delivery.dashboard') }}{% else %}{{ url_for('leads.dashboard') }}{% endif %}">
+                            <span class="material-symbols-outlined text-lg {% if request.endpoint in ['leads.dashboard', 'delivery.dashboard'] %}text-white{% else %}text-gray-500{% endif %}">dashboard</span>
                             仪表板
                         </a>
                     </li>
+                    {% if current_user.role != 'teacher' %}
                     <li>
-                        <a class="{% if request.endpoint in ['leads.list_leads', 'leads.add_lead', 'leads.edit_lead'] %}text-blue-600 font-semibold{% else %}text-gray-700 hover:text-blue-600{% endif %} flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium"
+                        <a class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium {% if request.endpoint in ['leads.list_leads', 'leads.add_lead', 'leads.edit_lead'] %}text-white bg-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}"
                            href="{{ url_for('leads.list_leads') }}">
-                            <span class="material-symbols-outlined text-lg">campaign</span>
+                            <span class="material-symbols-outlined text-lg {% if request.endpoint in ['leads.list_leads', 'leads.add_lead', 'leads.edit_lead'] %}text-white{% else %}text-gray-500{% endif %}">campaign</span>
                             线索管理
                         </a>
                     </li>
                     <li>
-                        <a class="{% if request.endpoint in ['consultations.list_consultations', 'consultations.consultation_details'] %}text-blue-600 font-semibold{% else %}text-gray-700 hover:text-blue-600{% endif %} flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium"
+                        <a class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium {% if request.endpoint in ['consultations.list_consultations', 'consultations.consultation_details'] %}text-white bg-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}"
                            href="{{ url_for('consultations.list_consultations') }}">
-                            <span class="material-symbols-outlined text-lg">event</span>
+                            <span class="material-symbols-outlined text-lg {% if request.endpoint in ['consultations.list_consultations', 'consultations.consultation_details'] %}text-white{% else %}text-gray-500{% endif %}">event</span>
                             约见管理
                         </a>
                     </li>
+                    {% endif %}
                     <li>
-                        <a class="text-gray-700 hover:text-blue-600 flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium" 
+                        <a class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium {% if request.endpoint in ['customers.list_customers', 'customers.edit_customer'] %}text-white bg-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}"
                            href="{{ url_for('customers.list_customers') }}">
-                            <span class="material-symbols-outlined text-lg">group</span>
+                            <span class="material-symbols-outlined text-lg {% if request.endpoint in ['customers.list_customers', 'customers.edit_customer'] %}text-white{% else %}text-gray-500{% endif %}">group</span>
                             客户管理
                         </a>
                     </li>
@@ -70,22 +80,13 @@
 
         <div class="flex flex-1 flex-col">
             <!-- Header -->
-            <header class="flex items-center justify-between whitespace-nowrap border-b border-gray-200 px-10 py-3">
+            <header class="flex h-16 shrink-0 items-center justify-between whitespace-nowrap border-b border-gray-200 px-10 bg-white">
                 <div class="flex items-center gap-8">
-                    <h1 class="text-2xl font-bold text-gray-900">{% block page_title %}线索管理{% endblock %}</h1>
+                    <h1 class="text-2xl font-bold text-gray-900">{% block page_title %}{% if current_user.role == 'teacher' %}服务交付{% else %}线索管理{% endif %}{% endblock %}</h1>
                 </div>
                 <div class="flex items-center gap-4">
-                    <div class="relative w-64">
-                        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
-                        <input class="form-input w-full rounded-full border-gray-300 bg-white py-2 pl-10 pr-4 text-sm focus:border-blue-500 focus:ring-blue-500" 
-                               placeholder="搜索" type="search"/>
-                    </div>
-                    <button class="relative rounded-full p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700">
-                        <span class="material-symbols-outlined">notifications</span>
-                        <span class="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500"></span>
-                    </button>
                     <div class="flex items-center gap-2">
-                        <span class="text-sm text-gray-700">{{ current_user.username }}</span>
+                        <span class="text-sm text-gray-700">{{ current_user.username }}老师</span>
                         <a href="{{ url_for('auth.logout') }}" class="text-sm text-gray-500 hover:text-gray-700">退出</a>
                     </div>
                 </div>

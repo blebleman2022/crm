@@ -1,0 +1,193 @@
+<form action="{{ url_for('admin.update_lead', lead_id=lead.id) }}" method="POST" onsubmit="submitEditForm(event)">
+    <div class="space-y-4">
+        <!-- 家长微信显示名 -->
+        <div>
+            <label for="parent_wechat_display_name" class="block text-sm font-medium text-gray-700 mb-2">
+                家长微信显示名
+            </label>
+            <input type="text" 
+                   id="parent_wechat_display_name" 
+                   name="parent_wechat_display_name" 
+                   value="{{ lead.parent_wechat_display_name }}"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+        </div>
+
+        <!-- 家长微信号 -->
+        <div>
+            <label for="parent_wechat_name" class="block text-sm font-medium text-gray-700 mb-2">
+                家长微信号
+            </label>
+            <input type="text" 
+                   id="parent_wechat_name" 
+                   name="parent_wechat_name" 
+                   value="{{ lead.parent_wechat_name }}"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+        </div>
+
+        <!-- 学员姓名 -->
+        <div>
+            <label for="student_name" class="block text-sm font-medium text-gray-700 mb-2">
+                学员姓名
+            </label>
+            <input type="text" 
+                   id="student_name" 
+                   name="student_name" 
+                   value="{{ lead.student_name }}"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+        </div>
+
+        <!-- 联系方式 -->
+        <div>
+            <label for="contact_info" class="block text-sm font-medium text-gray-700 mb-2">
+                联系方式
+            </label>
+            <input type="text" 
+                   id="contact_info" 
+                   name="contact_info" 
+                   value="{{ lead.contact_info }}"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+        </div>
+
+        <!-- 年级 -->
+        <div>
+            <label for="grade" class="block text-sm font-medium text-gray-700 mb-2">
+                年级
+            </label>
+            <select id="grade" 
+                    name="grade" 
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                <option value="">请选择年级</option>
+                <option value="1年级" {% if lead.grade == '1年级' %}selected{% endif %}>1年级</option>
+                <option value="2年级" {% if lead.grade == '2年级' %}selected{% endif %}>2年级</option>
+                <option value="3年级" {% if lead.grade == '3年级' %}selected{% endif %}>3年级</option>
+                <option value="4年级" {% if lead.grade == '4年级' %}selected{% endif %}>4年级</option>
+                <option value="5年级" {% if lead.grade == '5年级' %}selected{% endif %}>5年级</option>
+                <option value="6年级" {% if lead.grade == '6年级' %}selected{% endif %}>6年级</option>
+                <option value="初一" {% if lead.grade == '初一' %}selected{% endif %}>初一</option>
+                <option value="初二" {% if lead.grade == '初二' %}selected{% endif %}>初二</option>
+                <option value="初三" {% if lead.grade == '初三' %}selected{% endif %}>初三</option>
+                <option value="高一" {% if lead.grade == '高一' %}selected{% endif %}>高一</option>
+                <option value="高二" {% if lead.grade == '高二' %}selected{% endif %}>高二</option>
+                <option value="高三" {% if lead.grade == '高三' %}selected{% endif %}>高三</option>
+            </select>
+        </div>
+
+        <!-- 学校 -->
+        <div>
+            <label for="school" class="block text-sm font-medium text-gray-700 mb-2">
+                学校
+            </label>
+            <input type="text" 
+                   id="school" 
+                   name="school" 
+                   value="{{ lead.school }}"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+        </div>
+
+        <!-- 行政区 -->
+        <div>
+            <label for="district" class="block text-sm font-medium text-gray-700 mb-2">
+                行政区
+            </label>
+            <select id="district" 
+                    name="district" 
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                <option value="">请选择行政区</option>
+                <option value="黄浦区" {% if lead.district == '黄浦区' %}selected{% endif %}>黄浦区</option>
+                <option value="徐汇区" {% if lead.district == '徐汇区' %}selected{% endif %}>徐汇区</option>
+                <option value="长宁区" {% if lead.district == '长宁区' %}selected{% endif %}>长宁区</option>
+                <option value="静安区" {% if lead.district == '静安区' %}selected{% endif %}>静安区</option>
+                <option value="普陀区" {% if lead.district == '普陀区' %}selected{% endif %}>普陀区</option>
+                <option value="虹口区" {% if lead.district == '虹口区' %}selected{% endif %}>虹口区</option>
+                <option value="杨浦区" {% if lead.district == '杨浦区' %}selected{% endif %}>杨浦区</option>
+                <option value="闵行区" {% if lead.district == '闵行区' %}selected{% endif %}>闵行区</option>
+                <option value="宝山区" {% if lead.district == '宝山区' %}selected{% endif %}>宝山区</option>
+                <option value="嘉定区" {% if lead.district == '嘉定区' %}selected{% endif %}>嘉定区</option>
+                <option value="浦东新区" {% if lead.district == '浦东新区' %}selected{% endif %}>浦东新区</option>
+                <option value="金山区" {% if lead.district == '金山区' %}selected{% endif %}>金山区</option>
+                <option value="松江区" {% if lead.district == '松江区' %}selected{% endif %}>松江区</option>
+                <option value="青浦区" {% if lead.district == '青浦区' %}selected{% endif %}>青浦区</option>
+                <option value="奉贤区" {% if lead.district == '奉贤区' %}selected{% endif %}>奉贤区</option>
+                <option value="崇明区" {% if lead.district == '崇明区' %}selected{% endif %}>崇明区</option>
+            </select>
+        </div>
+
+        <!-- 线索来源 -->
+        <div>
+            <label for="lead_source" class="block text-sm font-medium text-gray-700 mb-2">
+                线索来源
+            </label>
+            <select id="lead_source" 
+                    name="lead_source" 
+                    onchange="toggleCustomSource()"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                <option value="">请选择线索来源</option>
+                <option value="周cc" {% if lead.lead_source == '周cc' %}selected{% endif %}>周cc</option>
+                <option value="李博士" {% if lead.lead_source == '李博士' %}selected{% endif %}>李博士</option>
+                <option value="喜顺" {% if lead.lead_source == '喜顺' %}selected{% endif %}>喜顺</option>
+                <option value="视频号" {% if lead.lead_source == '视频号' %}selected{% endif %}>视频号</option>
+                <option value="其他" {% if lead.lead_source not in ['周cc', '李博士', '喜顺', '视频号', ''] %}selected{% endif %}>其他</option>
+            </select>
+        </div>
+
+        <!-- 自定义线索来源 -->
+        <div id="custom_source_div" style="display: {% if lead.lead_source not in ['周cc', '李博士', '喜顺', '视频号', ''] %}block{% else %}none{% endif %};">
+            <label for="custom_source" class="block text-sm font-medium text-gray-700 mb-2">
+                自定义线索来源
+            </label>
+            <input type="text" 
+                   id="custom_source" 
+                   name="custom_source" 
+                   value="{% if lead.lead_source not in ['周cc', '李博士', '喜顺', '视频号', ''] %}{{ lead.lead_source }}{% endif %}"
+                   placeholder="请输入自定义线索来源"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+        </div>
+
+        <!-- 责任销售 -->
+        <div>
+            <label for="sales_user_id" class="block text-sm font-medium text-gray-700 mb-2">
+                责任销售
+            </label>
+            <select id="sales_user_id" 
+                    name="sales_user_id" 
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                <option value="">请选择责任销售</option>
+                {% for sales in sales_users %}
+                    <option value="{{ sales.id }}" {% if lead.sales_user_id == sales.id %}selected{% endif %}>{{ sales.username }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <!-- 按钮 -->
+    <div class="flex gap-3 mt-6">
+        <button type="button" 
+                onclick="closeEditModal()" 
+                class="flex-1 px-4 py-2 bg-gray-200 text-gray-800 text-base font-medium rounded-md hover:bg-gray-300">
+            取消
+        </button>
+        <button type="submit" 
+                class="flex-1 px-4 py-2 bg-blue-600 text-white text-base font-medium rounded-md hover:bg-blue-700">
+            保存
+        </button>
+    </div>
+</form>
+
+<script>
+function toggleCustomSource() {
+    const leadSource = document.getElementById('lead_source').value;
+    const customSourceDiv = document.getElementById('custom_source_div');
+    const customSourceInput = document.getElementById('custom_source');
+    
+    if (leadSource === '其他') {
+        customSourceDiv.style.display = 'block';
+        customSourceInput.required = true;
+        customSourceInput.focus();
+    } else {
+        customSourceDiv.style.display = 'none';
+        customSourceInput.required = false;
+        customSourceInput.value = '';
+    }
+}
+</script>
+

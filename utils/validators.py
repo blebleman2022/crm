@@ -136,25 +136,26 @@ def validate_date(date_str, field_name="日期", allow_empty=True):
 def validate_lead_stage_transition(current_stage, new_stage):
     """
     验证线索阶段转换是否合法
-    
+
     Args:
         current_stage (str): 当前阶段
         new_stage (str): 新阶段
-    
+
     Returns:
         tuple: (is_valid, error_message)
     """
-    stages = ['获取联系方式', '线下见面', '定金支付', '第二笔款项支付']
-    
+    # 标准线索阶段定义（按业务流程顺序）
+    stages = ['获取联系方式', '线下见面', '首笔支付', '次笔支付', '全款支付']
+
     if new_stage not in stages:
         return False, "无效的线索阶段"
-    
+
     if not current_stage:
         return True, ""  # 新建线索，任何阶段都可以
-    
+
     current_index = stages.index(current_stage) if current_stage in stages else -1
     new_index = stages.index(new_stage)
-    
+
     # 允许向前推进或保持当前阶段
     if new_index >= current_index:
         return True, ""

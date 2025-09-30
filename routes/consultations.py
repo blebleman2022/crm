@@ -80,7 +80,6 @@ def consultation_details(lead_id):
 
 @consultations_bp.route('/details_data/<int:lead_id>')
 @login_required
-@sales_or_admin_required
 def consultation_details_data(lead_id):
     """获取咨询明细数据（JSON格式）"""
     try:
@@ -89,6 +88,14 @@ def consultation_details_data(lead_id):
 
         # 获取该线索对应的客户记录（如果存在）
         customer = Customer.query.filter_by(lead_id=lead_id).first()
+
+        # 权限检查：班主任只能查看自己负责的客户
+        if current_user.role == 'teacher':
+            if not customer or customer.teacher_user_id != current_user.id:
+                return jsonify({
+                    'success': False,
+                    'message': '您没有权限查看此客户的沟通记录'
+                }), 403
 
         # 检查是否只获取客户阶段记录
         customer_only = request.args.get('customer_only', 'false').lower() == 'true'
@@ -132,7 +139,7 @@ def consultation_details_data(lead_id):
             },
             'customer': {
                 'id': customer.id if customer else None,
-                'service_type': customer.service_type if customer else None,
+                'service_types': customer.get_service_types() if customer else [],
                 'payment_amount': float(customer.payment_amount) if customer and customer.payment_amount else None,
                 'converted_at': customer.converted_at.isoformat() if customer and customer.converted_at else None
             } if customer else None,
@@ -158,12 +165,26 @@ def consultation_details_data(lead_id):
 
 @consultations_bp.route('/add_communication/<int:lead_id>', methods=['POST'])
 @login_required
-@sales_or_admin_required
 def add_communication_record(lead_id):
     """添加沟通记录 - 使用统一沟通记录表"""
     try:
         # 获取线索信息
         lead = Lead.query.get_or_404(lead_id)
+
+        # 获取该线索对应的客户记录（如果存在）
+        customer = Customer.query.filter_by(lead_id=lead_id).first()
+
+        # 权限检查：班主任只能为自己负责的客户添加沟通记录
+        if current_user.role == 'teacher':
+            if not customer or customer.teacher_user_id != current_user.id:
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or 'application/json' in request.headers.get('Accept', ''):
+                    return jsonify({
+                        'success': False,
+                        'message': '您没有权限为此客户添加沟通记录'
+                    }), 403
+                else:
+                    flash('您没有权限为此客户添加沟通记录', 'error')
+                    return redirect(url_for('customers.list_customers'))
 
         # 获取表单数据
         content = request.form.get('content', '').strip()
@@ -179,9 +200,6 @@ def add_communication_record(lead_id):
                 consultation_time = datetime.fromisoformat(consultation_time_str.replace('T', ' '))
             except ValueError:
                 consultation_time = datetime.now()
-
-        # 检查是否已转化为客户
-        customer = Customer.query.filter_by(lead_id=lead_id).first()
 
         if customer:
             # 客户阶段：添加客户沟通记录

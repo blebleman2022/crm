@@ -54,8 +54,9 @@
                     <span class="mt-1 inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
                         {% if lead.stage == '获取联系方式' %}bg-blue-100 text-blue-800
                         {% elif lead.stage == '线下见面' %}bg-yellow-100 text-yellow-800
-                        {% elif lead.stage == '定金支付' %}bg-orange-100 text-orange-800
-                        {% elif lead.stage == '次笔款项支付' %}bg-green-100 text-green-800
+                        {% elif lead.stage == '首笔支付' %}bg-orange-100 text-orange-800
+                        {% elif lead.stage == '次笔支付' %}bg-green-100 text-green-800
+                        {% elif lead.stage == '全款支付' %}bg-purple-100 text-purple-800
                         {% else %}bg-gray-100 text-gray-800{% endif %}">
                         {{ lead.stage }}
                     </span>
@@ -161,7 +162,7 @@
                                 </div>
                                 <div class="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
                                     <div>
-                                        <p class="text-sm text-gray-500">定金支付</p>
+                                        <p class="text-sm text-gray-500">首笔支付</p>
                                         <p class="text-sm text-gray-900">{{ lead.deposit_paid_at.strftime('%Y-%m-%d') }}</p>
                                     </div>
                                 </div>
@@ -182,7 +183,7 @@
                                 </div>
                                 <div class="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
                                     <div>
-                                        <p class="text-sm text-gray-500">次笔款项支付</p>
+                                        <p class="text-sm text-gray-500">次笔支付</p>
                                         <p class="text-sm text-gray-900">{{ lead.full_payment_at.strftime('%Y-%m-%d') }}</p>
                                     </div>
                                 </div>
@@ -234,10 +235,10 @@
                 <span class="material-symbols-outlined text-blue-600 mr-3">info</span>
                 <div>
                     <h3 class="text-lg font-medium text-blue-900">待转化客户</h3>
-                    <p class="text-blue-700">该线索尚未转化为客户，可在次笔款项支付后进行转化。</p>
+                    <p class="text-blue-700">该线索尚未转化为客户，可在次笔支付后进行转化。</p>
                 </div>
             </div>
-            {% if lead.stage == '次笔款项支付' %}
+            {% if lead.stage == '次笔支付' %}
             <button onclick="convertToCustomer({{ lead.id }})" 
                     class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
                 <span class="material-symbols-outlined mr-2">person_add</span>

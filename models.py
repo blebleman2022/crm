@@ -21,7 +21,6 @@ class User(UserMixin, db.Model):
     
     # 关联关系
     leads_as_sales = db.relationship('Lead', foreign_keys='Lead.sales_user_id', backref='sales_user', lazy='dynamic')
-    customers_as_sales = db.relationship('Customer', foreign_keys='Customer.sales_user_id', backref='sales_user', lazy='dynamic')
     customers_as_teacher = db.relationship('Customer', foreign_keys='Customer.teacher_user_id', backref='teacher_user', lazy='dynamic')
     
     def __repr__(self):
@@ -40,6 +39,22 @@ class Lead(db.Model):
     """学员线索表"""
     __tablename__ = 'leads'
 
+    # 线索阶段常量定义
+    STAGE_CONTACT = '获取联系方式'
+    STAGE_MEETING = '线下见面'
+    STAGE_FIRST_PAYMENT = '首笔支付'
+    STAGE_SECOND_PAYMENT = '次笔支付'
+    STAGE_FULL_PAYMENT = '全款支付'
+
+    # 所有允许的阶段值
+    ALLOWED_STAGES = [
+        STAGE_CONTACT,
+        STAGE_MEETING,
+        STAGE_FIRST_PAYMENT,
+        STAGE_SECOND_PAYMENT,
+        STAGE_FULL_PAYMENT
+    ]
+
     id = db.Column(db.Integer, primary_key=True)
     student_name = db.Column(db.String(50), comment='学员姓名')  # 改为可选
     parent_wechat_display_name = db.Column(db.String(50), nullable=False, comment='家长微信名')  # 新增必填字段
@@ -48,6 +63,8 @@ class Lead(db.Model):
     contact_locked = db.Column(db.Boolean, default=True, comment='联系方式是否锁定')
     lead_source = db.Column(db.String(50), comment='线索来源')
     grade = db.Column(db.String(10), comment='年级：1-9年级、高一、高二、高三')
+    district = db.Column(db.String(20), comment='行政区')
+    school = db.Column(db.String(100), comment='学校')
     sales_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, comment='责任销售ID')
     stage = db.Column(db.String(50), nullable=False, comment='线索阶段')
     contract_amount = db.Column(Numeric(10, 2), comment='合同金额')
@@ -59,20 +76,11 @@ class Lead(db.Model):
     first_payment_at = db.Column(db.DateTime, comment='首笔支付时间')
     second_payment_at = db.Column(db.DateTime, comment='次笔支付时间')
 
-    # 保留旧字段以兼容现有代码
-    deposit_paid_at = db.Column(db.DateTime, comment='定金支付时间')
-    full_payment_at = db.Column(db.DateTime, comment='第二笔款项支付时间')
-
-    # 服务内容（新的多选格式）
+    # 服务内容
     service_types = db.Column(db.Text, comment='服务类型JSON：["tutoring", "competition", "upgrade_guidance"]')
     competition_award_level = db.Column(db.String(20), comment='竞赛奖项等级：市奖/国奖')
     additional_requirements = db.Column(db.Text, comment='额外要求')
 
-    # 保留旧字段以兼容现有代码
-    service_type = db.Column(db.String(30), comment='服务类型：tutoring/competition/tutoring_competition')
-    award_requirement = db.Column(db.String(20), comment='竞赛奖项要求：市奖/国奖')
-
-    follow_up_notes = db.Column(db.Text, comment='跟进备注')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -109,31 +117,59 @@ class Lead(db.Model):
 class Customer(db.Model):
     """成交客户表"""
     __tablename__ = 'customers'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     lead_id = db.Column(db.Integer, db.ForeignKey('leads.id'), nullable=False, comment='关联线索ID')
-    sales_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, comment='责任销售ID')
     teacher_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), comment='责任班主任ID')
-    
-    service_type = db.Column(db.String(30), nullable=False, default='tutoring', comment='服务类型：tutoring/competition/tutoring_competition')
+
     payment_amount = db.Column(Numeric(10, 2), nullable=False, comment='支付金额')
-    award_requirement = db.Column(db.String(20), comment='竞赛奖项要求：市奖/国奖')
+
+    # ⚠️ 以下字段保留用于向后兼容，但不再使用
+    # 实际数据通过 @property 从线索表读取，保证单一数据源
+    _competition_award_level = db.Column('competition_award_level', db.String(20), comment='[已废弃] 竞赛奖项等级：市奖/国奖')
+    _additional_requirements = db.Column('additional_requirements', db.Text, comment='[已废弃] 额外要求')
+
     exam_year = db.Column(db.Integer, comment='中考或高考年份')
-    tutoring_expire_date = db.Column(db.Date, comment='课题服务到期时间')
-    award_expire_date = db.Column(db.Date, comment='获奖服务到期时间')
     customer_notes = db.Column(db.Text, comment='客户备注')
     converted_at = db.Column(db.DateTime, comment='线索转客户时间')
     is_priority = db.Column(db.Boolean, default=False, comment='是否重点关注客户')
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     # 关联关系
     tutoring_delivery = db.relationship('TutoringDelivery', backref='customer', uselist=False)
     competition_delivery = db.relationship('CompetitionDelivery', backref='customer', uselist=False)
-    
+
+    # ✨ 通过 @property 从线索表读取合同内容（单一数据源）
+    @property
+    def competition_award_level(self):
+        """从线索表读取竞赛奖项等级"""
+        return self.lead.competition_award_level if self.lead else None
+
+    @property
+    def additional_requirements(self):
+        """从线索表读取额外要求"""
+        return self.lead.additional_requirements if self.lead else None
+
+    # 辅助方法
+    def get_sales_user(self):
+        """获取责任销售"""
+        return self.lead.sales_user if self.lead else None
+
+    def get_service_types(self):
+        """获取服务类型列表"""
+        return self.lead.get_service_types_list() if self.lead else []
+
+    def get_expire_date(self):
+        """获取服务到期时间"""
+        if self.exam_year:
+            from datetime import date
+            return date(self.exam_year, 5, 31)
+        return None
+
     def __repr__(self):
-        return f'<Customer {self.lead.student_name}>'
+        return f'<Customer {self.lead.student_name if self.lead else self.id}>'
 
 class TutoringDelivery(db.Model):
     """课题辅导服务交付表"""

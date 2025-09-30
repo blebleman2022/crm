@@ -1,14 +1,18 @@
 import os
 from datetime import timedelta
 
+# 获取项目根目录的绝对路径
+basedir = os.path.abspath(os.path.dirname(__file__))
+
 class BaseConfig:
     """基础配置类"""
 
     # 基础配置
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'edu-crm-secret-key-2024'
 
-    # 数据库配置 - 统一使用环境变量
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///instance/edu_crm.db'
+    # 数据库配置 - 使用绝对路径
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
+        'sqlite:///' + os.path.join(basedir, 'instance', 'edu_crm.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # 会话配置

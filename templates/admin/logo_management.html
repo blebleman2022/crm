@@ -1,0 +1,194 @@
+{% extends "admin/base.html" %}
+
+{% block page_title %}Logo管理{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h2 class="text-3xl font-bold">Logo管理</h2>
+            <p class="mt-2 text-gray-600">上传和管理系统Logo，支持PNG、JPG、JPEG、GIF格式</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- 当前Logo显示 -->
+        <div class="bg-white rounded-lg shadow-sm border p-6">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">当前Logo</h3>
+            
+            <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                {% if current_logo %}
+                    <div class="space-y-4">
+                        <img src="{{ url_for('static', filename=current_logo) }}" 
+                             alt="当前Logo" 
+                             class="mx-auto"
+                             style="width: 150px; height: 50px; object-fit: contain; border: 1px solid #e5e7eb;">
+                        <div class="text-sm text-gray-500">
+                            <p>尺寸：150 × 50 像素</p>
+                            <p>文件：{{ current_logo.split('/')[-1] }}</p>
+                        </div>
+                        <form method="POST" action="{{ url_for('admin.delete_logo') }}" class="inline">
+                            <button type="submit" 
+                                    onclick="return confirm('确定要删除当前Logo吗？')"
+                                    class="inline-flex items-center px-3 py-2 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50">
+                                <span class="material-symbols-outlined mr-1 text-sm">delete</span>
+                                删除Logo
+                            </button>
+                        </form>
+                    </div>
+                {% else %}
+                    <div class="space-y-4">
+                        <span class="material-symbols-outlined text-6xl text-gray-400">image</span>
+                        <div class="text-gray-500">
+                            <p class="text-lg font-medium">暂无自定义Logo</p>
+                            <p class="text-sm">系统将使用默认Logo</p>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 上传新Logo -->
+        <div class="bg-white rounded-lg shadow-sm border p-6">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">上传新Logo</h3>
+            
+            <form method="POST" action="{{ url_for('admin.upload_logo') }}" enctype="multipart/form-data" class="space-y-6">
+                <div>
+                    <label for="logo" class="block text-sm font-medium text-gray-700 mb-2">选择Logo文件</label>
+                    <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:border-gray-400 transition-colors">
+                        <div class="space-y-1 text-center">
+                            <span class="material-symbols-outlined text-4xl text-gray-400">cloud_upload</span>
+                            <div class="flex text-sm text-gray-600">
+                                <label for="logo" class="relative cursor-pointer bg-white rounded-md font-medium text-primary-600 hover:text-primary-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary-500">
+                                    <span>点击选择文件</span>
+                                    <input id="logo" name="logo" type="file" class="sr-only" accept=".png,.jpg,.jpeg,.gif" required>
+                                </label>
+                                <p class="pl-1">或拖拽文件到此处</p>
+                            </div>
+                            <p class="text-xs text-gray-500">支持 PNG、JPG、JPEG、GIF 格式</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-blue-50 border border-blue-200 rounded-md p-4">
+                    <div class="flex">
+                        <span class="material-symbols-outlined text-blue-400 mr-2">info</span>
+                        <div class="text-sm text-blue-700">
+                            <h4 class="font-medium">上传说明：</h4>
+                            <ul class="mt-2 list-disc list-inside space-y-1">
+                                <li>图片将自动调整为 150 × 50 像素</li>
+                                <li>建议使用PNG格式以获得最佳透明度效果</li>
+                                <li>文件大小建议不超过2MB</li>
+                                <li>上传新Logo将替换当前Logo</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end">
+                    <button type="submit" 
+                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                        <span class="material-symbols-outlined mr-2">upload</span>
+                        上传Logo
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Logo预览效果 -->
+    <div class="mt-8 bg-white rounded-lg shadow-sm border p-6">
+        <h3 class="text-lg font-medium text-gray-900 mb-4">Logo预览效果</h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- 浅色背景预览 -->
+            <div class="space-y-3">
+                <h4 class="text-sm font-medium text-gray-700">浅色背景效果</h4>
+                <div class="bg-white border rounded-lg p-4 flex items-center justify-center" style="min-height: 80px;">
+                    {% if current_logo %}
+                        <img src="{{ url_for('static', filename=current_logo) }}" 
+                             alt="Logo预览" 
+                             style="width: 150px; height: 50px; object-fit: contain;">
+                    {% else %}
+                        <div class="text-gray-400 text-sm">暂无Logo</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- 深色背景预览 -->
+            <div class="space-y-3">
+                <h4 class="text-sm font-medium text-gray-700">深色背景效果</h4>
+                <div class="bg-gray-800 border rounded-lg p-4 flex items-center justify-center" style="min-height: 80px;">
+                    {% if current_logo %}
+                        <img src="{{ url_for('static', filename=current_logo) }}" 
+                             alt="Logo预览" 
+                             style="width: 150px; height: 50px; object-fit: contain;">
+                    {% else %}
+                        <div class="text-gray-400 text-sm">暂无Logo</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// 文件拖拽上传功能
+const dropZone = document.querySelector('.border-dashed');
+const fileInput = document.getElementById('logo');
+
+dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('border-primary-400', 'bg-primary-50');
+});
+
+dropZone.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('border-primary-400', 'bg-primary-50');
+});
+
+dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('border-primary-400', 'bg-primary-50');
+    
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        fileInput.files = files;
+        updateFileInfo(files[0]);
+    }
+});
+
+fileInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+        updateFileInfo(e.target.files[0]);
+    }
+});
+
+function updateFileInfo(file) {
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif'];
+    const maxSize = 2 * 1024 * 1024; // 2MB
+    
+    if (!allowedTypes.includes(file.type)) {
+        alert('不支持的文件格式，请选择 PNG、JPG、JPEG 或 GIF 文件');
+        fileInput.value = '';
+        return;
+    }
+    
+    if (file.size > maxSize) {
+        alert('文件大小不能超过2MB');
+        fileInput.value = '';
+        return;
+    }
+    
+    // 显示文件信息
+    const fileName = file.name;
+    const fileSize = (file.size / 1024).toFixed(1) + ' KB';
+    
+    // 更新显示
+    const uploadText = dropZone.querySelector('span:last-child');
+    if (uploadText) {
+        uploadText.textContent = `已选择: ${fileName} (${fileSize})`;
+    }
+}
+</script>
+{% endblock %}

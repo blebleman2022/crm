@@ -5,44 +5,71 @@
 
 {% block content %}
 <div class="max-w-7xl mx-auto">
-    <div class="flex items-center justify-between mb-8">
-        <h2 class="text-3xl font-bold">成交客户</h2>
-    </div>
 
     <div class="bg-white p-6 rounded-lg shadow-sm">
         <!-- 搜索和筛选 -->
-        <form method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div class="md:col-span-2">
-                <label class="sr-only" for="search">搜索</label>
-                <div class="relative">
-                    <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                        <span class="material-symbols-outlined text-gray-400">search</span>
+        <form method="GET" class="mb-6 space-y-4">
+            <!-- 第一行：搜索、奖项、班主任 -->
+            <div class="grid grid-cols-1 {% if current_user.role == 'teacher' %}md:grid-cols-2{% else %}md:grid-cols-3{% endif %} gap-4">
+                <div>
+                    <label class="sr-only" for="search">搜索</label>
+                    <div class="relative">
+                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                            <span class="material-symbols-outlined text-gray-400">search</span>
+                        </div>
+                        <input class="block w-full rounded-md border-0 py-2.5 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"
+                               id="search" name="search" placeholder="搜索学员姓名" type="search" value="{{ search }}"/>
                     </div>
-                    <input class="block w-full rounded-md border-0 py-2.5 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"
-                           id="search" name="search" placeholder="搜索学员姓名" type="search" value="{{ search }}"/>
                 </div>
+
+                <div>
+                    <select class="block w-full rounded-md border-0 py-2.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"
+                            name="award">
+                        <option value="">所有奖项要求</option>
+                        <option value="市奖" {% if award_filter == '市奖' %}selected{% endif %}>市奖</option>
+                        <option value="国奖" {% if award_filter == '国奖' %}selected{% endif %}>国奖</option>
+                    </select>
+                </div>
+
+                {% if current_user.role != 'teacher' %}
+                <div>
+                    <select class="block w-full rounded-md border-0 py-2.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"
+                            name="teacher">
+                        <option value="">所有班主任</option>
+                        {% for teacher in teachers %}
+                            <option value="{{ teacher.id }}" {% if teacher_filter == teacher.id|string %}selected{% endif %}>{{ teacher.username }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
             </div>
-            
-            <div>
-                <select class="block w-full rounded-md border-0 py-2.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm" 
-                        name="teacher">
-                    <option value="">所有班主任</option>
-                    {% for teacher in teachers %}
-                        <option value="{{ teacher.id }}" {% if teacher_filter == teacher.id|string %}selected{% endif %}>{{ teacher.username }}</option>
-                    {% endfor %}
-                </select>
+
+            <!-- 第二行：时间段筛选 -->
+            <div class="flex items-center gap-3 bg-gray-50 p-3 rounded-md">
+                <div class="flex items-center gap-2">
+                    <label for="start_date" class="text-sm font-medium text-gray-700">开始日期:</label>
+                    <input type="date"
+                           id="start_date"
+                           name="start_date"
+                           value="{{ start_date }}"
+                           class="rounded-md border-0 py-1.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"/>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <label for="end_date" class="text-sm font-medium text-gray-700">结束日期:</label>
+                    <input type="date"
+                           id="end_date"
+                           name="end_date"
+                           value="{{ end_date }}"
+                           class="rounded-md border-0 py-1.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"/>
+                </div>
+
+                <button type="submit"
+                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    <span class="material-symbols-outlined mr-1 text-sm">search</span>
+                    查询
+                </button>
             </div>
-            
-            <div>
-                <select class="block w-full rounded-md border-0 py-2.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm" 
-                        name="award">
-                    <option value="">所有奖项要求</option>
-                    <option value="市奖" {% if award_filter == '市奖' %}selected{% endif %}>市奖</option>
-                    <option value="国奖" {% if award_filter == '国奖' %}selected{% endif %}>国奖</option>
-                </select>
-            </div>
-            
-            <button type="submit" class="hidden">搜索</button>
         </form>
 
         <!-- 客户列表 -->
@@ -72,12 +99,15 @@
                                 {% if customer.is_priority %}
                                     <span class="material-symbols-outlined text-yellow-500 text-lg" title="重点关注客户">star</span>
                                 {% endif %}
-                                <a href="{{ url_for('customers.customer_detail', customer_id=customer.id) }}" class="text-blue-600 hover:text-blue-800">
+                                <button onclick="showStudentDetailModal({{ customer.id }}, true)" class="text-blue-600 hover:text-blue-800 cursor-pointer">
                                     {{ customer.lead.student_name }}
-                                </a>
+                                </button>
+                                {% if customer.lead.additional_requirements %}
+                                    <span class="material-symbols-outlined text-red-600 text-sm" title="有额外要求">add_circle</span>
+                                {% endif %}
                             </div>
                         </td>
-                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ customer.sales_user.username }}</td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ customer.lead.sales_user.username }}</td>
                         <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                             {% if customer.teacher_user %}
                                 {{ customer.teacher_user.username }}
@@ -88,14 +118,12 @@
                         </td>
 
                         <td class="whitespace-nowrap px-6 py-4 text-sm">
-                            {% if customer.award_requirement == '市奖' %}
+                            {% if customer.competition_award_level == '市奖' %}
                                 <span class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">市奖</span>
-                            {% elif customer.award_requirement == '国奖' %}
+                            {% elif customer.competition_award_level == '国奖' %}
                                 <span class="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">国奖</span>
-                            {% elif customer.award_requirement == '无' %}
-                                <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">无</span>
                             {% else %}
-                                <span class="text-gray-400">-</span>
+                                <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">无</span>
                             {% endif %}
                         </td>
                         <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
@@ -837,5 +865,8 @@ function togglePriorityCustomer() {
         </div>
     </div>
 </div>
+
+<!-- 包含学员详情弹窗组件 -->
+{% include 'components/student_detail_modal.html' %}
 
 {% endblock %}

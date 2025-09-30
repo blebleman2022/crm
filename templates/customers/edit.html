@@ -51,7 +51,7 @@
                                         <select name="sales_user_id" id="sales_user_id" required
                                                 class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
                                             {% for user in sales_users %}
-                                            <option value="{{ user.id }}" {% if user.id == customer.sales_user_id %}selected{% endif %}>
+                                            <option value="{{ user.id }}" {% if user.id == customer.lead.sales_user_id %}selected{% endif %}>
                                                 {{ user.username }}
                                             </option>
                                             {% endfor %}
@@ -81,25 +81,33 @@
                             <h3 class="text-lg font-medium text-gray-900 mb-4">服务信息</h3>
                             <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
                                 <div>
-                                    <label for="service_type" class="block text-sm font-medium text-gray-700">服务类型</label>
-                                    <div class="mt-1">
-                                        <select name="service_type" id="service_type" required onchange="toggleAwardRequirement()"
-                                                class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
-                                            <option value="tutoring">课题辅导</option>
-                                            <option value="competition">竞赛奖项</option>
-                                            <option value="tutoring_competition">课题+竞赛</option>
-                                        </select>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">服务类型（线索表）</label>
+                                    <div class="mt-1 text-sm text-gray-600">
+                                        {% set service_types = customer.lead.get_service_types_list() %}
+                                        {% if service_types %}
+                                            {% for service in service_types %}
+                                                <span class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 mr-2">
+                                                    {% if service == 'tutoring' %}课题辅导
+                                                    {% elif service == 'competition' %}竞赛奖项
+                                                    {% elif service == 'upgrade_guidance' %}升学指导
+                                                    {% endif %}
+                                                </span>
+                                            {% endfor %}
+                                        {% else %}
+                                            <span class="text-gray-400">未设置</span>
+                                        {% endif %}
+                                        <p class="mt-1 text-xs text-gray-500">服务类型在线索管理中设置</p>
                                     </div>
                                 </div>
 
-                                <div id="award_requirement_container">
-                                    <label for="award_requirement" class="block text-sm font-medium text-gray-700">奖项要求</label>
+                                <div>
+                                    <label for="competition_award_level" class="block text-sm font-medium text-gray-700">竞赛奖项等级</label>
                                     <div class="mt-1">
-                                        <select name="award_requirement" id="award_requirement"
+                                        <select name="competition_award_level" id="competition_award_level"
                                                 class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
-                                            <option value="">请选择奖项要求</option>
-                                            <option value="市奖" {% if customer.award_requirement == '市奖' %}selected{% endif %}>市奖</option>
-                                            <option value="国奖" {% if customer.award_requirement == '国奖' %}selected{% endif %}>国奖</option>
+                                            <option value="">无奖项要求</option>
+                                            <option value="市奖" {% if customer.competition_award_level == '市奖' %}selected{% endif %}>市奖</option>
+                                            <option value="国奖" {% if customer.competition_award_level == '国奖' %}selected{% endif %}>国奖</option>
                                         </select>
                                     </div>
                                 </div>
@@ -120,6 +128,15 @@
                                         当前设置：{% if customer.exam_year %}{{ customer.exam_year }}年{% else %}未设置{% endif %}
                                     </p>
                                 </div>
+
+                                <div class="sm:col-span-2">
+                                    <label for="additional_requirements" class="block text-sm font-medium text-gray-700">额外要求</label>
+                                    <div class="mt-1">
+                                        <textarea name="additional_requirements" id="additional_requirements" rows="3"
+                                                  class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                                  placeholder="请输入额外要求（可选）">{{ customer.additional_requirements or '' }}</textarea>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -129,7 +146,7 @@
                             <div class="mt-1">
                                 <textarea name="notes" id="notes" rows="4"
                                           class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                                          placeholder="请输入备注信息（可选）">{{ customer.notes or '' }}</textarea>
+                                          placeholder="请输入备注信息（可选）">{{ customer.customer_notes or '' }}</textarea>
                             </div>
                         </div>
 
@@ -152,34 +169,5 @@
     </div>
 </div>
 
-<script>
-function toggleAwardRequirement() {
-    const serviceType = document.getElementById('service_type').value;
-    const awardContainer = document.getElementById('award_requirement_container');
-    const awardSelect = document.getElementById('award_requirement');
 
-    if (serviceType === 'competition' || serviceType === 'tutoring_competition') {
-        awardContainer.style.display = 'block';
-        awardSelect.required = true;
-    } else {
-        awardContainer.style.display = 'none';
-        awardSelect.required = false;
-        awardSelect.value = '';
-    }
-}
-
-// 页面加载时初始化
-document.addEventListener('DOMContentLoaded', function() {
-    // 设置当前服务类型
-    const serviceType = document.getElementById('service_type');
-    {% if customer.award_requirement %}
-        serviceType.value = 'competition'; // 如果有奖项要求，默认为竞赛奖项
-    {% else %}
-        serviceType.value = 'tutoring'; // 否则默认为课题辅导
-    {% endif %}
-
-    // 初始化奖项要求显示状态
-    toggleAwardRequirement();
-});
-</script>
 {% endblock %}

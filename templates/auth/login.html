@@ -3,21 +3,26 @@
 {% block title %}登录 - EduConnect CRM{% endblock %}
 
 {% block content %}
-<div class="flex h-screen w-full flex-col">
-    <!-- Header -->
-    <header class="absolute top-0 left-0 w-full px-10 py-5">
-        <div class="flex items-center gap-3 text-slate-800">
-            <svg class="h-6 w-6 text-[#177ccf]" fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-                <path d="M24 4C25.7818 14.2173 33.7827 22.2182 44 24C33.7827 25.7818 25.7818 33.7827 24 44C22.2182 33.7827 14.2173 25.7818 4 24C14.2173 22.2182 22.2182 14.2173 24 4Z" fill="currentColor"></path>
-            </svg>
-            <h1 class="text-xl font-bold">EduConnect CRM</h1>
-        </div>
-    </header>
+<div class="flex h-screen w-full items-center justify-center bg-gray-50">
+    <!-- Logo in top left corner -->
+    <div class="absolute top-8 left-8">
+        {% set custom_logo = get_logo_url() %}
+        {% if custom_logo %}
+            <img src="{{ url_for('static', filename=custom_logo) }}" alt="Logo" style="width: 150px; height: 50px; object-fit: contain;">
+        {% else %}
+            <div class="flex items-center gap-3 text-slate-800">
+                <svg class="h-6 w-6 text-[#177ccf]" fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M24 4C25.7818 14.2173 33.7827 22.2182 44 24C33.7827 25.7818 25.7818 33.7827 24 44C22.2182 33.7827 14.2173 25.7818 4 24C14.2173 22.2182 22.2182 14.2173 24 4Z" fill="currentColor"></path>
+                </svg>
+                <h1 class="text-xl font-bold">EduConnect CRM</h1>
+            </div>
+        {% endif %}
+    </div>
 
-    <!-- Main Content -->
-    <main class="flex flex-1 items-center justify-center">
-        <div class="w-full max-w-md space-y-8 px-4 sm:px-6 lg:px-8">
-            <div class="text-center">
+    <!-- Login Form - Centered -->
+    <div class="w-full max-w-md px-8">
+        <div class="bg-white rounded-lg shadow-lg p-8">
+            <div class="text-center mb-8">
                 <h2 class="text-3xl font-bold tracking-tight text-slate-900">
                     欢迎回来
                 </h2>
@@ -26,17 +31,17 @@
                 </p>
             </div>
 
-            <form method="POST" class="mt-8 space-y-6">
+            <form method="POST" class="space-y-6">
                 <div>
                     <label class="block text-sm font-medium text-slate-700" for="phone">手机号</label>
                     <div class="mt-1">
-                        <input 
-                            autocomplete="tel" 
-                            class="form-input block w-full appearance-none rounded-md border border-slate-300 px-4 py-3 placeholder-slate-400 shadow-sm transition focus:border-[#177ccf] focus:outline-none focus:ring-1 focus:ring-[#177ccf] sm:text-sm" 
-                            id="phone" 
-                            name="phone" 
-                            placeholder="请输入您的手机号" 
-                            required 
+                        <input
+                            autocomplete="tel"
+                            class="form-input block w-full appearance-none rounded-md border border-slate-300 px-4 py-3 placeholder-slate-400 shadow-sm transition focus:border-[#177ccf] focus:outline-none focus:ring-1 focus:ring-[#177ccf] sm:text-sm"
+                            id="phone"
+                            name="phone"
+                            placeholder="请输入您的手机号"
+                            required
                             type="tel"
                             maxlength="11"
                             pattern="[0-9]{11}"
@@ -46,98 +51,16 @@
                 </div>
 
                 <div>
-                    <button 
-                        class="flex w-full justify-center rounded-md border border-transparent bg-[#177ccf] py-3 px-4 text-sm font-semibold text-white shadow-sm hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-[#177ccf] focus:ring-offset-2" 
+                    <button
+                        class="flex w-full justify-center rounded-md border border-transparent bg-[#177ccf] py-3 px-4 text-sm font-semibold text-white shadow-sm hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-[#177ccf] focus:ring-offset-2"
                         type="submit"
                     >
                         登录
                     </button>
                 </div>
             </form>
-
-            <p class="mt-6 text-center text-xs text-slate-500">
-                没有账户？ <a class="font-medium text-[#177ccf] hover:text-opacity-80" href="#">联系管理员</a>
-            </p>
-
-            <!-- 测试账号信息 -->
-            <div class="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
-                <h3 class="text-lg font-medium text-blue-900 mb-4 flex items-center">
-                    <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
-                    </svg>
-                    测试账号信息
-                </h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div class="bg-white rounded-lg p-4 border border-blue-100">
-                        <h4 class="font-semibold text-gray-900 mb-2 flex items-center">
-                            <svg class="w-4 h-4 text-red-600 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                            </svg>
-                            管理员账号
-                        </h4>
-                        <div class="space-y-1 text-gray-600">
-                            <p><strong>手机号:</strong> 13800138000</p>
-                            <p><strong>用户名:</strong> admin</p>
-                            <p><strong>权限:</strong> 系统全权限</p>
-                        </div>
-                    </div>
-
-                    <div class="bg-white rounded-lg p-4 border border-blue-100">
-                        <h4 class="font-semibold text-gray-900 mb-2 flex items-center">
-                            <svg class="w-4 h-4 text-green-600 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"></path>
-                            </svg>
-                            销售管理账号
-                        </h4>
-                        <div class="space-y-1 text-gray-600">
-                            <p><strong>手机号:</strong> 13900139001 (张三)</p>
-                            <p><strong>手机号:</strong> 13900139002 (李四)</p>
-                            <p><strong>手机号:</strong> 13900139005 (钱七)</p>
-                            <p><strong>权限:</strong> 线索和客户管理</p>
-                        </div>
-                    </div>
-
-                    <div class="bg-white rounded-lg p-4 border border-blue-100">
-                        <h4 class="font-semibold text-gray-900 mb-2 flex items-center">
-                            <svg class="w-4 h-4 text-purple-600 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3zM3.31 9.397L5 10.12v4.102a8.969 8.969 0 00-1.05-.174 1 1 0 01-.89-.89 11.115 11.115 0 01.25-3.762zM9.3 16.573A9.026 9.026 0 007 14.935v-3.957l1.818.78a3 3 0 002.364 0l5.508-2.361a11.026 11.026 0 01.25 3.762 1 1 0 01-.89.89 8.968 8.968 0 00-5.35 2.524 1 1 0 01-1.4 0zM6 18a1 1 0 001-1v-2.065a8.935 8.935 0 00-2-.712V17a1 1 0 001 1z"></path>
-                            </svg>
-                            班主任账号
-                        </h4>
-                        <div class="space-y-1 text-gray-600">
-                            <p><strong>手机号:</strong> 13900139003 (王五)</p>
-                            <p><strong>手机号:</strong> 13900139004 (赵六)</p>
-                            <p><strong>权限:</strong> 服务交付管理</p>
-                        </div>
-                    </div>
-
-                    <div class="bg-white rounded-lg p-4 border border-blue-100">
-                        <h4 class="font-semibold text-gray-900 mb-2 flex items-center">
-                            <svg class="w-4 h-4 text-orange-600 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"></path>
-                            </svg>
-                            使用提示
-                        </h4>
-                        <div class="space-y-1 text-gray-600 text-xs">
-                            <p>• 直接输入手机号即可登录</p>
-                            <p>• 不同角色看到不同功能</p>
-                            <p>• 支持数据增删改查操作</p>
-                            <p>• 系统会自动保存操作记录</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-                    <p class="text-xs text-yellow-800">
-                        <svg class="w-4 h-4 text-yellow-600 mr-1 inline" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-                        </svg>
-                        <strong>注意:</strong> 这是演示系统，所有数据仅用于测试目的。
-                    </p>
-                </div>
-            </div>
         </div>
-    </main>
+    </div>
 </div>
 
 <script>

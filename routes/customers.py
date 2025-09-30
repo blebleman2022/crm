@@ -18,57 +18,94 @@ def sales_or_admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def get_teachers():
+    """获取所有启用的班主任（包括销售管理角色）"""
+    return User.query.filter(
+        User.status == True,
+        User.role.in_(['teacher', 'sales'])
+    ).all()
+
 @customers_bp.route('/list')
 @login_required
-@sales_or_admin_required
 def list_customers():
     """客户列表"""
     page = request.args.get('page', 1, type=int)
     search = request.args.get('search', '', type=str)
     teacher_filter = request.args.get('teacher', '', type=str)
     award_filter = request.args.get('award', '', type=str)
-    
+
+    # 时间段筛选参数（按客户新增时间）
+    start_date = request.args.get('start_date', '', type=str)
+    end_date = request.args.get('end_date', '', type=str)
+
     query = Customer.query.join(Lead).options(
         db.joinedload(Customer.tutoring_delivery),
         db.joinedload(Customer.competition_delivery)
     )
-    
+
+    # 如果是班主任，只能看到自己负责的客户
+    if current_user.role == 'teacher':
+        query = query.filter(Customer.teacher_user_id == current_user.id)
+
     # 搜索过滤
     if search:
         query = query.filter(
-            (Lead.student_name.contains(search)) | 
+            (Lead.student_name.contains(search)) |
             (Lead.contact_info.contains(search))
         )
-    
-    # 班主任过滤
-    if teacher_filter:
+
+    # 班主任过滤（仅对非班主任角色有效）
+    if teacher_filter and current_user.role != 'teacher':
         query = query.filter(Customer.teacher_user_id == teacher_filter)
-    
-    # 奖项要求过滤
+
+    # 奖项要求过滤（从线索表读取）
     if award_filter:
-        query = query.filter(Customer.award_requirement == award_filter)
-    
+        query = query.filter(Lead.competition_award_level == award_filter)
+
+    # 时间段筛选（按客户新增时间）
+    if start_date and end_date:
+        try:
+            from sqlalchemy import func, and_
+            start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()
+
+            query = query.filter(
+                and_(
+                    func.date(Customer.created_at) >= start_dt,
+                    func.date(Customer.created_at) <= end_dt
+                )
+            )
+        except ValueError:
+            pass
+
     # 分页
     customers = query.order_by(Customer.created_at.desc()).paginate(
         page=page, per_page=20, error_out=False
     )
-    
-    # 获取所有班主任用于筛选
-    teachers = User.query.filter_by(role='teacher', status=True).all()
-    
-    return render_template('customers/list.html', 
-                         customers=customers, 
+
+    # 获取所有班主任用于筛选（包括销售管理角色）
+    teachers = get_teachers()
+
+    return render_template('customers/list.html',
+                         customers=customers,
                          search=search,
                          teacher_filter=teacher_filter,
                          award_filter=award_filter,
-                         teachers=teachers)
+                         teachers=teachers,
+                         start_date=start_date,
+                         end_date=end_date)
 
 @customers_bp.route('/<int:customer_id>/detail')
 @login_required
-@sales_or_admin_required
 def customer_detail(customer_id):
     """客户详情"""
     customer = Customer.query.get_or_404(customer_id)
+
+    # 如果是班主任，只能查看自己负责的客户
+    if current_user.role == 'teacher' and customer.teacher_user_id != current_user.id:
+        flash('您没有权限查看此客户', 'error')
+        return redirect(url_for('customers.list_customers'))
+
     return render_template('customers/detail.html', customer=customer)
 
 @customers_bp.route('/<int:customer_id>/edit', methods=['GET', 'POST'])
@@ -84,22 +121,18 @@ def edit_customer(customer_id):
         contact_info = request.form.get('contact_info', '').strip()
         sales_user_id = request.form.get('sales_user_id', type=int)
         teacher_user_id = request.form.get('teacher_user_id', type=int)
-        service_type = request.form.get('service_type', '').strip()
-        award_requirement = request.form.get('award_requirement', '').strip()
+        competition_award_level = request.form.get('competition_award_level', '').strip()
+        additional_requirements = request.form.get('additional_requirements', '').strip()
         exam_year = request.form.get('exam_year', type=int)
         notes = request.form.get('notes', '').strip()
 
         # 验证必填字段
-        required_fields = [student_name, contact_info, sales_user_id, service_type, exam_year]
-
-        # 如果服务类型包含竞赛，则奖项要求为必填
-        if service_type in ['competition', 'tutoring_competition']:
-            required_fields.append(award_requirement)
+        required_fields = [student_name, contact_info, sales_user_id, exam_year]
 
         if not all(required_fields):
             flash('请填写所有必填字段', 'error')
             sales_users = User.query.filter_by(role='sales', status=True).all()
-            teacher_users = User.query.filter_by(role='teacher', status=True).all()
+            teacher_users = get_teachers()
             return render_template('customers/edit.html', customer=customer,
                                  sales_users=sales_users, teacher_users=teacher_users)
 
@@ -108,17 +141,21 @@ def edit_customer(customer_id):
         if not sales_user:
             flash('选择的销售用户无效', 'error')
             sales_users = User.query.filter_by(role='sales', status=True).all()
-            teacher_users = User.query.filter_by(role='teacher', status=True).all()
+            teacher_users = get_teachers()
             return render_template('customers/edit.html', customer=customer,
                                  sales_users=sales_users, teacher_users=teacher_users)
 
-        # 验证班主任（可选）
+        # 验证班主任（可选）- 允许销售管理和班主任角色
         if teacher_user_id:
-            teacher = User.query.filter_by(id=teacher_user_id, role='teacher', status=True).first()
+            teacher = User.query.filter(
+                User.id == teacher_user_id,
+                User.role.in_(['teacher', 'sales']),
+                User.status == True
+            ).first()
             if not teacher:
                 flash('选择的班主任无效', 'error')
                 sales_users = User.query.filter_by(role='sales', status=True).all()
-                teacher_users = User.query.filter_by(role='teacher', status=True).all()
+                teacher_users = get_teachers()
                 return render_template('customers/edit.html', customer=customer,
                                      sales_users=sales_users, teacher_users=teacher_users)
 
@@ -130,10 +167,11 @@ def edit_customer(customer_id):
             customer.lead.updated_at = datetime.utcnow()
 
             # 更新客户信息
-            customer.sales_user_id = sales_user_id
             customer.teacher_user_id = teacher_user_id if teacher_user_id else None
-            customer.service_type = service_type
+            customer.competition_award_level = competition_award_level if competition_award_level else None
+            customer.additional_requirements = additional_requirements if additional_requirements else None
             customer.exam_year = exam_year
+
             # 如果备注有变化，添加为沟通记录
             if notes and notes != customer.customer_notes:
                 from communication_utils import CommunicationManager
@@ -145,21 +183,6 @@ def edit_customer(customer_id):
 
             customer.customer_notes = notes
             customer.updated_at = datetime.utcnow()
-
-            # 设置奖项要求
-            if service_type in ['competition', 'tutoring_competition']:
-                customer.award_requirement = award_requirement
-            else:
-                # 对于课题辅导，设置奖项要求为"无"
-                customer.award_requirement = '无'
-
-            # 根据考试年份计算到期时间（假设服务到考试前结束）
-            from datetime import date
-            if exam_year:
-                # 假设中考/高考在6月，服务到考试前一个月结束
-                expire_date = date(exam_year, 5, 31)
-                customer.tutoring_expire_date = expire_date
-                customer.award_expire_date = expire_date
 
             # 如果分配了班主任，创建对应的交付记录
             if teacher_user_id and not customer.tutoring_delivery:
@@ -179,13 +202,9 @@ def edit_customer(customer_id):
 
     # GET 请求，显示编辑表单
     sales_users = User.query.filter_by(role='sales', status=True).all()
-    teacher_users = User.query.filter_by(role='teacher', status=True).all()
+    teacher_users = get_teachers()
     return render_template('customers/edit.html', customer=customer,
                          sales_users=sales_users, teacher_users=teacher_users)
-
-def get_teachers():
-    """获取所有启用的班主任"""
-    return User.query.filter_by(role='teacher', status=True).all()
 
 @customers_bp.route('/<int:customer_id>/assign_teacher', methods=['POST'])
 @login_required
@@ -194,11 +213,16 @@ def assign_teacher(customer_id):
     """分配班主任"""
     customer = Customer.query.get_or_404(customer_id)
     teacher_id = request.json.get('teacher_id')
-    
+
     if not teacher_id:
         return jsonify({'success': False, 'message': '请选择班主任'})
-    
-    teacher = User.query.filter_by(id=teacher_id, role='teacher', status=True).first()
+
+    # 允许销售管理和班主任角色被分配为班主任
+    teacher = User.query.filter(
+        User.id == teacher_id,
+        User.role.in_(['teacher', 'sales']),
+        User.status == True
+    ).first()
     if not teacher:
         return jsonify({'success': False, 'message': '选择的班主任无效'})
     
@@ -257,6 +281,62 @@ def get_customer_progress(customer_id):
 
     return jsonify({'success': True, 'customer': customer_data})
 
+@customers_bp.route('/<int:customer_id>/api')
+@login_required
+def customer_api(customer_id):
+    """客户API详情 - 用于弹窗显示"""
+    customer = Customer.query.get_or_404(customer_id)
+
+    # 权限检查：班主任只能查看自己负责的客户
+    if current_user.role == 'teacher' and customer.teacher_user_id != current_user.id:
+        return jsonify({
+            'success': False,
+            'message': '您没有权限查看此客户'
+        }), 403
+
+    # 计算已付款总额
+    from models import Payment
+    payments = Payment.query.filter_by(lead_id=customer.lead_id).all()
+    paid_amount = sum(payment.amount for payment in payments) if payments else 0
+
+    customer_data = {
+        'id': customer.id,
+        'student_name': customer.lead.student_name,
+        'parent_wechat_display_name': customer.lead.parent_wechat_display_name,
+        'parent_wechat_name': customer.lead.parent_wechat_name,
+        'contact_info': customer.lead.contact_info,
+        'grade': customer.lead.grade,
+        'school': customer.lead.school,
+        'district': customer.lead.district,
+        'sales_user': customer.lead.sales_user.username if customer.lead.sales_user else None,
+        'teacher_user': customer.teacher_user.username if customer.teacher_user else None,
+        'service_types': customer.lead.get_service_types_list(),
+        'competition_award_level': customer.competition_award_level,
+        'additional_requirements': customer.additional_requirements,
+        'exam_year': customer.exam_year,
+        'notes': customer.customer_notes,
+        'created_at': customer.created_at.isoformat() if customer.created_at else None,
+        'updated_at': customer.updated_at.isoformat() if customer.updated_at else None
+    }
+
+    # 辅导交付状态
+    if customer.tutoring_delivery:
+        customer_data['tutoring_delivery'] = {
+            'thesis_status': customer.tutoring_delivery.thesis_status,
+            'total_sessions': customer.tutoring_delivery.total_sessions,
+            'completed_sessions': customer.tutoring_delivery.completed_sessions,
+            'thesis_completed_at': customer.tutoring_delivery.thesis_completed_at.isoformat() if customer.tutoring_delivery.thesis_completed_at else None
+        }
+
+    # 竞赛交付状态
+    if customer.competition_delivery:
+        customer_data['competition_delivery'] = {
+            'delivery_status': customer.competition_delivery.delivery_status,
+            'award_obtained_at': customer.competition_delivery.award_obtained_at.isoformat() if customer.competition_delivery.award_obtained_at else None
+        }
+
+    return jsonify({'success': True, 'customer': customer_data})
+
 @customers_bp.route('/<int:customer_id>/update_progress', methods=['POST'])
 @login_required
 def update_customer_progress(customer_id):
@@ -295,7 +375,11 @@ def update_customer_progress(customer_id):
         customer.tutoring_delivery.updated_at = datetime.utcnow()
 
         # 更新或创建奖项状态记录
-        if customer.award_requirement != '无':
+        # 检查是否有竞赛服务类型且有奖项等级要求
+        has_competition = 'competition' in customer.get_service_types()
+        has_award_requirement = customer.competition_award_level and customer.competition_award_level != '无'
+
+        if has_competition and has_award_requirement:
             if not customer.competition_delivery:
                 competition_delivery = CompetitionDelivery(customer_id=customer.id)
                 db.session.add(competition_delivery)

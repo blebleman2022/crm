@@ -73,7 +73,13 @@
                         <option value="李博士">李博士</option>
                         <option value="喜顺">喜顺</option>
                         <option value="视频号">视频号</option>
+                        <option value="其他">其他</option>
                     </select>
+                </div>
+                <!-- 自定义线索来源输入框 -->
+                <div id="custom_source_div" style="display: none;" class="mt-2">
+                    <input type="text" name="custom_source" id="custom_source" placeholder="请输入自定义线索来源"
+                           class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
                 </div>
             </div>
 
@@ -111,6 +117,42 @@
                     </select>
                 </div>
                 <p class="mt-2 text-sm text-gray-500">如不选择，系统将自动分配给当前用户。</p>
+            </div>
+
+            <div>
+                <label for="district" class="block text-sm font-medium text-gray-700">行政区</label>
+                <div class="mt-1">
+                    <select name="district" id="district"
+                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                        <option value="">请选择行政区</option>
+                        <option value="黄浦区">黄浦区</option>
+                        <option value="徐汇区">徐汇区</option>
+                        <option value="长宁区">长宁区</option>
+                        <option value="静安区">静安区</option>
+                        <option value="普陀区">普陀区</option>
+                        <option value="虹口区">虹口区</option>
+                        <option value="杨浦区">杨浦区</option>
+                        <option value="闵行区">闵行区</option>
+                        <option value="宝山区">宝山区</option>
+                        <option value="嘉定区">嘉定区</option>
+                        <option value="浦东新区">浦东新区</option>
+                        <option value="金山区">金山区</option>
+                        <option value="松江区">松江区</option>
+                        <option value="青浦区">青浦区</option>
+                        <option value="奉贤区">奉贤区</option>
+                        <option value="崇明区">崇明区</option>
+                    </select>
+                </div>
+                <p class="mt-2 text-sm text-gray-500">可选，选择学员所在的行政区。</p>
+            </div>
+
+            <div>
+                <label for="school" class="block text-sm font-medium text-gray-700">学校</label>
+                <div class="mt-1">
+                    <input type="text" name="school" id="school" placeholder="请输入学校名称"
+                           class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                </div>
+                <p class="mt-2 text-sm text-gray-500">可选，输入学员就读的学校名称。</p>
             </div>
 
             <div>
@@ -204,6 +246,11 @@
 <script>
 // 等待DOM加载完成
 document.addEventListener('DOMContentLoaded', function() {
+    // 线索来源切换事件监听
+    document.getElementById('source').addEventListener('change', function() {
+        toggleCustomSource();
+    });
+
     // 手机号格式化
     document.getElementById('phone').addEventListener('input', function(e) {
     let value = e.target.value.replace(/\D/g, '');
@@ -361,6 +408,23 @@ document.getElementById('parent_wechat_name').addEventListener('blur', function(
     });
 });
 
+// 线索来源切换函数（全局函数）
+function toggleCustomSource() {
+    const sourceSelect = document.getElementById('source');
+    const customSourceDiv = document.getElementById('custom_source_div');
+    const customSourceInput = document.getElementById('custom_source');
+
+    if (sourceSelect.value === '其他') {
+        customSourceDiv.style.display = 'block';
+        customSourceInput.required = true;
+        customSourceInput.focus();
+    } else {
+        customSourceDiv.style.display = 'none';
+        customSourceInput.required = false;
+        customSourceInput.value = '';
+    }
+}
+
 // 表单验证
 document.querySelector('form').addEventListener('submit', function(e) {
     e.preventDefault(); // 阻止默认提交
@@ -369,6 +433,8 @@ document.querySelector('form').addEventListener('submit', function(e) {
     const parentWechatDisplayName = document.getElementById('parent_wechat_display_name').value.trim();
     const parentWechatName = document.getElementById('parent_wechat_name').value.trim();
     const grade = document.getElementById('grade').value.trim();
+    const source = document.getElementById('source').value.trim();
+    const customSource = document.getElementById('custom_source').value.trim();
     const phoneRegex = /^1[0-9]\d{9}$/;
 
     // 验证必填字段
@@ -384,6 +450,18 @@ document.querySelector('form').addEventListener('submit', function(e) {
 
     if (!grade) {
         alert('请选择年级');
+        return false;
+    }
+
+    // 验证线索来源
+    if (!source) {
+        alert('请选择线索来源');
+        return false;
+    }
+
+    // 如果选择了"其他"，验证自定义输入
+    if (source === '其他' && !customSource) {
+        alert('请输入自定义线索来源');
         return false;
     }
 

@@ -85,22 +85,27 @@
             </div>
             <div class="p-6">
                 <div class="grid grid-cols-2 gap-4">
-                    <a href="{{ url_for('admin.add_user') }}" 
+                    <a href="{{ url_for('admin.add_user') }}"
                        class="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
                         <span class="material-symbols-outlined mr-2">person_add</span>
                         添加用户
                     </a>
-                    <a href="{{ url_for('admin.users') }}" 
+                    <a href="{{ url_for('admin.users') }}"
                        class="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
                         <span class="material-symbols-outlined mr-2">manage_accounts</span>
                         用户管理
                     </a>
-                    <a href="{{ url_for('config.competition_list') }}" 
+                    <a href="{{ url_for('admin.logo_management') }}"
+                       class="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        <span class="material-symbols-outlined mr-2">image</span>
+                        Logo管理
+                    </a>
+                    <a href="{{ url_for('config.competition_list') }}"
                        class="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
                         <span class="material-symbols-outlined mr-2">settings</span>
                         系统配置
                     </a>
-                    <a href="{{ url_for('admin.login_logs') }}" 
+                    <a href="{{ url_for('admin.login_logs') }}"
                        class="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
                         <span class="material-symbols-outlined mr-2">history</span>
                         登录日志

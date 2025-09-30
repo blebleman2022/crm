@@ -10,13 +10,6 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 
-# 加载环境变量文件
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    pass  # 如果没有安装python-dotenv，忽略
-
 def create_app(config_name=None):
     """应用工厂函数"""
     
@@ -27,11 +20,18 @@ def create_app(config_name=None):
     # 创建Flask应用
     app = Flask(__name__)
     
-    # 加载配置 - 使用统一的配置文件
-    from config import config
-    config_class = config.get(config_name, config['default'])
-    app.config.from_object(config_class)
-    config_class.init_app(app)
+    # 加载配置
+    if config_name == 'production':
+        from config_production import ProductionConfig
+        app.config.from_object(ProductionConfig)
+        ProductionConfig.init_app(app)
+    elif config_name == 'testing':
+        from config_production import TestingConfig
+        app.config.from_object(TestingConfig)
+        TestingConfig.init_app(app)
+    else:
+        from config import Config
+        app.config.from_object(Config)
     
     # 初始化扩展
     from models import db
@@ -65,7 +65,26 @@ def create_app(config_name=None):
     app.register_blueprint(config_bp, url_prefix='/config')
     app.register_blueprint(query_bp, url_prefix='/query')
     app.register_blueprint(consultations_bp, url_prefix='/consultations')
-    
+
+    # 添加全局模板函数
+    @app.context_processor
+    def inject_logo():
+        """注入logo路径到所有模板"""
+        import os
+
+        def get_logo_url():
+            """获取当前logo的URL"""
+            allowed_extensions = ['png', 'jpg', 'jpeg', 'gif']
+            logo_filename = 'custom-logo'
+
+            for ext in allowed_extensions:
+                logo_path = f"static/images/{logo_filename}.{ext}"
+                if os.path.exists(logo_path):
+                    return f"images/{logo_filename}.{ext}"
+            return None
+
+        return dict(get_logo_url=get_logo_url)
+
     # 健康检查端点
     @app.route('/health')
     def health_check():
@@ -555,19 +574,10 @@ def main():
             print("生产环境请使用: gunicorn -w 4 -b 0.0.0.0:8000 run:app")
         else:
             # 开发环境直接启动
-            port = int(os.environ.get('PORT', 5000))
-            debug_mode = (config_name == 'development')
-            print(f"启动Flask开发服务器:")
-            print(f"  地址: http://0.0.0.0:{port}")
-            print(f"  调试模式: {debug_mode}")
-            print(f"  热重载: {debug_mode}")
-
             app.run(
                 host='0.0.0.0',
-                port=port,
-                debug=debug_mode,
-                use_reloader=debug_mode,
-                threaded=True
+                port=int(os.environ.get('PORT', 5000)),
+                debug=(config_name == 'development')
             )
     
     elif command == 'test':

@@ -1,0 +1,87 @@
+{% extends "admin/base.html" %}
+
+{% block title %}编辑用户 - EduConnect CRM{% endblock %}
+{% block page_title %}编辑用户{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="mb-8">
+        <h2 class="text-3xl font-bold text-gray-900">编辑用户</h2>
+        <p class="mt-2 text-gray-600">修改用户的基本信息和权限设置。</p>
+    </div>
+
+    <div class="bg-white shadow rounded-lg">
+        <form method="POST" class="space-y-6 p-6">
+            <div>
+                <label for="username" class="block text-sm font-medium text-gray-700">用户名</label>
+                <div class="mt-1">
+                    <input type="text" name="username" id="username" required
+                           value="{{ user.username }}"
+                           class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                           placeholder="请输入用户名">
+                </div>
+                <p class="mt-2 text-sm text-gray-500">用户名将用于系统内部识别，建议使用真实姓名。</p>
+            </div>
+
+            <div>
+                <label for="phone" class="block text-sm font-medium text-gray-700">手机号</label>
+                <div class="mt-1">
+                    <input type="tel" name="phone" id="phone" 
+                           value="{{ user.phone }}" disabled
+                           class="block w-full rounded-md border-gray-300 bg-gray-50 shadow-sm sm:text-sm"
+                           placeholder="手机号不可修改">
+                </div>
+                <p class="mt-2 text-sm text-gray-500">手机号作为登录凭证，创建后不可修改。</p>
+            </div>
+
+            <div>
+                <label for="role" class="block text-sm font-medium text-gray-700">用户角色</label>
+                <div class="mt-1">
+                    <select name="role" id="role" disabled
+                            class="block w-full rounded-md border-gray-300 bg-gray-50 shadow-sm sm:text-sm">
+                        <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>管理员</option>
+                        <option value="sales" {% if user.role == 'sales' %}selected{% endif %}>销售管理</option>
+                        <option value="teacher" {% if user.role == 'teacher' %}selected{% endif %}>班主任</option>
+                    </select>
+                </div>
+                <p class="mt-2 text-sm text-gray-500">用户角色创建后不可修改，如需更改请联系系统管理员。</p>
+            </div>
+
+            <div>
+                <label for="group_name" class="block text-sm font-medium text-gray-700">组别名称</label>
+                <div class="mt-1">
+                    <input type="text" name="group_name" id="group_name"
+                           value="{{ user.group_name or '' }}"
+                           class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                           placeholder="请输入组别名称（可选）">
+                </div>
+                <p class="mt-2 text-sm text-gray-500">用于区分不同的工作组或团队，可选填写。</p>
+            </div>
+
+            <div class="flex items-center justify-between pt-6 border-t border-gray-200">
+                <a href="{{ url_for('admin.users') }}"
+                   class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    取消
+                </a>
+                <button type="submit"
+                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    保存修改
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// 表单验证
+document.querySelector('form').addEventListener('submit', function(e) {
+    const username = document.getElementById('username').value.trim();
+    
+    if (!username) {
+        e.preventDefault();
+        alert('请输入用户名');
+        return false;
+    }
+});
+</script>
+{% endblock %}

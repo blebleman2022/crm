@@ -1,7 +1,12 @@
 <!-- 侧边栏 -->
 <div class="fixed inset-y-0 left-0 z-50 w-64 bg-gray-900 lg:block hidden">
     <div class="flex h-16 items-center justify-center">
-        <h1 class="text-xl font-bold text-white">EduConnect CRM</h1>
+        {% set custom_logo = get_logo_url() %}
+        {% if custom_logo %}
+            <img src="{{ url_for('static', filename=custom_logo) }}" alt="Logo" style="width: 150px; height: 50px; object-fit: contain;" class="brightness-0 invert">
+        {% else %}
+            <h1 class="text-xl font-bold text-white">EduConnect CRM</h1>
+        {% endif %}
     </div>
     <nav class="mt-8">
         <div class="px-4 space-y-2">
@@ -101,7 +106,12 @@
 <div class="lg:hidden fixed inset-0 z-40 bg-gray-600 bg-opacity-75 hidden" id="sidebar-overlay">
     <div class="fixed inset-y-0 left-0 flex w-64 flex-col bg-gray-900">
         <div class="flex h-16 items-center justify-between px-4">
-            <h1 class="text-xl font-bold text-white">EduConnect CRM</h1>
+            {% set custom_logo = get_logo_url() %}
+            {% if custom_logo %}
+                <img src="{{ url_for('static', filename=custom_logo) }}" alt="Logo" style="width: 150px; height: 50px; object-fit: contain;" class="brightness-0 invert">
+            {% else %}
+                <h1 class="text-xl font-bold text-white">EduConnect CRM</h1>
+            {% endif %}
             <button type="button" class="text-gray-300 hover:text-white" onclick="toggleMobileSidebar()">
                 <span class="material-symbols-outlined">close</span>
             </button>

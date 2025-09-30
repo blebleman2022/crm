@@ -7,7 +7,6 @@
 <div class="max-w-full mx-auto px-4">
     <div class="flex items-center justify-between mb-6">
         <div>
-            <h2 class="text-2xl font-bold">学员线索</h2>
             {% if filter_type and filter_period %}
             <p class="text-sm text-gray-600 mt-1">
                 <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
@@ -29,39 +28,78 @@
 
     <div class="bg-white p-4 rounded-lg shadow-sm">
         <!-- 搜索和筛选 -->
-        <form method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
-            <div class="md:col-span-2">
-                <label class="sr-only" for="search">搜索</label>
-                <div class="relative">
-                    <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                        <span class="material-symbols-outlined text-gray-400">search</span>
+        <form method="GET" class="space-y-4 mb-4">
+            <!-- 第一行：搜索、阶段、销售 -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div class="md:col-span-2">
+                    <label class="sr-only" for="search">搜索</label>
+                    <div class="relative">
+                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                            <span class="material-symbols-outlined text-gray-400">search</span>
+                        </div>
+                        <input class="block w-full rounded-md border-0 py-2.5 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"
+                               id="search" name="search" placeholder="搜索学员姓名或家长微信名" type="search" value="{{ search }}"/>
                     </div>
-                    <input class="block w-full rounded-md border-0 py-2.5 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm" 
-                           id="search" name="search" placeholder="搜索学员姓名或家长微信名" type="search" value="{{ search }}"/>
+                </div>
+
+                <div>
+                    <select class="block w-full rounded-md border-0 py-2.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"
+                            name="stage">
+                        <option value="">所有阶段</option>
+                        {% for stage in stages %}
+                            <option value="{{ stage }}" {% if stage_filter == stage %}selected{% endif %}>{{ stage }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <select class="block w-full rounded-md border-0 py-2.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"
+                            name="sales">
+                        <option value="">所有销售</option>
+                        {% for sales in sales_users %}
+                            <option value="{{ sales.id }}" {% if sales_filter == sales.id|string %}selected{% endif %}>{{ sales.username }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
             </div>
-            
-            <div>
-                <select class="block w-full rounded-md border-0 py-2.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm" 
-                        name="stage">
-                    <option value="">所有阶段</option>
-                    {% for stage in stages %}
-                        <option value="{{ stage }}" {% if stage_filter == stage %}selected{% endif %}>{{ stage }}</option>
-                    {% endfor %}
-                </select>
+
+            <!-- 第二行：时间段筛选 -->
+            <div class="flex items-center gap-3 bg-gray-50 p-3 rounded-md">
+                <div class="flex items-center gap-2">
+                    <label class="text-sm font-medium text-gray-700">时间类型:</label>
+                    <select class="rounded-md border-0 py-1.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"
+                            name="date_type">
+                        <option value="">不筛选</option>
+                        <option value="first_payment" {% if date_type == 'first_payment' %}selected{% endif %}>首笔支付</option>
+                        <option value="second_payment" {% if date_type == 'second_payment' %}selected{% endif %}>次笔支付</option>
+                        <option value="full_payment" {% if date_type == 'full_payment' %}selected{% endif %}>全款支付</option>
+                    </select>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <label for="start_date" class="text-sm font-medium text-gray-700">开始日期:</label>
+                    <input type="date"
+                           id="start_date"
+                           name="start_date"
+                           value="{{ start_date }}"
+                           class="rounded-md border-0 py-1.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"/>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <label for="end_date" class="text-sm font-medium text-gray-700">结束日期:</label>
+                    <input type="date"
+                           id="end_date"
+                           name="end_date"
+                           value="{{ end_date }}"
+                           class="rounded-md border-0 py-1.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"/>
+                </div>
+
+                <button type="submit"
+                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    <span class="material-symbols-outlined mr-1 text-sm">search</span>
+                    查询
+                </button>
             </div>
-            
-            <div>
-                <select class="block w-full rounded-md border-0 py-2.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm" 
-                        name="sales">
-                    <option value="">所有销售</option>
-                    {% for sales in sales_users %}
-                        <option value="{{ sales.id }}" {% if sales_filter == sales.id|string %}selected{% endif %}>{{ sales.username }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            
-            <button type="submit" class="hidden">搜索</button>
         </form>
 
         <!-- 线索列表 -->
@@ -86,9 +124,14 @@
                     {% for lead in leads.items %}
                     <tr class="hover:bg-gray-50">
                         <td class="whitespace-nowrap px-3 py-3 text-sm font-medium text-gray-900">
-                            <a href="{{ url_for('leads.lead_detail', lead_id=lead.id) }}" class="text-blue-600 hover:text-blue-800">
-                                {{ lead.student_name or '-' }}
-                            </a>
+                            <div class="flex items-center space-x-2">
+                                <button onclick="showStudentDetailModal({{ lead.id }}, false)" class="text-blue-600 hover:text-blue-800 cursor-pointer">
+                                    {{ lead.student_name or '-' }}
+                                </button>
+                                {% if lead.customer and lead.customer.additional_requirements %}
+                                    <span class="material-symbols-outlined text-red-600 text-sm" title="有额外要求">add_circle</span>
+                                {% endif %}
+                            </div>
                         </td>
                         <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
                             {% if lead.parent_wechat_display_name %}
@@ -217,28 +260,92 @@ document.querySelectorAll('select[name="stage"], select[name="sales"]').forEach(
     });
 });
 
-// 转换为客户
+let currentConvertLeadId = null;
+let currentConvertStudentName = null;
+
+// 转换为客户 - 显示班主任选择模态框
 function convertToCustomer(leadId, studentName) {
-    if (confirm(`确定要将线索 ${studentName} 转换为客户吗？`)) {
-        fetch(`/leads/${leadId}/convert`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert(data.message);
-                location.reload();
-            } else {
-                alert(data.message);
-            }
-        })
-        .catch(error => {
-            alert('操作失败，请重试');
-        });
+    currentConvertLeadId = leadId;
+    currentConvertStudentName = studentName;
+    document.getElementById('convertToCustomerModal').classList.remove('hidden');
+}
+
+// 隐藏转客户模态框
+function hideConvertModal() {
+    currentConvertLeadId = null;
+    currentConvertStudentName = null;
+    document.getElementById('convertToCustomerModal').classList.add('hidden');
+    document.getElementById('convertTeacherSelect').value = '';
+}
+
+// 确认转换为客户
+function confirmConvertToCustomer() {
+    const teacherId = document.getElementById('convertTeacherSelect').value;
+
+    const requestData = {};
+    if (teacherId) {
+        requestData.teacher_id = parseInt(teacherId);
     }
+
+    fetch(`/leads/${currentConvertLeadId}/convert`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            hideConvertModal();
+            location.reload();
+        } else {
+            alert(data.message);
+        }
+    })
+    .catch(error => {
+        alert('操作失败，请重试');
+    });
 }
 </script>
+
+<!-- 转客户模态框 -->
+<div id="convertToCustomerModal" class="fixed inset-0 z-50 hidden overflow-y-auto">
+    <div class="flex min-h-screen items-center justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+        <div class="inline-block transform overflow-hidden rounded-lg bg-white text-left align-bottom shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:align-middle">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div class="flex items-center mb-4">
+                    <span class="material-symbols-outlined text-blue-600 mr-2">person_add</span>
+                    <h3 class="text-lg font-medium leading-6 text-gray-900">转换为客户</h3>
+                </div>
+                <div class="mb-4">
+                    <p class="text-sm text-gray-600 mb-4">是否为该客户分配班主任？您也可以暂时不分配，稍后在客户列表中再进行分配。</p>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">选择班主任（可选）</label>
+                    <select id="convertTeacherSelect" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <option value="">暂不分配（待分配）</option>
+                        {% for teacher in teachers %}
+                            <option value="{{ teacher.id }}">{{ teacher.username }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+                <button type="button" onclick="confirmConvertToCustomer()"
+                        class="inline-flex w-full justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm">
+                    确定转换
+                </button>
+                <button type="button" onclick="hideConvertModal()"
+                        class="mt-3 inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:mt-0 sm:w-auto sm:text-sm">
+                    取消
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 包含学员详情弹窗组件 -->
+{% include 'components/student_detail_modal.html' %}
+
 {% endblock %}

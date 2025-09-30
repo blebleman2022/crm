@@ -37,6 +37,87 @@
 .material-symbols-outlined {
     font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
+
+/* 有约见的日期标注样式 */
+.date-with-appointments {
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    color: white;
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+}
+
+.date-with-appointments .date-number {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    font-size: 0.875rem;
+}
+
+/* 时间段收缩/展开样式 */
+.time-slot-collapsed {
+    display: none !important;
+}
+
+.time-slot-expanded {
+    display: block !important;
+}
+
+/* 早期和晚期时间段背景色 */
+.early-time-slot {
+    background-color: #f8fafc !important; /* 非常浅的蓝灰色 */
+}
+
+.late-time-slot {
+    background-color: #fefce8 !important; /* 非常浅的黄色 */
+}
+
+/* 正常时间段保持白色背景 */
+.normal-time-slot {
+    background-color: #ffffff !important;
+}
+
+.time-section-toggle {
+    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+    border: 1px solid #d1d5db;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.time-section-toggle:hover {
+    background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.time-section-toggle::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
+}
+
+.toggle-icon {
+    transition: transform 0.3s ease;
+}
+
+.toggle-icon.expanded {
+    transform: rotate(180deg);
+}
+
+.toggle-text {
+    font-size: 0.75rem;
+    color: #6b7280;
+    font-weight: 500;
+}
 </style>
 {% endblock %}
 
@@ -46,9 +127,6 @@
     <div class="px-6 py-4 border-b border-gray-200">
         <div class="flex items-center justify-between">
             <div>
-                <h2 class="text-lg font-medium text-gray-900">约见管理</h2>
-                <p class="mt-1 text-sm text-gray-500">管理所有已约见的客户约见信息</p>
-            </div>
             <div class="flex items-center gap-4">
                 <!-- 视图切换按钮 -->
                 <div class="flex bg-gray-100 rounded-lg p-1">
@@ -192,16 +270,14 @@
                         <span class="material-symbols-outlined">chevron_right</span>
                     </button>
                 </div>
-                <button id="todayBtn" class="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200">
-                    今天
-                </button>
             </div>
 
             <!-- 日历网格 -->
             <div class="calendar-grid border border-gray-200 rounded-lg overflow-hidden">
                 <!-- 时间轴和日期头部 -->
                 <div class="grid grid-cols-8 bg-gray-50">
-                    <div class="p-3 text-sm font-medium text-gray-500 border-r border-gray-200">时间</div>
+                    <!-- 时间列标题 - 高度减为原来的一半 -->
+                    <div class="p-1.5 text-sm font-medium text-gray-500 border-r border-gray-200">时间</div>
                     <div id="dateHeaders" class="col-span-7 grid grid-cols-7">
                         <!-- 日期头部将通过JavaScript动态生成 -->
                     </div>
@@ -368,8 +444,15 @@ function renderDateHeaders() {
         const date = new Date(currentWeekStart);
         date.setDate(currentWeekStart.getDate() + i);
 
+        // 检查是否是今天
+        const today = new Date();
+        const isToday = date.toDateString() === today.toDateString();
+
         const headerDiv = document.createElement('div');
-        headerDiv.className = 'p-3 text-center border-r border-gray-200 last:border-r-0';
+        // 高度减为原来的一半，如果是今天则添加浅蓝色背景
+        const todayClass = isToday ? 'bg-blue-50' : '';
+        headerDiv.className = `p-1.5 text-center border-r border-gray-200 last:border-r-0 ${todayClass}`;
+
         headerDiv.innerHTML = `
             <div class="text-sm font-medium text-gray-900">${weekDays[i]}</div>
             <div class="text-xs text-gray-500">${date.getMonth() + 1}/${date.getDate()}</div>
@@ -378,101 +461,278 @@ function renderDateHeaders() {
     }
 }
 
+// 检查指定日期是否有约见
+function checkDayHasAppointments(dayOffset) {
+    const targetDate = getDateString(dayOffset);
+
+    {% if consultation_data %}
+    const records = [
+        {% for lead in consultation_data %}
+        {% if lead.meeting_at %}
+        {
+            time: '{{ lead.meeting_at.strftime('%Y-%m-%d %H:%M') }}'
+        },
+        {% endif %}
+        {% endfor %}
+    ];
+
+    return records.some(record => {
+        const recordDate = record.time.split(' ')[0];
+        return recordDate === targetDate;
+    });
+    {% else %}
+    return false;
+    {% endif %}
+}
+
 // 渲染时间段
 function renderTimeSlots() {
     const timeSlots = document.getElementById('timeSlots');
     timeSlots.innerHTML = '';
 
-    // 生成8:00-21:30的时间段，每30分钟一行
-    for (let hour = 8; hour <= 21; hour++) {
-        for (let minute = 0; minute < 60; minute += 30) {
-            const timeSlotDiv = document.createElement('div');
-            timeSlotDiv.className = 'grid grid-cols-8 min-h-[50px] hover:bg-gray-50 transition-colors duration-200';
+    // 创建早间时间段收缩区域 (8:00-9:30)
+    createCollapsibleTimeSection(timeSlots, 'early', '早间时间段', '8:00-9:30', 8, 9, 30, 'early-time-slot');
 
-            // 时间标签 - 单行显示
-            const timeLabel = document.createElement('div');
-            timeLabel.className = 'p-2 text-xs font-medium text-gray-600 border-r border-gray-200 bg-gray-100 flex items-center justify-center';
-            timeLabel.innerHTML = `
-                <span class="font-bold text-gray-800">${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}</span>
-            `;
-            timeSlotDiv.appendChild(timeLabel);
+    // 创建正常时间段 (10:00-18:30)
+    createNormalTimeSlots(timeSlots, 10, 18, 30);
 
-            // 7天的时间格子
-            for (let day = 0; day < 7; day++) {
-                const date = new Date(currentWeekStart);
-                date.setDate(currentWeekStart.getDate() + day);
-                const isWeekend = day >= 5;
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                const isToday = date.getTime() === today.getTime();
+    // 创建晚间时间段收缩区域 (19:00-21:30)
+    createCollapsibleTimeSection(timeSlots, 'late', '晚间时间段', '19:00-21:30', 19, 21, 30, 'late-time-slot');
+}
 
-                const daySlot = document.createElement('div');
-                daySlot.className = `border-r border-gray-200 last:border-r-0 p-1 cursor-pointer transition-all duration-200 relative ${
-                    isWeekend ? 'bg-orange-25 hover:bg-orange-50' : 'hover:bg-blue-50'
-                } ${isToday ? 'bg-blue-25' : ''}`;
-                daySlot.dataset.date = getDateString(day);
-                daySlot.dataset.hour = hour;
-                daySlot.dataset.minute = minute;
+// 创建可收缩的时间段区域
+function createCollapsibleTimeSection(container, sectionId, sectionName, timeRange, startHour, endHour, endMinute, bgClass) {
+    // 检查这个时间段是否有约见
+    const hasAppointments = checkTimeRangeHasAppointments(startHour, endHour, endMinute);
 
-                // 查找该时间段的约见记录
-                const appointments = findAppointmentsForTimeSlot(day, hour, minute);
-                if (appointments.length > 0) {
-                    appointments.forEach((appointment, index) => {
-                        const appointmentDiv = document.createElement('div');
-                        appointmentDiv.className = `appointment-item mb-1 p-2 rounded-lg shadow-sm cursor-pointer transform transition-all duration-300 ${
-                            appointment.location === '浦东' ?
-                            'bg-emerald-500 text-white hover:bg-emerald-600' :
-                            'bg-blue-500 text-white hover:bg-blue-600'
-                        }`;
+    // 创建切换按钮
+    const toggleDiv = document.createElement('div');
+    toggleDiv.className = 'time-section-toggle grid grid-cols-8 min-h-[40px] border-b border-gray-200';
+    toggleDiv.id = `toggle-${sectionId}`;
 
-                        // 显示格式：家长微信名+地点 - 单行显示
-                        appointmentDiv.innerHTML = `
-                            <div class="text-xs font-semibold truncate">
-                                ${appointment.client} · ${appointment.location || '未知地点'}
-                            </div>
-                        `;
+    const toggleLabel = document.createElement('div');
+    toggleLabel.className = 'col-span-8 p-3 flex items-center justify-between cursor-pointer';
+    toggleLabel.innerHTML = `
+        <div class="flex items-center space-x-3">
+            <span class="material-symbols-outlined toggle-icon text-blue-600" id="icon-${sectionId}">expand_more</span>
+            <span class="font-medium text-gray-700">${sectionName}</span>
+            <span class="toggle-text">${timeRange}</span>
+            ${hasAppointments ? '<span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">有约见</span>' : ''}
+        </div>
+        <span class="toggle-text">点击展开/收缩</span>
+    `;
 
-                        appointmentDiv.title = `${appointment.time} - ${appointment.client} (${appointment.location || '未知地点'})`;
+    toggleDiv.appendChild(toggleLabel);
+    container.appendChild(toggleDiv);
 
-                        // 添加悬浮效果
-                        appointmentDiv.addEventListener('mouseenter', function() {
-                            this.style.transform = 'translateY(-2px) scale(1.05)';
-                            this.style.boxShadow = '0 8px 25px rgba(0, 0, 0, 0.15)';
-                            this.style.zIndex = '10';
-                        });
+    // 创建时间段容器
+    const slotsContainer = document.createElement('div');
+    slotsContainer.className = 'time-slot-collapsed';
+    slotsContainer.id = `slots-${sectionId}`;
+    slotsContainer.style.display = 'none'; // 默认收缩状态
 
-                        appointmentDiv.addEventListener('mouseleave', function() {
-                            this.style.transform = 'translateY(0) scale(1)';
-                            this.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
-                            this.style.zIndex = '1';
-                        });
+    // 生成时间段
+    for (let hour = startHour; hour <= endHour; hour++) {
+        const maxMinute = (hour === endHour) ? endMinute : 30;
+        for (let minute = 0; minute <= maxMinute; minute += 30) {
+            if (hour === endHour && minute > endMinute) break;
 
-                        // 添加点击效果
-                        appointmentDiv.addEventListener('click', function(e) {
-                            e.preventDefault();
-                            // 点击动画效果
-                            this.style.transform = 'scale(0.95)';
-                            setTimeout(() => {
-                                this.style.transform = 'translateY(-2px) scale(1.05)';
-                                showConsultationDetails(appointment.leadId);
-                            }, 150);
-                        });
-
-                        daySlot.appendChild(appointmentDiv);
-                    });
-                } else {
-                    // 空时间段的提示
-                    const emptySlot = document.createElement('div');
-                    emptySlot.className = 'h-full flex items-center justify-center text-gray-300 text-xs opacity-0 hover:opacity-100 transition-opacity duration-200';
-                    emptySlot.innerHTML = '<span class="material-symbols-outlined text-lg">add_circle</span>';
-                    daySlot.appendChild(emptySlot);
-                }
-
-                timeSlotDiv.appendChild(daySlot);
-            }
-
-            timeSlots.appendChild(timeSlotDiv);
+            const timeSlotDiv = createTimeSlotRow(hour, minute, bgClass);
+            slotsContainer.appendChild(timeSlotDiv);
         }
+    }
+
+    container.appendChild(slotsContainer);
+
+    // 添加点击事件
+    toggleDiv.addEventListener('click', () => toggleTimeSection(sectionId));
+}
+
+// 创建正常时间段
+function createNormalTimeSlots(container, startHour, endHour, endMinute) {
+    for (let hour = startHour; hour <= endHour; hour++) {
+        const maxMinute = (hour === endHour) ? endMinute : 30;
+        for (let minute = 0; minute <= maxMinute; minute += 30) {
+            if (hour === endHour && minute > endMinute) break;
+
+            const timeSlotDiv = createTimeSlotRow(hour, minute, 'normal-time-slot');
+            container.appendChild(timeSlotDiv);
+        }
+    }
+}
+
+// 创建单个时间段行
+function createTimeSlotRow(hour, minute, bgClass = 'normal-time-slot') {
+    const timeSlotDiv = document.createElement('div');
+    // 调整高度：正常时间段为原来的2/3 (约33px)
+    timeSlotDiv.className = `grid grid-cols-8 min-h-[33px] hover:bg-gray-50 transition-colors duration-200 border-b border-gray-200 ${bgClass}`;
+
+    // 根据背景类设置内联样式
+    if (bgClass === 'early-time-slot') {
+        timeSlotDiv.style.backgroundColor = '#fefce8'; // 淡黄色
+        timeSlotDiv.style.borderColor = '#fef3c7'; // 稍深的边框色
+    } else if (bgClass === 'late-time-slot') {
+        timeSlotDiv.style.backgroundColor = '#fefce8'; // 淡黄色
+        timeSlotDiv.style.borderColor = '#fef3c7'; // 稍深的边框色
+    } else {
+        timeSlotDiv.style.backgroundColor = '#ffffff'; // 白色
+        timeSlotDiv.style.borderColor = '#e5e7eb'; // 标准边框色
+    }
+
+    // 时间标签
+    const timeLabel = document.createElement('div');
+    timeLabel.className = 'p-2 text-xs font-medium text-gray-600 border-r border-gray-200 bg-gray-100 flex items-center justify-center';
+    timeLabel.innerHTML = `
+        <span class="font-bold text-gray-800">${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}</span>
+    `;
+    timeSlotDiv.appendChild(timeLabel);
+
+    // 7天的时间格子
+    for (let day = 0; day < 7; day++) {
+        const date = new Date(currentWeekStart);
+        date.setDate(currentWeekStart.getDate() + day);
+        const isWeekend = day >= 5;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const isToday = date.getTime() === today.getTime();
+
+        const daySlot = document.createElement('div');
+        daySlot.className = `border-r border-gray-200 last:border-r-0 p-1 cursor-pointer transition-all duration-200 relative ${
+            isWeekend ? 'bg-orange-25 hover:bg-orange-50' : 'hover:bg-blue-50'
+        } ${isToday ? 'bg-blue-50' : ''}`;
+        daySlot.dataset.date = getDateString(day);
+        daySlot.dataset.hour = hour;
+        daySlot.dataset.minute = minute;
+
+        // 查找该时间段的约见记录
+        const appointments = findAppointmentsForTimeSlot(day, hour, minute);
+        if (appointments.length > 0) {
+            appointments.forEach((appointment, index) => {
+                const appointmentDiv = createAppointmentElement(appointment);
+                daySlot.appendChild(appointmentDiv);
+            });
+        } else {
+            // 空时间段的提示
+            const emptySlot = document.createElement('div');
+            emptySlot.className = 'h-full flex items-center justify-center text-gray-300 text-xs opacity-0 hover:opacity-100 transition-opacity duration-200';
+            emptySlot.innerHTML = '<span class="material-symbols-outlined text-lg">add_circle</span>';
+            daySlot.appendChild(emptySlot);
+        }
+
+        timeSlotDiv.appendChild(daySlot);
+    }
+
+    return timeSlotDiv;
+}
+
+// 创建约见元素
+function createAppointmentElement(appointment) {
+    const appointmentDiv = document.createElement('div');
+    appointmentDiv.className = `appointment-item mb-1 p-2 rounded-lg shadow-sm cursor-pointer transform transition-all duration-300 ${
+        appointment.location === '浦东' ?
+        'bg-emerald-500 text-white hover:bg-emerald-600' :
+        'bg-blue-500 text-white hover:bg-blue-600'
+    }`;
+
+    // 显示格式：家长微信名+地点 - 单行显示
+    appointmentDiv.innerHTML = `
+        <div class="text-xs font-semibold truncate">
+            ${appointment.client} · ${appointment.location || '未知地点'}
+        </div>
+    `;
+
+    appointmentDiv.title = `${appointment.time} - ${appointment.client} (${appointment.location || '未知地点'})`;
+
+    // 添加悬浮效果
+    appointmentDiv.addEventListener('mouseenter', function() {
+        this.style.transform = 'translateY(-2px) scale(1.05)';
+        this.style.boxShadow = '0 8px 25px rgba(0, 0, 0, 0.15)';
+        this.style.zIndex = '10';
+    });
+
+    appointmentDiv.addEventListener('mouseleave', function() {
+        this.style.transform = 'translateY(0) scale(1)';
+        this.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+        this.style.zIndex = '1';
+    });
+
+    // 添加点击效果
+    appointmentDiv.addEventListener('click', function(e) {
+        e.preventDefault();
+        // 点击动画效果
+        this.style.transform = 'scale(0.95)';
+        setTimeout(() => {
+            this.style.transform = 'translateY(-2px) scale(1.05)';
+            showConsultationDetails(appointment.leadId);
+        }, 150);
+    });
+
+    return appointmentDiv;
+}
+
+// 检查时间范围是否有约见
+function checkTimeRangeHasAppointments(startHour, endHour, endMinute) {
+    {% if consultation_data %}
+    const records = [
+        {% for lead in consultation_data %}
+        {% if lead.meeting_at %}
+        {
+            time: '{{ lead.meeting_at.strftime('%Y-%m-%d %H:%M') }}',
+            date: '{{ lead.meeting_at.strftime('%Y-%m-%d') }}'
+        },
+        {% endif %}
+        {% endfor %}
+    ];
+
+    // 获取当前周的日期范围
+    const currentWeekDates = [];
+    for (let i = 0; i < 7; i++) {
+        const date = new Date(currentWeekStart);
+        date.setDate(currentWeekStart.getDate() + i);
+        const dateStr = date.getFullYear() + '-' +
+                       String(date.getMonth() + 1).padStart(2, '0') + '-' +
+                       String(date.getDate()).padStart(2, '0');
+        currentWeekDates.push(dateStr);
+    }
+
+    return records.some(record => {
+        // 检查是否在当前周
+        if (!currentWeekDates.includes(record.date)) {
+            return false;
+        }
+
+        const recordHour = parseInt(record.time.split(' ')[1].split(':')[0]);
+        const recordMinute = parseInt(record.time.split(' ')[1].split(':')[1]);
+        const recordTotalMinutes = recordHour * 60 + recordMinute;
+        const startTotalMinutes = startHour * 60;
+        const endTotalMinutes = endHour * 60 + endMinute;
+
+        return recordTotalMinutes >= startTotalMinutes && recordTotalMinutes <= endTotalMinutes;
+    });
+    {% else %}
+    return false;
+    {% endif %}
+}
+
+// 切换时间段显示/隐藏
+function toggleTimeSection(sectionId) {
+    const slotsContainer = document.getElementById(`slots-${sectionId}`);
+    const icon = document.getElementById(`icon-${sectionId}`);
+
+    if (slotsContainer.style.display === 'none') {
+        // 展开
+        slotsContainer.style.display = 'block';
+        slotsContainer.classList.remove('time-slot-collapsed');
+        slotsContainer.classList.add('time-slot-expanded');
+        icon.textContent = 'expand_less';
+        icon.classList.add('expanded');
+    } else {
+        // 收缩
+        slotsContainer.style.display = 'none';
+        slotsContainer.classList.remove('time-slot-expanded');
+        slotsContainer.classList.add('time-slot-collapsed');
+        icon.textContent = 'expand_more';
+        icon.classList.remove('expanded');
     }
 }
 
@@ -594,10 +854,7 @@ document.addEventListener('DOMContentLoaded', function() {
         renderCalendar();
     });
 
-    document.getElementById('todayBtn').addEventListener('click', function() {
-        setCurrentWeekStart();
-        renderCalendar();
-    });
+
 });
 
 function editMeetingTime(leadId, date, hour, minute, location) {

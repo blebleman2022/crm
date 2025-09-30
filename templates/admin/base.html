@@ -4,7 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}管理员后台 - EduConnect CRM{% endblock %}</title>
-    
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo1.png') }}">
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     
@@ -35,40 +38,48 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body class="bg-gray-50 text-gray-900">
-    <div class="flex h-screen">
+    <div class="flex h-screen w-full">
         <!-- Sidebar -->
-        <aside class="w-64 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col">
-            <div class="h-16 flex items-center px-6 gap-3">
-                <div class="text-primary-600 size-8">
-                    <svg fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M24 45.8096C19.6865 45.8096 15.4698 44.5305 11.8832 42.134C8.29667 39.7376 5.50128 36.3314 3.85056 32.3462C2.19985 28.361 1.76794 23.9758 2.60947 19.7452C3.451 15.5145 5.52816 11.6284 8.57829 8.5783C11.6284 5.52817 15.5145 3.45101 19.7452 2.60948C23.9758 1.76795 28.361 2.19986 32.3462 3.85057C36.3314 5.50129 39.7376 8.29668 42.134 11.8833C44.5305 15.4698 45.8096 19.6865 45.8096 24L24 24L24 45.8096Z" fill="currentColor"></path>
-                    </svg>
-                </div>
-                <h1 class="text-lg font-bold">EduConnect CRM</h1>
+        <aside class="flex flex-shrink-0 flex-col border-r border-gray-200 bg-white" style="width: 200px;">
+            <div class="h-16 flex items-center px-6">
+                {% set custom_logo = get_logo_url() %}
+                {% if custom_logo %}
+                    <img src="{{ url_for('static', filename=custom_logo) }}" alt="Logo" style="width: 150px; height: 50px; object-fit: contain;">
+                {% else %}
+                    <div class="flex items-center gap-3">
+                        <div class="text-primary-600 size-8">
+                            <svg fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M24 45.8096C19.6865 45.8096 15.4698 44.5305 11.8832 42.134C8.29667 39.7376 5.50128 36.3314 3.85056 32.3462C2.19985 28.361 1.76794 23.9758 2.60947 19.7452C3.451 15.5145 5.52816 11.6284 8.57829 8.5783C11.6284 5.52817 15.5145 3.45101 19.7452 2.60948C23.9758 1.76795 28.361 2.19986 32.3462 3.85057C36.3314 5.50129 39.7376 8.29668 42.134 11.8833C44.5305 15.4698 45.8096 19.6865 45.8096 24L24 24L24 45.8096Z" fill="currentColor"></path>
+                            </svg>
+                        </div>
+                        <h1 class="text-lg font-bold">EduConnect CRM</h1>
+                    </div>
+                {% endif %}
             </div>
             
             <nav class="flex-1 px-4 py-4 space-y-2">
-                <a class="flex items-center gap-3 px-4 py-2 text-sm font-medium rounded-md 
-                   {% if request.endpoint == 'admin.dashboard' %}text-white bg-primary-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}" 
+                <a class="flex items-center gap-3 px-4 py-2 text-sm font-medium rounded-md
+                   {% if request.endpoint == 'admin.dashboard' %}text-white bg-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}"
                    href="{{ url_for('admin.dashboard') }}">
-                    <span class="material-symbols-outlined text-gray-500">dashboard</span>
+                    <span class="material-symbols-outlined {% if request.endpoint == 'admin.dashboard' %}text-white{% else %}text-gray-500{% endif %}">dashboard</span>
                     <span>仪表板</span>
                 </a>
-                
+
                 <a class="flex items-center gap-3 px-4 py-2 text-sm font-medium rounded-md
-                   {% if request.endpoint in ['admin.users', 'admin.add_user', 'admin.edit_user'] %}text-white bg-primary-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}" 
+                   {% if request.endpoint in ['admin.users', 'admin.add_user', 'admin.edit_user'] %}text-white bg-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}"
                    href="{{ url_for('admin.users') }}">
-                    <span class="material-symbols-outlined">manage_accounts</span>
+                    <span class="material-symbols-outlined {% if request.endpoint in ['admin.users', 'admin.add_user', 'admin.edit_user'] %}text-white{% else %}text-gray-500{% endif %}">manage_accounts</span>
                     <span>用户管理</span>
                 </a>
-                
-                <a class="flex items-center gap-3 px-4 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100" 
-                   href="{{ url_for('admin.login_logs') }}">
-                    <span class="material-symbols-outlined text-gray-500">history</span>
-                    <span>登录日志</span>
+
+                <a class="flex items-center gap-3 px-4 py-2 text-sm font-medium rounded-md
+                   {% if request.endpoint in ['admin.leads', 'admin.edit_lead'] %}text-white bg-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}"
+                   href="{{ url_for('admin.leads') }}">
+                    <span class="material-symbols-outlined {% if request.endpoint in ['admin.leads', 'admin.edit_lead'] %}text-white{% else %}text-gray-500{% endif %}">contact_page</span>
+                    <span>线索管理</span>
                 </a>
-                
-                <a class="flex items-center gap-3 px-4 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100" 
+
+                <a class="flex items-center gap-3 px-4 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100"
                    href="#">
                     <span class="material-symbols-outlined text-gray-500">settings</span>
                     <span>系统设置</span>
@@ -83,10 +94,6 @@
                     <h2 class="text-xl font-semibold text-gray-900">{% block page_title %}管理员后台{% endblock %}</h2>
                 </div>
                 <div class="flex items-center gap-4">
-                    <button class="relative">
-                        <span class="material-symbols-outlined text-gray-600">notifications</span>
-                        <span class="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
-                    </button>
                     <div class="flex items-center gap-2">
                         <span class="text-sm text-gray-700">{{ current_user.username }}</span>
                         <a href="{{ url_for('auth.logout') }}" class="text-sm text-gray-500 hover:text-gray-700">退出</a>

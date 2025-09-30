@@ -179,6 +179,11 @@ def list_leads():
     stage_filter = request.args.get('stage', '', type=str)
     sales_filter = request.args.get('sales', '', type=str)
 
+    # 时间段筛选参数
+    date_type = request.args.get('date_type', '', type=str)  # first_payment, second_payment, full_payment
+    start_date = request.args.get('start_date', '', type=str)
+    end_date = request.args.get('end_date', '', type=str)
+
     # 新增：仪表板跳转的筛选参数
     first_payment_date_start = request.args.get('first_payment_date_start', '', type=str)
     first_payment_date_end = request.args.get('first_payment_date_end', '', type=str)
@@ -204,6 +209,43 @@ def list_leads():
     # 销售过滤
     if sales_filter:
         query = query.filter_by(sales_user_id=sales_filter)
+
+    # 时间段筛选
+    if date_type and start_date and end_date:
+        try:
+            start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()
+
+            if date_type == 'first_payment':
+                # 首笔支付时间筛选
+                query = query.filter(
+                    and_(
+                        Lead.first_payment_at.isnot(None),
+                        func.date(Lead.first_payment_at) >= start_dt,
+                        func.date(Lead.first_payment_at) <= end_dt
+                    )
+                )
+            elif date_type == 'second_payment':
+                # 次笔支付时间筛选
+                query = query.filter(
+                    and_(
+                        Lead.second_payment_at.isnot(None),
+                        func.date(Lead.second_payment_at) >= start_dt,
+                        func.date(Lead.second_payment_at) <= end_dt
+                    )
+                )
+            elif date_type == 'full_payment':
+                # 全款支付时间筛选（使用阶段判断）
+                query = query.filter(
+                    and_(
+                        Lead.stage == '全款支付',
+                        Lead.updated_at.isnot(None),
+                        func.date(Lead.updated_at) >= start_dt,
+                        func.date(Lead.updated_at) <= end_dt
+                    )
+                )
+        except ValueError:
+            pass
 
 
 
@@ -271,6 +313,12 @@ def list_leads():
         filter_type = "付款客户"
         filter_period = f"{first_payment_date_start} 至 {first_payment_date_end}"
 
+    # 获取班主任列表（用于转客户时选择）
+    teachers = User.query.filter(
+        User.role.in_(['teacher', 'sales']),
+        User.status == True
+    ).all()
+
     return render_template('leads/list.html',
                          leads=leads,
                          search=search,
@@ -279,7 +327,11 @@ def list_leads():
                          sales_users=sales_users,
                          stages=stages,
                          filter_type=filter_type,
-                         filter_period=filter_period)
+                         filter_period=filter_period,
+                         teachers=teachers,
+                         date_type=date_type,
+                         start_date=start_date,
+                         end_date=end_date)
 
 @leads_bp.route('/add', methods=['GET', 'POST'])
 @login_required
@@ -291,15 +343,27 @@ def add_lead():
         parent_wechat_name = request.form.get('parent_wechat_name', '').strip()
         phone = request.form.get('phone', '').strip()
         source = request.form.get('source', '').strip()
+        custom_source = request.form.get('custom_source', '').strip()
         grade = request.form.get('grade', '').strip()
+        district = request.form.get('district', '').strip()
+        school = request.form.get('school', '').strip()
         assigned_sales_id = request.form.get('assigned_sales_id', type=int)
         notes = request.form.get('notes', '').strip()
         contact_obtained_at = request.form.get('contact_obtained_at', '').strip()
         meeting_at = request.form.get('meeting_at', '').strip()
         meeting_location = request.form.get('meeting_location', '').strip()
 
+        # 处理自定义线索来源
+        if source == '其他':
+            if not custom_source:
+                flash('选择"其他"时必须填写自定义线索来源', 'error')
+                return render_template('leads/add.html', sales_users=get_sales_users())
+            final_source = custom_source
+        else:
+            final_source = source
+
         # 验证必填字段
-        if not all([parent_wechat_display_name, parent_wechat_name, source, grade]):
+        if not all([parent_wechat_display_name, parent_wechat_name, final_source, grade]):
             flash('家长微信名、家长微信号、线索来源和年级为必填项', 'error')
             return render_template('leads/add.html', sales_users=get_sales_users())
 
@@ -375,11 +439,12 @@ def add_lead():
                 parent_wechat_display_name=parent_wechat_display_name,  # 家长微信名必填
                 parent_wechat_name=parent_wechat_name,  # 家长微信号必填
                 contact_info=contact_info,  # 联系方式可选
-                lead_source=source,
+                lead_source=final_source,
                 grade=grade,  # 年级必填
+                district=district if district else None,
+                school=school if school else None,
                 sales_user_id=assigned_sales_id,
                 stage='获取联系方式',  # 临时设置，稍后会自动更新
-                follow_up_notes=None,  # 不再使用此字段，备注作为沟通记录处理
                 contract_amount=None,  # 合同金额在后续通过专门接口设置
                 service_types='["tutoring"]'  # 默认设置为课题辅导
             )
@@ -515,16 +580,31 @@ def edit_lead(lead_id):
         # 检查基本信息是否已锁定
         basic_info_locked = is_basic_info_locked(lead)
 
-        # 基本信息字段处理
-        if basic_info_locked:
-            # 如果基本信息已锁定，保持原有值
+        # 基本信息字段处理（考虑字段级别的锁定）
+        # 学员姓名
+        if is_field_locked(lead.student_name):
             student_name = lead.student_name
+        else:
+            student_name = request.form.get('student_name', '').strip()
+
+        # 线索来源
+        if is_field_locked(lead.lead_source):
             lead_source = lead.lead_source
+        else:
+            lead_source = request.form.get('lead_source', '').strip()
+            custom_source = request.form.get('custom_source', '').strip()
+
+            # 处理自定义线索来源
+            if lead_source == '其他':
+                if not custom_source:
+                    flash('选择"其他"时必须填写自定义线索来源', 'error')
+                    return render_template('leads/edit.html', lead=lead, sales_users=get_sales_users(), is_basic_info_locked=is_basic_info_locked, is_field_locked=is_field_locked)
+                lead_source = custom_source
+
+        # 责任销售
+        if is_field_locked(lead.sales_user_id):
             sales_user_id = lead.sales_user_id
         else:
-            # 如果基本信息未锁定，允许修改
-            student_name = request.form.get('student_name', '').strip()
-            lead_source = request.form.get('lead_source', '').strip()
             sales_user_id = request.form.get('sales_user_id', type=int)
 
         # 家长微信名和微信号不可修改，保持原有值
@@ -536,8 +616,26 @@ def edit_lead(lead_id):
         follow_up_notes = request.form.get('follow_up_notes', '').strip()
         contract_amount = request.form.get('contract_amount', '').strip()
 
+        # 年级、行政区、学校：如果字段被锁定，保持原值；否则从表单获取
+        if is_field_locked(lead.grade):
+            grade = lead.grade
+        else:
+            grade = request.form.get('grade', '').strip()
+
+        if is_field_locked(lead.district):
+            district = lead.district
+        else:
+            district = request.form.get('district', '').strip()
+
+        if is_field_locked(lead.school):
+            school = lead.school
+        else:
+            school = request.form.get('school', '').strip()
+
         # 获取多选服务类型
         service_types = request.form.getlist('service_types')
+
+        # 获取竞赛奖项等级和额外要求
         competition_award_level = request.form.get('competition_award_level', '').strip()
         additional_requirements = request.form.get('additional_requirements', '').strip()
 
@@ -562,6 +660,10 @@ def edit_lead(lead_id):
         if not is_field_locked(lead.sales_user_id) and not sales_user_id:
             missing_fields.append('责任销售')
 
+        # 年级为必填（无论是否锁定，都必须有值）
+        if not grade:
+            missing_fields.append('年级')
+
         if missing_fields:
             flash(f'{", ".join(missing_fields)}为必填项', 'error')
             return render_template('leads/edit.html', lead=lead, sales_users=get_sales_users(), is_basic_info_locked=is_basic_info_locked, is_field_locked=is_field_locked)
@@ -571,10 +673,11 @@ def edit_lead(lead_id):
             flash('请至少选择一种服务类型', 'error')
             return render_template('leads/edit.html', lead=lead, sales_users=get_sales_users(), is_basic_info_locked=is_basic_info_locked, is_field_locked=is_field_locked)
 
-        # 验证竞赛辅导和奖项等级的关联
-        if 'competition' in service_types and not competition_award_level:
-            flash('选择竞赛辅导时，奖项等级为必填项', 'error')
-            return render_template('leads/edit.html', lead=lead, sales_users=get_sales_users(), is_basic_info_locked=is_basic_info_locked, is_field_locked=is_field_locked)
+        # 验证竞赛辅导和奖项等级的联动
+        if 'competition' in service_types:
+            if not competition_award_level:
+                flash('选择了竞赛辅导服务，必须设置目标奖项等级', 'error')
+                return render_template('leads/edit.html', lead=lead, sales_users=get_sales_users(), is_basic_info_locked=is_basic_info_locked, is_field_locked=is_field_locked)
 
         # 验证家长微信号是否重复（只在未锁定且有值时验证）
         if not is_field_locked(lead.parent_wechat_name) and parent_wechat_name:
@@ -619,13 +722,37 @@ def edit_lead(lead_id):
             if not is_field_locked(lead.sales_user_id):
                 lead.sales_user_id = sales_user_id
 
-            # 不再更新follow_up_notes字段，而是作为沟通记录处理
-            lead.competition_award_level = competition_award_level if competition_award_level else None
-            lead.additional_requirements = additional_requirements if additional_requirements else None
+            # 更新线索基本信息
+            lead.grade = grade
+            lead.district = district if district else None
+            lead.school = school if school else None
             lead.updated_at = datetime.utcnow()
 
             # 设置多选服务类型
             lead.set_service_types_list(service_types)
+
+            # 设置竞赛奖项等级和额外要求
+            lead.competition_award_level = competition_award_level if competition_award_level else None
+            lead.additional_requirements = additional_requirements if additional_requirements else None
+
+            # 如果年级发生变化，且该线索已转为客户，则自动更新客户的 exam_year
+            customer = Customer.query.filter_by(lead_id=lead.id).first()
+            if customer:
+                from utils.exam_calculator import calculate_exam_year
+
+                # 重新计算中高考年份
+                new_exam_year = calculate_exam_year(grade)
+
+                if new_exam_year and new_exam_year != customer.exam_year:
+                    customer.exam_year = new_exam_year
+
+                    # 添加沟通记录
+                    from communication_utils import CommunicationManager
+                    CommunicationManager.add_customer_communication(
+                        lead_id=lead.id,
+                        customer_id=customer.id,
+                        content=f"年级更新为 {grade}，中高考年份自动更新为 {new_exam_year}年"
+                    )
 
             # 合同金额现在通过专门的接口更新，这里不再处理
 
@@ -745,6 +872,44 @@ def lead_detail(lead_id):
     lead = Lead.query.get_or_404(lead_id)
     return render_template('leads/detail.html', lead=lead)
 
+@leads_bp.route('/<int:lead_id>/api')
+@login_required
+@sales_or_admin_required
+def lead_api(lead_id):
+    """线索API详情 - 用于弹窗显示"""
+    lead = Lead.query.get_or_404(lead_id)
+
+    # 计算已付款总额
+    payments = Payment.query.filter_by(lead_id=lead.id).all()
+    paid_amount = sum(payment.amount for payment in payments) if payments else Decimal('0')
+
+    # 检查是否已转为客户
+    customer = Customer.query.filter_by(lead_id=lead.id).first()
+
+    lead_data = {
+        'id': lead.id,
+        'student_name': lead.student_name,
+        'parent_wechat_display_name': lead.parent_wechat_display_name,
+        'parent_wechat_name': lead.parent_wechat_name,
+        'contact_info': lead.contact_info,
+        'grade': lead.grade,
+        'school': lead.school,
+        'district': lead.district,
+        'lead_source': lead.lead_source,
+        'sales_user': lead.sales_user.username if lead.sales_user else None,
+        'stage': lead.stage,
+        'contract_amount': float(lead.contract_amount) if lead.contract_amount else None,
+        'paid_amount': float(paid_amount),
+        'service_types': lead.get_service_types_list(),
+        # 奖项和额外要求优先从线索表读取，如果已转为客户则从客户表读取
+        'competition_award_level': customer.competition_award_level if customer else lead.competition_award_level,
+        'additional_requirements': customer.additional_requirements if customer else lead.additional_requirements,
+        'created_at': lead.created_at.isoformat() if lead.created_at else None,
+        'updated_at': lead.updated_at.isoformat() if lead.updated_at else None
+    }
+
+    return jsonify({'success': True, 'lead': lead_data})
+
 @leads_bp.route('/<int:lead_id>/convert', methods=['POST'])
 @login_required
 @sales_required
@@ -761,19 +926,80 @@ def convert_to_customer(lead_id):
         return jsonify({'success': False, 'message': '该线索已经转换为客户'})
 
     try:
-        from datetime import datetime
+        from datetime import datetime, date
+        from models import TutoringDelivery, CompetitionDelivery
+        from utils.exam_calculator import calculate_exam_year
+
+        # 获取可选的班主任ID
+        data = request.get_json() or {}
+        teacher_id = data.get('teacher_id')
+
+        # 如果提供了班主任ID，验证其有效性
+        if teacher_id:
+            teacher = User.query.filter(
+                User.id == teacher_id,
+                User.role.in_(['teacher', 'sales']),
+                User.status == True
+            ).first()
+            if not teacher:
+                return jsonify({'success': False, 'message': '选择的班主任无效'})
+
+        # 根据年级自动计算中高考年份
+        exam_year = calculate_exam_year(lead.grade)
+
         # 创建客户记录
-        customer = Customer(
-            lead_id=lead.id,
-            sales_user_id=lead.sales_user_id,
-            payment_amount=0,  # 需要后续填写
-            award_requirement='无',  # 默认为无奖项要求
-            converted_at=datetime.now()  # 记录转换时间
-        )
-        db.session.add(customer)
+        # 注意：数据库表中还有sales_user_id等旧字段，但模型中已删除
+        # 使用原生SQL插入以避免SQLAlchemy验证问题
+        from sqlalchemy import text
+
+        insert_sql = text("""
+            INSERT INTO customers (
+                lead_id, sales_user_id, teacher_user_id, payment_amount,
+                exam_year, converted_at, award_requirement, created_at, updated_at, is_priority
+            ) VALUES (
+                :lead_id, :sales_user_id, :teacher_user_id, :payment_amount,
+                :exam_year, :converted_at, :award_requirement, :created_at, :updated_at, :is_priority
+            )
+        """)
+
+        now = datetime.now()
+        result = db.session.execute(insert_sql, {
+            'lead_id': lead.id,
+            'sales_user_id': lead.sales_user_id,
+            'teacher_user_id': teacher_id if teacher_id else None,
+            'payment_amount': 0,
+            # ✨ 不再复制 competition_award_level 和 additional_requirements
+            # 这些字段通过 customer.lead 关联从线索表读取，保证单一数据源
+            'exam_year': exam_year,
+            'converted_at': now,
+            'award_requirement': lead.competition_award_level or '无',  # 兼容旧字段
+            'created_at': now,
+            'updated_at': now,
+            'is_priority': False
+        })
+
+        # 获取新插入的customer_id
+        customer_id = result.lastrowid
+        db.session.flush()
+
+        # 如果分配了班主任，创建交付记录
+        if teacher_id:
+            tutoring_delivery = TutoringDelivery(customer_id=customer_id)
+            db.session.add(tutoring_delivery)
+
+            competition_delivery = CompetitionDelivery(customer_id=customer_id)
+            db.session.add(competition_delivery)
+
         db.session.commit()
 
-        return jsonify({'success': True, 'message': f'线索 {lead.student_name} 已成功转换为客户'})
+        message = f'线索 {lead.student_name} 已成功转换为客户'
+        if teacher_id:
+            teacher = User.query.get(teacher_id)
+            message += f'，已分配给班主任 {teacher.username}'
+        else:
+            message += '，班主任待分配'
+
+        return jsonify({'success': True, 'message': message})
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'转换失败: {str(e)}'})
