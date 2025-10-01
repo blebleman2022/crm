@@ -148,29 +148,24 @@ verify_deployment() {
     log_info "验证部署状态..."
 
     # 等待服务启动
-    sleep 10
+    sleep 5
 
     # 检查容器状态
-    log_info "检查容器状态..."
-    if command -v docker-compose &> /dev/null; then
-        docker-compose ps
-    else
-        docker compose ps
-    fi
+    docker-compose ps
 
     # 检查应用响应
     log_info "检查应用响应..."
-    local max_attempts=15
+    local max_attempts=10
     local attempt=1
 
     while [ $attempt -le $max_attempts ]; do
-        if curl -f -s --connect-timeout 5 http://localhost:5000/auth/login > /dev/null 2>&1; then
+        if curl -f -s --connect-timeout 3 http://localhost:5000/auth/login > /dev/null 2>&1; then
             log_success "应用响应正常！"
             return 0
         fi
 
         log_info "等待应用启动... ($attempt/$max_attempts)"
-        sleep 2
+        sleep 3
         attempt=$((attempt + 1))
     done
 
