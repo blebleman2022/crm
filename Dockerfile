@@ -1,5 +1,5 @@
-# 使用官方Python 3.11运行时作为基础镜像
-FROM python:3.11-slim
+# 使用官方Python 3.11运行时作为基础镜像（国内镜像加速）
+FROM registry.cn-hangzhou.aliyuncs.com/library/python:3.11-slim
 
 # 设置工作目录
 WORKDIR /app
@@ -12,9 +12,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PORT=5000
 
 # 配置国内镜像源加速
-RUN echo "deb https://mirrors.aliyun.com/debian/ bullseye main non-free contrib" > /etc/apt/sources.list && \
-    echo "deb https://mirrors.aliyun.com/debian-security/ bullseye-security main" >> /etc/apt/sources.list && \
-    echo "deb https://mirrors.aliyun.com/debian/ bullseye-updates main non-free contrib" >> /etc/apt/sources.list
+RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list && \
+    sed -i 's/security.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list
 
 # 安装系统依赖
 RUN apt-get update && apt-get install -y \

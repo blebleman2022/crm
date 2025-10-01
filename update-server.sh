@@ -39,6 +39,46 @@ check_project_dir() {
     log_success "项目目录检查通过"
 }
 
+# 检查并安装Docker
+check_and_install_docker() {
+    log_info "检查Docker环境..."
+
+    # 检查Docker是否已安装
+    if command -v docker &> /dev/null; then
+        log_success "Docker已安装: $(docker --version)"
+    else
+        log_info "Docker未安装，开始安装..."
+
+        # 使用阿里云Docker安装脚本
+        curl -fsSL https://get.docker.com | bash -s docker --mirror Aliyun
+
+        # 启动Docker服务
+        sudo systemctl start docker
+        sudo systemctl enable docker
+
+        # 将当前用户添加到docker组
+        sudo usermod -aG docker $USER
+
+        log_success "Docker安装完成"
+    fi
+
+    # 检查Docker Compose是否已安装
+    if command -v docker-compose &> /dev/null; then
+        log_success "Docker Compose已安装: $(docker-compose --version)"
+    elif docker compose version &> /dev/null 2>&1; then
+        log_success "Docker Compose (plugin)已安装"
+    else
+        log_info "Docker Compose未安装，开始安装..."
+
+        # 使用国内镜像下载Docker Compose
+        DOCKER_COMPOSE_VERSION=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep 'tag_name' | cut -d\" -f4)
+        sudo curl -L "https://get.daocloud.io/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+        sudo chmod +x /usr/local/bin/docker-compose
+
+        log_success "Docker Compose安装完成"
+    fi
+}
+
 # 检测部署方式
 detect_deployment_type() {
     if docker ps | grep -q crm; then
@@ -129,14 +169,65 @@ pull_code() {
     log_success "代码已更新到最新版本"
 }
 
+# 配置国内镜像源
+setup_china_mirrors() {
+    log_info "配置国内镜像源..."
+
+    # 配置pip国内镜像源
+    if [ ! -d "$HOME/.pip" ]; then
+        mkdir -p "$HOME/.pip"
+    fi
+
+    cat > "$HOME/.pip/pip.conf" << EOF
+[global]
+index-url = https://pypi.tuna.tsinghua.edu.cn/simple
+trusted-host = pypi.tuna.tsinghua.edu.cn
+timeout = 120
+EOF
+
+    # 配置Docker Hub国内镜像源
+    if [ -f "/etc/docker/daemon.json" ]; then
+        log_info "Docker镜像源已配置，跳过"
+    else
+        sudo mkdir -p /etc/docker
+        sudo tee /etc/docker/daemon.json > /dev/null << EOF
+{
+    "registry-mirrors": [
+        "https://docker.mirrors.ustc.edu.cn",
+        "https://hub-mirror.c.163.com",
+        "https://mirror.baidubce.com"
+    ],
+    "log-driver": "json-file",
+    "log-opts": {
+        "max-size": "10m",
+        "max-file": "3"
+    }
+}
+EOF
+
+        # 重启Docker服务以应用配置
+        if systemctl is-active --quiet docker; then
+            sudo systemctl restart docker
+            log_success "Docker镜像源配置完成并重启服务"
+        else
+            log_info "Docker镜像源配置完成，服务启动时生效"
+        fi
+    fi
+
+    log_success "国内镜像源配置完成"
+}
+
 # 更新依赖
 update_dependencies() {
     if [ "$DEPLOYMENT_TYPE" != "docker" ]; then
         log_info "检查依赖更新..."
-        
+
         if [ -d "venv" ]; then
             source venv/bin/activate
-            pip install -r requirements.txt --upgrade
+            # 使用国内镜像源安装依赖
+            pip install -r requirements.txt --upgrade \
+                -i https://pypi.tuna.tsinghua.edu.cn/simple \
+                --trusted-host pypi.tuna.tsinghua.edu.cn
             log_success "依赖已更新"
         else
             log_warning "未找到虚拟环境，跳过依赖更新"
@@ -273,10 +364,16 @@ main() {
     
     # 检查项目目录
     check_project_dir
-    
+
+    # 检查并安装Docker环境
+    check_and_install_docker
+
+    # 配置国内镜像源
+    setup_china_mirrors
+
     # 检测部署方式
     detect_deployment_type
-    
+
     # 确认更新
     echo ""
     read -p "确认要更新项目吗？(y/N) " -n 1 -r
@@ -285,7 +382,7 @@ main() {
         log_info "更新已取消"
         exit 0
     fi
-    
+
     # 执行更新步骤
     backup_database
     stop_service

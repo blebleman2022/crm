@@ -1,3 +1,7 @@
+# EduConnect CRM 依赖包列表
+# 安装命令（使用国内镜像源）:
+# pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn
+
 # Core Flask Framework
 Flask==3.0.0
 Werkzeug==3.0.1
