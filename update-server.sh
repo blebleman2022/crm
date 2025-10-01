@@ -200,6 +200,59 @@ pull_code() {
 setup_china_mirrors() {
     log_info "配置国内镜像源..."
 
+    # 配置APT国内镜像源
+    if [ -f "/etc/apt/sources.list" ] && [ ! -f "/etc/apt/sources.list.backup" ]; then
+        log_info "配置APT国内镜像源..."
+        sudo cp /etc/apt/sources.list /etc/apt/sources.list.backup
+
+        # 检测系统版本
+        if [ -f /etc/os-release ]; then
+            . /etc/os-release
+            OS_ID=$ID
+            VERSION_CODENAME=${VERSION_CODENAME:-$(lsb_release -cs 2>/dev/null || echo "bullseye")}
+        else
+            OS_ID="debian"
+            VERSION_CODENAME="bullseye"
+        fi
+
+        case $OS_ID in
+            "debian")
+                log_info "检测到Debian系统，版本: $VERSION_CODENAME"
+                sudo tee /etc/apt/sources.list > /dev/null <<EOF
+# 阿里云Debian镜像源
+deb https://mirrors.aliyun.com/debian/ $VERSION_CODENAME main contrib non-free
+deb-src https://mirrors.aliyun.com/debian/ $VERSION_CODENAME main contrib non-free
+
+deb https://mirrors.aliyun.com/debian-security/ $VERSION_CODENAME-security main contrib non-free
+deb-src https://mirrors.aliyun.com/debian-security/ $VERSION_CODENAME-security main contrib non-free
+
+deb https://mirrors.aliyun.com/debian/ $VERSION_CODENAME-updates main contrib non-free
+deb-src https://mirrors.aliyun.com/debian/ $VERSION_CODENAME-updates main contrib non-free
+EOF
+                ;;
+            "ubuntu")
+                log_info "检测到Ubuntu系统，版本: $VERSION_CODENAME"
+                sudo tee /etc/apt/sources.list > /dev/null <<EOF
+# 阿里云Ubuntu镜像源
+deb https://mirrors.aliyun.com/ubuntu/ $VERSION_CODENAME main restricted universe multiverse
+deb-src https://mirrors.aliyun.com/ubuntu/ $VERSION_CODENAME main restricted universe multiverse
+
+deb https://mirrors.aliyun.com/ubuntu/ $VERSION_CODENAME-security main restricted universe multiverse
+deb-src https://mirrors.aliyun.com/ubuntu/ $VERSION_CODENAME-security main restricted universe multiverse
+
+deb https://mirrors.aliyun.com/ubuntu/ $VERSION_CODENAME-updates main restricted universe multiverse
+deb-src https://mirrors.aliyun.com/ubuntu/ $VERSION_CODENAME-updates main restricted universe multiverse
+EOF
+                ;;
+        esac
+
+        # 更新包列表
+        sudo apt update
+        log_success "APT国内镜像源配置完成"
+    else
+        log_info "APT镜像源已配置或无需配置"
+    fi
+
     # 配置pip国内镜像源
     if [ ! -d "$HOME/.pip" ]; then
         mkdir -p "$HOME/.pip"
