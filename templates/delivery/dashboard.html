@@ -6,29 +6,28 @@
 {% block content %}
 <div class="max-w-7xl mx-auto">
     <div class="mb-8">
-        <h2 class="text-3xl font-bold text-gray-900">服务交付概览</h2>
-        <p class="mt-2 text-gray-600">欢迎回来，{{ current_user.username }}！以下是您负责的服务交付情况。</p>
+        <p class="text-sm font-medium text-gray-500">欢迎回来，{{ current_user.username }}老师！以下是您负责的服务交付情况。</p>
     </div>
 
     <!-- 统计卡片 -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div class="bg-white overflow-hidden shadow rounded-lg">
+        <a href="{{ url_for('customers.list_customers') }}" class="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-shadow duration-200">
             <div class="p-5">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
-                        <span class="material-symbols-outlined text-2xl text-blue-600">assignment</span>
+                        <span class="material-symbols-outlined text-2xl text-blue-600">group</span>
                     </div>
                     <div class="ml-5 w-0 flex-1">
                         <dl>
-                            <dt class="text-sm font-medium text-gray-500 truncate">总服务数</dt>
-                            <dd class="text-lg font-medium text-gray-900">{{ total_deliveries or 0 }}</dd>
+                            <dt class="text-sm font-medium text-gray-500 truncate">我的客户</dt>
+                            <dd class="text-lg font-medium text-gray-900">{{ my_customers }}</dd>
                         </dl>
                     </div>
                 </div>
             </div>
-        </div>
+        </a>
 
-        <div class="bg-white overflow-hidden shadow rounded-lg">
+        <a href="{{ url_for('customers.list_customers') }}?service_type=tutoring" class="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-shadow duration-200">
             <div class="p-5">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
@@ -37,14 +36,14 @@
                     <div class="ml-5 w-0 flex-1">
                         <dl>
                             <dt class="text-sm font-medium text-gray-500 truncate">课题辅导</dt>
-                            <dd class="text-lg font-medium text-gray-900">{{ tutoring_count or 0 }}</dd>
+                            <dd class="text-lg font-medium text-gray-900">{{ tutoring_total }}</dd>
                         </dl>
                     </div>
                 </div>
             </div>
-        </div>
+        </a>
 
-        <div class="bg-white overflow-hidden shadow rounded-lg">
+        <a href="{{ url_for('customers.list_customers') }}?service_type=competition" class="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-shadow duration-200">
             <div class="p-5">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
@@ -52,15 +51,15 @@
                     </div>
                     <div class="ml-5 w-0 flex-1">
                         <dl>
-                            <dt class="text-sm font-medium text-gray-500 truncate">竞赛奖项</dt>
-                            <dd class="text-lg font-medium text-gray-900">{{ competition_count or 0 }}</dd>
+                            <dt class="text-sm font-medium text-gray-500 truncate">竞赛辅导</dt>
+                            <dd class="text-lg font-medium text-gray-900">{{ competition_total }}</dd>
                         </dl>
                     </div>
                 </div>
             </div>
-        </div>
+        </a>
 
-        <div class="bg-white overflow-hidden shadow rounded-lg">
+        <a href="{{ url_for('customers.list_customers') }}?completed=true" class="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-shadow duration-200">
             <div class="p-5">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
@@ -69,146 +68,14 @@
                     <div class="ml-5 w-0 flex-1">
                         <dl>
                             <dt class="text-sm font-medium text-gray-500 truncate">已完成</dt>
-                            <dd class="text-lg font-medium text-gray-900">{{ completed_count or 0 }}</dd>
+                            <dd class="text-lg font-medium text-gray-900">{{ tutoring_completed + competition_completed }}</dd>
                         </dl>
                     </div>
                 </div>
             </div>
-        </div>
+        </a>
     </div>
 
-    <!-- 快速操作 -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        <div class="bg-white shadow rounded-lg">
-            <div class="px-6 py-4 border-b border-gray-200">
-                <h3 class="text-lg font-medium text-gray-900">快速操作</h3>
-            </div>
-            <div class="p-6">
-                <div class="grid grid-cols-2 gap-4">
-                    <a href="{{ url_for('delivery.tutoring_list') }}" 
-                       class="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
-                        <span class="material-symbols-outlined mr-2">school</span>
-                        课题辅导
-                    </a>
-                    <a href="{{ url_for('delivery.competition_list') }}" 
-                       class="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
-                        <span class="material-symbols-outlined mr-2">emoji_events</span>
-                        竞赛奖项
-                    </a>
-                    <a href="{{ url_for('customers.list_customers') }}" 
-                       class="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
-                        <span class="material-symbols-outlined mr-2">groups</span>
-                        客户信息
-                    </a>
-                    <a href="#" 
-                       class="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
-                        <span class="material-symbols-outlined mr-2">analytics</span>
-                        进度报表
-                    </a>
-                </div>
-            </div>
-        </div>
 
-        <div class="bg-white shadow rounded-lg">
-            <div class="px-6 py-4 border-b border-gray-200">
-                <h3 class="text-lg font-medium text-gray-900">服务类型分布</h3>
-            </div>
-            <div class="p-6">
-                <div class="space-y-4">
-                    <div class="flex items-center justify-between">
-                        <span class="text-sm text-gray-600">课题辅导服务</span>
-                        <div class="flex items-center">
-                            <span class="text-sm font-medium text-gray-900 mr-2">{{ tutoring_count or 0 }}</span>
-                            <div class="w-16 bg-gray-200 rounded-full h-2">
-                                <div class="bg-green-600 h-2 rounded-full" style="width: {{ ((tutoring_count or 0) / ((total_deliveries or 0) or 1)) * 100 }}%"></div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-sm text-gray-600">竞赛奖项服务</span>
-                        <div class="flex items-center">
-                            <span class="text-sm font-medium text-gray-900 mr-2">{{ competition_count or 0 }}</span>
-                            <div class="w-16 bg-gray-200 rounded-full h-2">
-                                <div class="bg-purple-600 h-2 rounded-full" style="width: {{ ((competition_count or 0) / ((total_deliveries or 0) or 1)) * 100 }}%"></div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-sm text-gray-600">完成率</span>
-                        <div class="flex items-center">
-                            <span class="text-sm font-medium text-gray-900 mr-2">{{ "%.1f"|format(((completed_count or 0) / ((total_deliveries or 0) or 1)) * 100) }}%</span>
-                            <div class="w-16 bg-gray-200 rounded-full h-2">
-                                <div class="bg-orange-600 h-2 rounded-full" style="width: {{ ((completed_count or 0) / ((total_deliveries or 0) or 1)) * 100 }}%"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 待处理任务 -->
-    <div class="bg-white shadow rounded-lg">
-        <div class="px-6 py-4 border-b border-gray-200">
-            <div class="flex items-center justify-between">
-                <h3 class="text-lg font-medium text-gray-900">待处理任务</h3>
-                <a href="{{ url_for('delivery.tutoring_list') }}" class="text-sm text-primary-600 hover:text-primary-500">
-                    查看全部
-                </a>
-            </div>
-        </div>
-        <div class="overflow-hidden">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">客户姓名</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">服务类型</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">当前状态</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">到期时间</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                    {% for task in pending_tasks %}
-                    <tr>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {{ task.customer.student_name if task.customer else '-' }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {% if task.service_type == 'tutoring' %}
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                    课题辅导
-                                </span>
-                            {% else %}
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                                    竞赛奖项
-                                </span>
-                            {% endif %}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {{ task.status_display }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {% if task.service_end_date %}
-                                {{ task.service_end_date.strftime('%Y-%m-%d') }}
-                            {% else %}
-                                -
-                            {% endif %}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <a href="#" class="text-primary-600 hover:text-primary-900">处理</a>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="5" class="px-6 py-4 text-center text-sm text-gray-500">
-                            暂无待处理任务
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
 </div>
 {% endblock %}

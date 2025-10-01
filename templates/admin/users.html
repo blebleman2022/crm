@@ -36,7 +36,8 @@
                         name="role">
                     <option value="">所有角色</option>
                     <option value="admin" {% if role_filter == 'admin' %}selected{% endif %}>管理员</option>
-                    <option value="sales" {% if role_filter == 'sales' %}selected{% endif %}>销售管理</option>
+                    <option value="sales_manager" {% if role_filter == 'sales_manager' %}selected{% endif %}>销售管理</option>
+                    <option value="salesperson" {% if role_filter == 'salesperson' %}selected{% endif %}>销售</option>
                     <option value="teacher" {% if role_filter == 'teacher' %}selected{% endif %}>班主任</option>
                 </select>
             </div>
@@ -77,8 +78,10 @@
                         <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                             {% if user.role == 'admin' %}
                                 <span class="inline-flex items-center rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-medium text-purple-800">管理员</span>
-                            {% elif user.role == 'sales' %}
+                            {% elif user.role == 'sales_manager' %}
                                 <span class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">销售管理</span>
+                            {% elif user.role == 'salesperson' %}
+                                <span class="inline-flex items-center rounded-full bg-cyan-100 px-2.5 py-0.5 text-xs font-medium text-cyan-800">销售</span>
                             {% elif user.role == 'teacher' %}
                                 <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">班主任</span>
                             {% else %}

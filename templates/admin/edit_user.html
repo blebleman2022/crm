@@ -40,7 +40,8 @@
                     <select name="role" id="role" disabled
                             class="block w-full rounded-md border-gray-300 bg-gray-50 shadow-sm sm:text-sm">
                         <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>管理员</option>
-                        <option value="sales" {% if user.role == 'sales' %}selected{% endif %}>销售管理</option>
+                        <option value="sales_manager" {% if user.role == 'sales_manager' %}selected{% endif %}>销售管理</option>
+                        <option value="salesperson" {% if user.role == 'salesperson' %}selected{% endif %}>销售</option>
                         <option value="teacher" {% if user.role == 'teacher' %}selected{% endif %}>班主任</option>
                     </select>
                 </div>

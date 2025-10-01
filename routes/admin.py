@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from functools import wraps
-from models import User, LoginLog, Lead, db
+from models import User, LoginLog, Lead, Customer, db
 from datetime import datetime, timedelta
 import re
 import os
@@ -51,20 +51,36 @@ def dashboard():
     
     # 最近登录记录
     recent_logins = LoginLog.query.order_by(LoginLog.login_time.desc()).limit(10).all()
-    
+
+    # 今日登录统计
+    from datetime import date
+    today = date.today()
+    today_logins = LoginLog.query.filter(
+        db.func.date(LoginLog.login_time) == today
+    ).count()
+
     # 角色分布
-    sales_count = User.query.filter_by(role='sales', status=True).count()
+    sales_manager_count = User.query.filter_by(role='sales_manager', status=True).count()
+    salesperson_count = User.query.filter_by(role='salesperson', status=True).count()
     teacher_count = User.query.filter_by(role='teacher', status=True).count()
     admin_count = User.query.filter_by(role='admin', status=True).count()
-    
+
+    # 线索和客户统计
+    total_leads = Lead.query.count()
+    total_customers = Customer.query.count()
+
     return render_template('admin/dashboard.html',
                          total_users=total_users,
                          active_users=active_users,
                          inactive_users=inactive_users,
                          recent_logins=recent_logins,
-                         sales_count=sales_count,
+                         today_logins=today_logins,
+                         sales_manager_count=sales_manager_count,
+                         salesperson_count=salesperson_count,
                          teacher_count=teacher_count,
-                         admin_count=admin_count)
+                         admin_count=admin_count,
+                         total_leads=total_leads,
+                         total_customers=total_customers)
 
 @admin_bp.route('/users')
 @login_required
@@ -460,7 +476,7 @@ def leads():
     )
 
     # 获取所有销售人员用于筛选
-    sales_users = User.query.filter_by(role='sales', status=True).all()
+    sales_users = User.query.filter(User.role.in_(['sales_manager', 'salesperson']), User.status == True).all()
 
     # 线索阶段选项
     stages = ['获取联系方式', '线下见面', '首笔支付', '次笔支付', '全款支付']

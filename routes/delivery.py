@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from functools import wraps
-from models import User, Customer, TutoringDelivery, CompetitionDelivery, db
+from models import User, Customer, Lead, TutoringDelivery, CompetitionDelivery, db
 from datetime import datetime, date
 
 delivery_bp = Blueprint('delivery', __name__)
@@ -24,23 +24,27 @@ def dashboard():
     # 我负责的客户统计
     my_customers = Customer.query.filter_by(teacher_user_id=current_user.id).count()
     
-    # 课题辅导统计
-    tutoring_total = TutoringDelivery.query.join(Customer).filter(
-        Customer.teacher_user_id == current_user.id
-    ).count()
-    
-    tutoring_completed = TutoringDelivery.query.join(Customer).filter(
+    # 课题辅导统计 - 基于实际服务类型
+    tutoring_total = Customer.query.join(Customer.lead).filter(
         Customer.teacher_user_id == current_user.id,
+        Lead.service_types.contains('tutoring')
+    ).count()
+
+    tutoring_completed = TutoringDelivery.query.join(Customer).join(Customer.lead).filter(
+        Customer.teacher_user_id == current_user.id,
+        Lead.service_types.contains('tutoring'),
         TutoringDelivery.thesis_status == '已完成'
     ).count()
-    
-    # 竞赛奖项统计
-    competition_total = CompetitionDelivery.query.join(Customer).filter(
-        Customer.teacher_user_id == current_user.id
-    ).count()
-    
-    competition_completed = CompetitionDelivery.query.join(Customer).filter(
+
+    # 竞赛辅导统计 - 基于实际服务类型
+    competition_total = Customer.query.join(Customer.lead).filter(
         Customer.teacher_user_id == current_user.id,
+        Lead.service_types.contains('competition')
+    ).count()
+
+    competition_completed = CompetitionDelivery.query.join(Customer).join(Customer.lead).filter(
+        Customer.teacher_user_id == current_user.id,
+        Lead.service_types.contains('competition'),
         CompetitionDelivery.delivery_status == '服务完结'
     ).count()
     

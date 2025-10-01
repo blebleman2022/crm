@@ -16,7 +16,7 @@ def sales_required(f):
     """装饰器：要求销售权限"""
     @functools.wraps(f)
     def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or current_user.role not in ['sales', 'admin']:
+        if not current_user.is_authenticated or current_user.role not in ['sales_manager', 'salesperson', 'admin']:
             flash('您没有权限访问此页面', 'error')
             return redirect(url_for('auth.login'))
         return f(*args, **kwargs)

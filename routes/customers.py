@@ -19,10 +19,10 @@ def sales_or_admin_required(f):
     return decorated_function
 
 def get_teachers():
-    """获取所有启用的班主任（包括销售管理角色）"""
+    """获取所有启用的班主任"""
     return User.query.filter(
         User.status == True,
-        User.role.in_(['teacher', 'sales'])
+        User.role == 'teacher'
     ).all()
 
 @customers_bp.route('/list')
@@ -33,6 +33,8 @@ def list_customers():
     search = request.args.get('search', '', type=str)
     teacher_filter = request.args.get('teacher', '', type=str)
     award_filter = request.args.get('award', '', type=str)
+    service_type = request.args.get('service_type', '', type=str)  # 服务类型筛选
+    completed = request.args.get('completed', '', type=str)  # 已完成筛选
 
     # 时间段筛选参数（按客户新增时间）
     start_date = request.args.get('start_date', '', type=str)
@@ -43,9 +45,20 @@ def list_customers():
         db.joinedload(Customer.competition_delivery)
     )
 
-    # 如果是班主任，只能看到自己负责的客户
+    # 权限控制
     if current_user.role == 'teacher':
+        # 班主任只能看到自己负责的客户
         query = query.filter(Customer.teacher_user_id == current_user.id)
+    elif current_user.is_salesperson():
+        # 销售角色只能看到自己负责且已分配班主任的客户
+        query = query.filter(
+            (Lead.sales_user_id == current_user.id) &
+            (Customer.teacher_user_id.isnot(None))
+        )
+    elif current_user.is_sales_manager():
+        # 销售管理可以看到自己负责的所有客户
+        query = query.filter(Lead.sales_user_id == current_user.id)
+    # 管理员可以看到所有客户，不需要额外过滤
 
     # 搜索过滤
     if search:
@@ -61,6 +74,22 @@ def list_customers():
     # 奖项要求过滤（从线索表读取）
     if award_filter:
         query = query.filter(Lead.competition_award_level == award_filter)
+
+    # 服务类型筛选
+    if service_type == 'tutoring':
+        # 筛选有课题辅导服务的客户
+        query = query.filter(Lead.service_types.contains('tutoring'))
+    elif service_type == 'competition':
+        # 筛选有竞赛辅导服务的客户
+        query = query.filter(Lead.service_types.contains('competition'))
+
+    # 已完成筛选
+    if completed == 'true':
+        # 筛选已完成的客户（课题辅导已完成或竞赛辅导已完成）
+        query = query.filter(
+            (TutoringDelivery.thesis_status == '已完成') |
+            (CompetitionDelivery.delivery_status == '服务完结')
+        )
 
     # 时间段筛选（按客户新增时间）
     if start_date and end_date:
@@ -91,6 +120,8 @@ def list_customers():
                          search=search,
                          teacher_filter=teacher_filter,
                          award_filter=award_filter,
+                         service_type=service_type,
+                         completed=completed,
                          teachers=teachers,
                          start_date=start_date,
                          end_date=end_date)

@@ -169,22 +169,14 @@ function displayServiceRows(studentData) {
                     <span>课题辅导</span>
                 </div>
             </td>
-            <td class="px-3 py-2 text-sm font-medium text-gray-900">
-                ${studentData.tutoring_delivery ?
-                    `论文状态：${studentData.tutoring_delivery.thesis_status || '未开始'}` :
-                    '已选择'}
-            </td>
+            <td class="px-3 py-2 text-sm font-medium text-gray-900">已选择</td>
         `;
         serviceTableBody.appendChild(row);
     }
 
     // 竞赛辅导
     if (serviceTypes.includes('competition')) {
-        let awardText = studentData.competition_award_level || studentData.award_requirement || '无要求';
-        if (studentData.competition_delivery) {
-            const status = studentData.competition_delivery.delivery_status || '未报名';
-            awardText += `，状态：${status}`;
-        }
+        const awardText = studentData.competition_award_level || studentData.award_requirement || '无要求';
 
         const row = document.createElement('tr');
         row.innerHTML = `

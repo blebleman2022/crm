@@ -93,7 +93,8 @@ def create_app(config_name=None):
         try:
             # 检查数据库连接
             from models import db
-            db.session.execute('SELECT 1')
+            from sqlalchemy import text
+            db.session.execute(text('SELECT 1'))
             db_status = 'connected'
         except Exception as e:
             # 数据库连接失败，但应用仍可运行
@@ -494,13 +495,13 @@ def init_database(app):
             {
                 'username': '张三',
                 'phone': '13900139001',
-                'role': 'sales',
+                'role': 'sales_manager',
                 'description': '销售经理'
             },
             {
                 'username': '李四',
                 'phone': '13900139002',
-                'role': 'sales',
+                'role': 'salesperson',
                 'description': '销售专员'
             },
             {
@@ -518,8 +519,14 @@ def init_database(app):
             {
                 'username': '钱七',
                 'phone': '13900139005',
-                'role': 'sales',
-                'description': '高级销售'
+                'role': 'sales_manager',
+                'description': '高级销售经理'
+            },
+            {
+                'username': '小王',
+                'phone': '13900139006',
+                'role': 'salesperson',
+                'description': '销售代表'
             }
         ]
 

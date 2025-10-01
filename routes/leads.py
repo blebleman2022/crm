@@ -105,6 +105,9 @@ def dashboard():
     from flask import request
     from sqlalchemy import and_, func
 
+    # 获取统计模式参数
+    stats_mode = request.args.get('mode', 'period')  # period: 时间段统计, total: 累计统计
+
     # 获取时间段参数，默认为上个月15日到当日
     today = date.today()
     default_start = date(today.year, today.month - 1 if today.month > 1 else 12, 15)
@@ -122,42 +125,115 @@ def dashboard():
         start_date = default_start
         end_date = today
 
-    # 1. 合同额统计 - 基于首笔支付时间
-    contract_amount_result = db.session.query(func.sum(Lead.contract_amount)).filter(
-        and_(
-            Lead.first_payment_at.isnot(None),
-            func.date(Lead.first_payment_at) >= start_date,
-            func.date(Lead.first_payment_at) <= end_date
+    if stats_mode == 'total':
+        # 累计统计模式：显示当前负责的所有线索的总体情况
+
+        # 1. 合同额统计 - 所有有合同金额的线索
+        contract_query = db.session.query(func.sum(Lead.contract_amount)).filter(
+            Lead.contract_amount.isnot(None)
         )
-    ).scalar()
-    total_contract_amount = float(contract_amount_result or 0)
 
+        # 权限控制：销售相关角色只能看到自己的数据
+        if current_user.is_sales():
+            contract_query = contract_query.filter(Lead.sales_user_id == current_user.id)
 
+        contract_amount_result = contract_query.scalar()
+        total_contract_amount = float(contract_amount_result or 0)
 
-    # 2. 首笔客户数 - 处于"首笔支付"阶段的客户
-    first_payment_customers = db.session.query(Lead.id).filter(
-        and_(
-            Lead.stage == '首笔支付',
-            Lead.created_at >= start_date,
-            Lead.created_at <= end_date
+    else:
+        # 时间段统计模式：基于首笔支付时间
+        contract_query = db.session.query(func.sum(Lead.contract_amount)).filter(
+            and_(
+                Lead.first_payment_at.isnot(None),
+                func.date(Lead.first_payment_at) >= start_date,
+                func.date(Lead.first_payment_at) <= end_date
+            )
         )
-    ).count()
 
-    # 3. 付款客户数 - 基于Payment表统计有实际付款记录的客户
-    paid_customers = db.session.query(Lead.id).join(Payment).filter(
-        and_(
-            Payment.payment_date >= start_date,
-            Payment.payment_date <= end_date
-        )
-    ).distinct().count()
+        # 权限控制：销售相关角色只能看到自己的数据
+        if current_user.is_sales():
+            contract_query = contract_query.filter(Lead.sales_user_id == current_user.id)
 
-    # 4. 付款金额 - 指定时间段内的总付款金额
-    total_payment_amount = db.session.query(func.sum(Payment.amount)).filter(
-        and_(
-            Payment.payment_date >= start_date,
-            Payment.payment_date <= end_date
+        contract_amount_result = contract_query.scalar()
+        total_contract_amount = float(contract_amount_result or 0)
+
+
+
+    if stats_mode == 'total':
+        # 累计统计模式
+
+        # 2. 首笔客户数 - 处于"首笔支付"阶段的所有客户
+        first_payment_query = db.session.query(Lead.id).filter(Lead.stage == '首笔支付')
+
+        # 权限控制：销售相关角色只能看到自己的数据
+        if current_user.is_sales():
+            first_payment_query = first_payment_query.filter(Lead.sales_user_id == current_user.id)
+
+        first_payment_customers = first_payment_query.count()
+
+        # 3. 付款客户数 - 所有有付款记录的客户
+        paid_customers_query = db.session.query(Lead.id).join(Payment)
+
+        # 权限控制：销售相关角色只能看到自己的数据
+        if current_user.is_sales():
+            paid_customers_query = paid_customers_query.filter(Lead.sales_user_id == current_user.id)
+
+        paid_customers = paid_customers_query.distinct().count()
+
+        # 4. 付款金额 - 所有付款记录的总金额
+        payment_amount_query = db.session.query(func.sum(Payment.amount)).join(Lead)
+
+        # 权限控制：销售相关角色只能看到自己的数据
+        if current_user.is_sales():
+            payment_amount_query = payment_amount_query.filter(Lead.sales_user_id == current_user.id)
+
+        total_payment_amount = payment_amount_query.scalar() or 0
+
+    else:
+        # 时间段统计模式
+
+        # 2. 首笔客户数 - 处于"首笔支付"阶段的客户
+        first_payment_query = db.session.query(Lead.id).filter(
+            and_(
+                Lead.stage == '首笔支付',
+                Lead.created_at >= start_date,
+                Lead.created_at <= end_date
+            )
         )
-    ).scalar() or 0
+
+        # 权限控制：销售相关角色只能看到自己的数据
+        if current_user.is_sales():
+            first_payment_query = first_payment_query.filter(Lead.sales_user_id == current_user.id)
+
+        first_payment_customers = first_payment_query.count()
+
+        # 3. 付款客户数 - 基于Payment表统计有实际付款记录的客户
+        paid_customers_query = db.session.query(Lead.id).join(Payment).filter(
+            and_(
+                Payment.payment_date >= start_date,
+                Payment.payment_date <= end_date
+            )
+        )
+
+        # 权限控制：销售相关角色只能看到自己的数据
+        if current_user.is_sales():
+            paid_customers_query = paid_customers_query.filter(Lead.sales_user_id == current_user.id)
+
+        paid_customers = paid_customers_query.distinct().count()
+
+        # 4. 付款金额 - 指定时间段内的总付款金额
+        payment_amount_query = db.session.query(func.sum(Payment.amount)).join(Lead).filter(
+            and_(
+                Payment.payment_date >= start_date,
+                Payment.payment_date <= end_date
+            )
+        )
+
+        # 权限控制：销售相关角色只能看到自己的数据
+        if current_user.is_sales():
+            payment_amount_query = payment_amount_query.filter(Lead.sales_user_id == current_user.id)
+
+        total_payment_amount = payment_amount_query.scalar() or 0
 
 
 
@@ -167,7 +243,8 @@ def dashboard():
                          total_contract_amount=total_contract_amount,
                          first_payment_customers=first_payment_customers,
                          paid_customers=paid_customers,
-                         total_payment_amount=total_payment_amount)
+                         total_payment_amount=total_payment_amount,
+                         stats_mode=stats_mode)
 
 @leads_bp.route('/list')
 @login_required
@@ -192,6 +269,13 @@ def list_leads():
     contract_date_end = request.args.get('contract_date_end', '', type=str)
 
     query = Lead.query
+
+    # 权限控制：销售角色只能看到自己负责的线索
+    if current_user.is_salesperson():
+        query = query.filter(Lead.sales_user_id == current_user.id)
+    elif current_user.is_sales_manager():
+        query = query.filter(Lead.sales_user_id == current_user.id)
+    # 管理员可以看到所有线索，不需要额外过滤
 
     # 搜索过滤
     if search:
@@ -295,7 +379,7 @@ def list_leads():
     )
     
     # 获取所有销售人员用于筛选
-    sales_users = User.query.filter_by(role='sales', status=True).all()
+    sales_users = User.query.filter(User.role.in_(['sales_manager', 'salesperson']), User.status == True).all()
     
     # 线索阶段选项
     stages = ['获取联系方式', '线下见面', '首笔支付', '次笔支付', '全款支付']
@@ -357,7 +441,7 @@ def add_lead():
         if source == '其他':
             if not custom_source:
                 flash('选择"其他"时必须填写自定义线索来源', 'error')
-                return render_template('leads/add.html', sales_users=get_sales_users())
+                return render_template('leads/add.html', sales_users=get_available_sales_users_for_assignment(current_user))
             final_source = custom_source
         else:
             final_source = source
@@ -365,7 +449,7 @@ def add_lead():
         # 验证必填字段
         if not all([parent_wechat_display_name, parent_wechat_name, final_source, grade]):
             flash('家长微信名、家长微信号、线索来源和年级为必填项', 'error')
-            return render_template('leads/add.html', sales_users=get_sales_users())
+            return render_template('leads/add.html', sales_users=get_available_sales_users_for_assignment(current_user))
 
         # 验证家长微信号是否重复
         existing_wechat = Lead.query.filter_by(parent_wechat_name=parent_wechat_name).first()
@@ -381,7 +465,7 @@ def add_lead():
             phone_pattern = r'^1[0-9]\d{9}$'
             if not re.match(phone_pattern, phone):
                 flash('请输入正确的11位手机号', 'error')
-                return render_template('leads/add.html', sales_users=get_sales_users())
+                return render_template('leads/add.html', sales_users=get_available_sales_users_for_assignment(current_user))
 
         # 检查手机号是否已存在（如果填写了手机号）
         if phone:
@@ -393,17 +477,24 @@ def add_lead():
                 existing_phone = contact_parts[0] if contact_parts else existing_lead.contact_info
                 if existing_phone == phone:
                     flash('手机号不能重复', 'error')
-                    return render_template('leads/add.html', sales_users=get_sales_users())
+                    return render_template('leads/add.html', sales_users=get_available_sales_users_for_assignment(current_user))
 
         # 如果没有指定销售，分配给当前用户
         if not assigned_sales_id:
             assigned_sales_id = current_user.id
 
         # 验证销售人员
-        sales_user = User.query.filter_by(id=assigned_sales_id, role='sales', status=True).first()
+        sales_user = User.query.filter(User.id == assigned_sales_id,
+                                     User.role.in_(['sales_manager', 'salesperson']),
+                                     User.status == True).first()
         if not sales_user:
             flash('选择的销售人员无效', 'error')
-            return render_template('leads/add.html', sales_users=get_sales_users())
+            return render_template('leads/add.html', sales_users=get_available_sales_users_for_assignment(current_user))
+
+        # 检查权限：销售角色只能分配给自己
+        if current_user.is_salesperson() and assigned_sales_id != current_user.id:
+            flash('您只能创建分配给自己的线索', 'error')
+            return render_template('leads/add.html', sales_users=get_available_sales_users_for_assignment(current_user))
 
         # 阶段将通过自动更新逻辑设置
 
@@ -424,14 +515,14 @@ def add_lead():
                 contact_obtained_datetime = datetime.combine(contact_date, datetime.min.time())
             except ValueError:
                 flash('获取联系方式日期格式不正确', 'error')
-                return render_template('leads/add.html', sales_users=get_sales_users())
+                return render_template('leads/add.html', sales_users=get_available_sales_users_for_assignment(current_user))
 
         if meeting_at:
             try:
                 meeting_datetime = datetime.fromisoformat(meeting_at)
             except ValueError:
                 flash('线下见面时间格式不正确', 'error')
-                return render_template('leads/add.html', sales_users=get_sales_users())
+                return render_template('leads/add.html', sales_users=get_available_sales_users_for_assignment(current_user))
 
         # 创建线索
         try:
@@ -488,7 +579,7 @@ def add_lead():
             db.session.rollback()
             flash(f'创建线索失败: {str(e)}', 'error')
 
-    return render_template('leads/add.html', sales_users=get_sales_users())
+    return render_template('leads/add.html', sales_users=get_available_sales_users_for_assignment(current_user))
 
 @leads_bp.route('/check-phone', methods=['POST'])
 @login_required
@@ -542,8 +633,19 @@ def check_wechat():
         return jsonify({'exists': False})
 
 def get_sales_users():
-    """获取所有启用的销售人员"""
-    return User.query.filter_by(role='sales', status=True).all()
+    """获取所有启用的销售人员（包括销售管理和销售）"""
+    return User.query.filter(User.role.in_(['sales_manager', 'salesperson']), User.status == True).all()
+
+def get_available_sales_users_for_assignment(current_user):
+    """根据当前用户角色获取可分配的销售人员列表"""
+    if current_user.is_admin() or current_user.is_sales_manager():
+        # 管理员和销售管理可以分配给任何销售人员
+        return get_sales_users()
+    elif current_user.is_salesperson():
+        # 销售只能分配给自己
+        return [current_user]
+    else:
+        return []
 
 def is_field_locked(value):
     """判断单个字段是否应该被锁定"""
@@ -691,7 +793,9 @@ def edit_lead(lead_id):
 
         # 验证销售人员（只在未锁定且有值时验证）
         if not is_field_locked(lead.sales_user_id) and sales_user_id:
-            sales_user = User.query.filter_by(id=sales_user_id, role='sales', status=True).first()
+            sales_user = User.query.filter(User.id == sales_user_id,
+                                         User.role.in_(['sales_manager', 'salesperson']),
+                                         User.status == True).first()
             if not sales_user:
                 flash('选择的销售人员无效', 'error')
                 return render_template('leads/edit.html', lead=lead, sales_users=get_sales_users(), is_basic_info_locked=is_basic_info_locked, is_field_locked=is_field_locked)
@@ -912,9 +1016,13 @@ def lead_api(lead_id):
 
 @leads_bp.route('/<int:lead_id>/convert', methods=['POST'])
 @login_required
-@sales_required
+@sales_or_admin_required
 def convert_to_customer(lead_id):
-    """将线索转换为客户"""
+    """将线索转换为客户 - 仅销售管理和管理员可操作"""
+    # 检查权限：销售角色不能操作转客户
+    if current_user.is_salesperson():
+        return jsonify({'success': False, 'message': '您没有权限操作转客户功能'})
+
     lead = Lead.query.get_or_404(lead_id)
 
     # 检查线索是否已经是次笔支付或全款支付阶段
@@ -930,19 +1038,22 @@ def convert_to_customer(lead_id):
         from models import TutoringDelivery, CompetitionDelivery
         from utils.exam_calculator import calculate_exam_year
 
-        # 获取可选的班主任ID
+        # 获取必填的班主任ID
         data = request.get_json() or {}
         teacher_id = data.get('teacher_id')
 
-        # 如果提供了班主任ID，验证其有效性
-        if teacher_id:
-            teacher = User.query.filter(
-                User.id == teacher_id,
-                User.role.in_(['teacher', 'sales']),
-                User.status == True
-            ).first()
-            if not teacher:
-                return jsonify({'success': False, 'message': '选择的班主任无效'})
+        # 班主任ID为必填项
+        if not teacher_id:
+            return jsonify({'success': False, 'message': '转客户时必须分配班主任'})
+
+        # 验证班主任有效性
+        teacher = User.query.filter(
+            User.id == teacher_id,
+            User.role == 'teacher',
+            User.status == True
+        ).first()
+        if not teacher:
+            return jsonify({'success': False, 'message': '选择的班主任无效'})
 
         # 根据年级自动计算中高考年份
         exam_year = calculate_exam_year(lead.grade)
@@ -966,7 +1077,7 @@ def convert_to_customer(lead_id):
         result = db.session.execute(insert_sql, {
             'lead_id': lead.id,
             'sales_user_id': lead.sales_user_id,
-            'teacher_user_id': teacher_id if teacher_id else None,
+            'teacher_user_id': teacher_id,
             'payment_amount': 0,
             # ✨ 不再复制 competition_award_level 和 additional_requirements
             # 这些字段通过 customer.lead 关联从线索表读取，保证单一数据源
@@ -982,22 +1093,16 @@ def convert_to_customer(lead_id):
         customer_id = result.lastrowid
         db.session.flush()
 
-        # 如果分配了班主任，创建交付记录
-        if teacher_id:
-            tutoring_delivery = TutoringDelivery(customer_id=customer_id)
-            db.session.add(tutoring_delivery)
+        # 创建交付记录（因为班主任是必填的）
+        tutoring_delivery = TutoringDelivery(customer_id=customer_id)
+        db.session.add(tutoring_delivery)
 
-            competition_delivery = CompetitionDelivery(customer_id=customer_id)
-            db.session.add(competition_delivery)
+        competition_delivery = CompetitionDelivery(customer_id=customer_id)
+        db.session.add(competition_delivery)
 
         db.session.commit()
 
-        message = f'线索 {lead.student_name} 已成功转换为客户'
-        if teacher_id:
-            teacher = User.query.get(teacher_id)
-            message += f'，已分配给班主任 {teacher.username}'
-        else:
-            message += '，班主任待分配'
+        message = f'线索 {lead.student_name} 已成功转换为客户，已分配给班主任 {teacher.username}'
 
         return jsonify({'success': True, 'message': message})
     except Exception as e:
@@ -1006,9 +1111,13 @@ def convert_to_customer(lead_id):
 
 @leads_bp.route('/add_payment', methods=['POST'])
 @login_required
-@sales_required
+@sales_or_admin_required
 def add_payment():
-    """添加付款记录"""
+    """添加付款记录 - 仅销售管理和管理员可操作"""
+    # 检查权限：销售角色不能操作付款管理
+    if current_user.is_salesperson():
+        return jsonify({'success': False, 'message': '您没有权限操作付款管理'})
+
     try:
         lead_id = request.form.get('lead_id', type=int)
         payment_date_str = request.form.get('payment_date', '').strip()
@@ -1061,9 +1170,13 @@ def add_payment():
 
 @leads_bp.route('/delete_payment/<int:payment_id>', methods=['DELETE'])
 @login_required
-@sales_required
+@sales_or_admin_required
 def delete_payment(payment_id):
-    """删除付款记录"""
+    """删除付款记录 - 仅销售管理和管理员可操作"""
+    # 检查权限：销售角色不能操作付款管理
+    if current_user.is_salesperson():
+        return jsonify({'success': False, 'message': '您没有权限操作付款管理'})
+
     try:
         payment = Payment.query.get(payment_id)
         if not payment:

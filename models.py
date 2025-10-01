@@ -13,7 +13,7 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), nullable=False, comment='用户名')
     phone = db.Column(db.String(11), unique=True, nullable=False, comment='手机号')
-    role = db.Column(db.String(20), nullable=False, comment='角色：admin/sales/teacher')
+    role = db.Column(db.String(20), nullable=False, comment='角色：admin/sales_manager/salesperson/teacher')
     group_name = db.Column(db.String(50), comment='所属组别')
     status = db.Column(db.Boolean, default=True, comment='账号状态：True启用/False禁用')
     created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
@@ -28,10 +28,19 @@ class User(UserMixin, db.Model):
     
     def is_admin(self):
         return self.role == 'admin'
-    
+
+    def is_sales_manager(self):
+        """是否为销售管理角色"""
+        return self.role == 'sales_manager'
+
+    def is_salesperson(self):
+        """是否为销售角色"""
+        return self.role == 'salesperson'
+
     def is_sales(self):
-        return self.role == 'sales'
-    
+        """是否为销售相关角色（包括销售管理和销售）"""
+        return self.role in ['sales_manager', 'salesperson']
+
     def is_teacher(self):
         return self.role == 'teacher'
 

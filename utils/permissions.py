@@ -33,17 +33,29 @@ def admin_required(f):
     """管理员权限装饰器"""
     return require_roles('admin')(f)
 
-def sales_required(f):
+def sales_manager_required(f):
     """销售管理权限装饰器"""
-    return require_roles('sales')(f)
+    return require_roles('sales_manager')(f)
+
+def salesperson_required(f):
+    """销售权限装饰器"""
+    return require_roles('salesperson')(f)
+
+def sales_required(f):
+    """销售相关权限装饰器（包括销售管理和销售）"""
+    return require_roles('sales_manager', 'salesperson')(f)
 
 def teacher_required(f):
     """班主任权限装饰器"""
     return require_roles('teacher')(f)
 
-def sales_or_admin_required(f):
+def sales_manager_or_admin_required(f):
     """销售管理或管理员权限装饰器"""
-    return require_roles('sales', 'admin')(f)
+    return require_roles('sales_manager', 'admin')(f)
+
+def sales_or_admin_required(f):
+    """销售相关或管理员权限装饰器"""
+    return require_roles('sales_manager', 'salesperson', 'admin')(f)
 
 def teacher_or_admin_required(f):
     """班主任或管理员权限装饰器"""
@@ -79,8 +91,8 @@ def check_data_access_permission(user, target_user_id=None, customer_id=None, le
         if not customer:
             return False
         
-        # 销售管理可以访问自己负责的客户
-        if user.role == 'sales':
+        # 销售管理和销售可以访问自己负责的客户
+        if user.role in ['sales_manager', 'salesperson']:
             return customer.sales_user_id == user.id
         
         # 班主任可以访问分配给自己的客户
@@ -94,8 +106,8 @@ def check_data_access_permission(user, target_user_id=None, customer_id=None, le
         if not lead:
             return False
         
-        # 销售管理可以访问自己负责的线索
-        if user.role == 'sales':
+        # 销售管理和销售可以访问自己负责的线索
+        if user.role in ['sales_manager', 'salesperson']:
             return lead.sales_user_id == user.id
         
         # 班主任不能直接访问线索数据
@@ -154,12 +166,16 @@ def get_accessible_data_filter(user, model_class):
     if user.role == 'admin':
         return None
     
-    # 销售管理只能访问自己负责的数据
-    if user.role == 'sales':
+    # 销售管理和销售只能访问自己负责的数据
+    if user.role in ['sales_manager', 'salesperson']:
         if model_class.__name__ == 'Lead':
             return model_class.sales_user_id == user.id
         elif model_class.__name__ == 'Customer':
-            return model_class.sales_user_id == user.id
+            # 销售角色只能看到已分配班主任的客户
+            if user.role == 'salesperson':
+                return (model_class.sales_user_id == user.id) & (model_class.teacher_user_id.isnot(None))
+            else:  # sales_manager
+                return model_class.sales_user_id == user.id
     
     # 班主任只能访问分配给自己的客户数据
     if user.role == 'teacher':

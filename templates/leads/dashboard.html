@@ -6,29 +6,59 @@
 {% block content %}
 <div class="max-w-7xl mx-auto">
 
-    <!-- 时间段选择器 -->
+    <!-- 统计模式和时间段选择器 -->
     <div class="bg-white shadow rounded-lg mb-8">
         <div class="px-6 py-4 border-b border-gray-200">
-            <h3 class="text-lg font-medium text-gray-900">数据时间段</h3>
+            <h3 class="text-lg font-medium text-gray-900">统计设置</h3>
         </div>
         <div class="p-6">
-            <form method="GET" class="flex items-center space-x-4">
-                <div class="flex items-center space-x-2">
-                    <label for="start_date" class="text-sm font-medium text-gray-700">开始日期：</label>
-                    <input type="date" id="start_date" name="start_date" value="{{ start_date }}"
-                           class="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <form method="GET" class="space-y-4">
+                <!-- 统计模式选择 -->
+                <div class="flex items-center space-x-6">
+                    <label class="text-sm font-medium text-gray-700">统计模式：</label>
+                    <div class="flex items-center space-x-4">
+                        <label class="flex items-center">
+                            <input type="radio" name="mode" value="period"
+                                   {% if stats_mode == 'period' %}checked{% endif %}
+                                   class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300">
+                            <span class="ml-2 text-sm text-gray-700">时间段统计</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="radio" name="mode" value="total"
+                                   {% if stats_mode == 'total' %}checked{% endif %}
+                                   class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300">
+                            <span class="ml-2 text-sm text-gray-700">累计统计</span>
+                        </label>
+                    </div>
                 </div>
-                <div class="flex items-center space-x-2">
-                    <label for="end_date" class="text-sm font-medium text-gray-700">结束日期：</label>
-                    <input type="date" id="end_date" name="end_date" value="{{ end_date }}"
-                           class="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <button type="submit"
-                        class="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    查询
-                </button>
-            </form>
 
+                <!-- 时间段选择（仅在时间段统计模式下显示） -->
+                <div id="date-range" class="flex items-center space-x-4"
+                     {% if stats_mode == 'total' %}style="display: none;"{% endif %}>
+                    <div class="flex items-center space-x-2">
+                        <label for="start_date" class="text-sm font-medium text-gray-700">开始日期：</label>
+                        <input type="date" id="start_date" name="start_date" value="{{ start_date }}"
+                               class="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <label for="end_date" class="text-sm font-medium text-gray-700">结束日期：</label>
+                        <input type="date" id="end_date" name="end_date" value="{{ end_date }}"
+                               class="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-4">
+                    <button type="submit"
+                            class="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        查询
+                    </button>
+                    {% if stats_mode == 'period' %}
+                    <span class="text-sm text-gray-500">显示指定时间段内的业绩数据</span>
+                    {% else %}
+                    <span class="text-sm text-gray-500">显示当前负责的所有线索累计数据</span>
+                    {% endif %}
+                </div>
+            </form>
         </div>
     </div>
 
@@ -126,6 +156,8 @@
 document.addEventListener('DOMContentLoaded', function() {
     const startDateInput = document.getElementById('start_date');
     const endDateInput = document.getElementById('end_date');
+    const dateRangeDiv = document.getElementById('date-range');
+    const modeRadios = document.querySelectorAll('input[name="mode"]');
 
     function validateDateRange() {
         const startDate = new Date(startDateInput.value);
@@ -138,6 +170,23 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     }
+
+    function toggleDateRange() {
+        const selectedMode = document.querySelector('input[name="mode"]:checked').value;
+        if (selectedMode === 'total') {
+            dateRangeDiv.style.display = 'none';
+        } else {
+            dateRangeDiv.style.display = 'flex';
+        }
+    }
+
+    // 初始化显示状态
+    toggleDateRange();
+
+    // 监听统计模式变化
+    modeRadios.forEach(radio => {
+        radio.addEventListener('change', toggleDateRange);
+    });
 
     startDateInput.addEventListener('change', validateDateRange);
     endDateInput.addEventListener('change', validateDateRange);

@@ -280,7 +280,8 @@
                 </div>
             </div>
 
-            <!-- 服务内容 -->
+            <!-- 服务内容 - 仅销售管理和管理员可见 -->
+            {% if current_user.is_admin() or current_user.is_sales_manager() %}
             <div class="border-b border-gray-200 pb-6">
                 <h3 class="text-lg font-medium text-gray-900 mb-4">服务内容</h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -338,6 +339,7 @@
 
 
             </div>
+            {% endif %}
 
 
 
@@ -423,7 +425,8 @@
 
 
 
-            <!-- 付款管理 -->
+            <!-- 付款管理 - 仅销售管理和管理员可见 -->
+            {% if current_user.is_admin() or current_user.is_sales_manager() %}
             <div class="border-b border-gray-200 pb-6">
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="text-lg font-medium text-gray-900">付款管理</h3>
@@ -440,13 +443,19 @@
                     <div class="bg-blue-50 p-4 rounded-lg">
                         <div class="text-sm font-medium text-blue-600">合同金额</div>
                         <div class="text-2xl font-bold text-blue-900 relative">
+                            {% if current_user.is_admin() or current_user.is_sales_manager() %}
                             ¥<span id="contract-amount-display"
                                    class="editable-amount cursor-pointer hover:bg-blue-100 px-1 rounded"
                                    data-original-value="{{ lead.contract_amount or 0 }}"
                                    onclick="makeEditable(this)"
                                    title="点击编辑合同金额">{{ "%.2f"|format(lead.contract_amount or 0) }}</span>
+                            {% else %}
+                            ¥<span id="contract-amount-display">{{ "%.2f"|format(lead.contract_amount or 0) }}</span>
+                            {% endif %}
                         </div>
+                        {% if current_user.is_admin() or current_user.is_sales_manager() %}
                         <div class="text-xs text-blue-500 mt-1">点击金额可直接编辑</div>
+                        {% endif %}
                     </div>
                     <div class="bg-green-50 p-4 rounded-lg">
                         <div class="text-sm font-medium text-green-600">已付款</div>
@@ -502,6 +511,7 @@
                     </table>
                 </div>
             </div>
+            {% endif %}
 
 
 
@@ -653,7 +663,8 @@
     </div>
 </div>
 
-<!-- 添加付款模态框 -->
+<!-- 添加付款模态框 - 仅销售管理和管理员可见 -->
+{% if current_user.is_admin() or current_user.is_sales_manager() %}
 <div id="addPaymentModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden">
     <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
         <div class="mt-3">
@@ -707,8 +718,10 @@
         </div>
     </div>
 </div>
+{% endif %}
 
 <script>
+{% if current_user.is_admin() or current_user.is_sales_manager() %}
 // 付款管理相关函数
 function showAddPaymentModal() {
     document.getElementById('addPaymentModal').classList.remove('hidden');
@@ -768,7 +781,9 @@ function deletePayment(paymentId) {
         });
     }
 }
+{% endif %}
 
+{% if current_user.is_admin() or current_user.is_sales_manager() %}
 // 内联编辑合同金额
 function makeEditable(element) {
     // 如果已经在编辑状态，直接返回
@@ -887,6 +902,7 @@ function showSuccessToast(message) {
         }, 300);
     }, 2000);
 }
+{% endif %}
 
 // 阶段现在由系统自动管理，不需要手动设置
 
