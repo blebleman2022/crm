@@ -6,7 +6,7 @@
 
 - **APT镜像源**: 阿里云
 - **pip镜像源**: 清华大学
-- **Docker镜像源**: 中科大、网易、百度云、阿里云
+- **Docker镜像源**: 中科大、网易、百度云
 - **Git镜像源**: cnpmjs、fastgit
 - **Docker Hub镜像**: 阿里云容器镜像服务
 
@@ -79,8 +79,7 @@ sudo tee /etc/docker/daemon.json > /dev/null << EOF
     "registry-mirrors": [
         "https://docker.mirrors.ustc.edu.cn",
         "https://hub-mirror.c.163.com",
-        "https://mirror.baidubce.com",
-        "https://registry.cn-hangzhou.aliyuncs.com"
+        "https://mirror.baidubce.com"
     ]
 }
 EOF
@@ -103,8 +102,8 @@ git config --global url."https://github.com.cnpmjs.org/".insteadOf "https://gith
 项目的Dockerfile已优化为使用国内镜像：
 
 ```dockerfile
-# 使用阿里云容器镜像服务
-FROM registry.cn-hangzhou.aliyuncs.com/library/python:3.11-slim
+# 使用官方Python镜像（通过Docker镜像源加速）
+FROM python:3.11-slim
 
 # 配置Debian镜像源
 RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list

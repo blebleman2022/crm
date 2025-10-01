@@ -152,20 +152,47 @@ stop_service() {
 # 拉取最新代码
 pull_code() {
     log_info "拉取最新代码..."
-    
+
+    # 检查是否是Git仓库
+    if [ ! -d ".git" ]; then
+        log_warning "当前目录不是Git仓库，跳过代码更新"
+        return 0
+    fi
+
     # 保存当前提交哈希供回滚使用
-    git rev-parse HEAD > .last_commit
-    
+    git rev-parse HEAD > .last_commit 2>/dev/null || echo "unknown" > .last_commit
+
     # 检查是否有本地修改
-    if ! git diff-index --quiet HEAD --; then
+    if ! git diff-index --quiet HEAD -- 2>/dev/null; then
         log_warning "检测到本地修改，将暂存..."
-        git stash
+        git stash push -m "Auto-stash before update $(date)" || {
+            log_error "暂存本地修改失败"
+            return 1
+        }
         STASHED=true
     fi
-    
-    # 拉取最新代码
-    git pull origin master
-    
+
+    # 检查远程仓库连接
+    log_info "检查远程仓库连接..."
+    if ! git ls-remote --exit-code origin >/dev/null 2>&1; then
+        if ! git ls-remote --exit-code github >/dev/null 2>&1; then
+            log_error "无法连接到远程仓库，跳过代码更新"
+            return 1
+        else
+            log_info "使用GitHub远程仓库..."
+            git pull github master || {
+                log_error "从GitHub拉取代码失败"
+                return 1
+            }
+        fi
+    else
+        log_info "使用origin远程仓库..."
+        git pull origin master || {
+            log_error "从origin拉取代码失败"
+            return 1
+        }
+    fi
+
     log_success "代码已更新到最新版本"
 }
 
@@ -241,15 +268,58 @@ start_service() {
     
     case $DEPLOYMENT_TYPE in
         docker)
-            # 重新构建镜像
-            if command -v docker-compose &> /dev/null; then
-                docker-compose build --no-cache
-                docker-compose up -d
-            else
-                docker compose build --no-cache
-                docker compose up -d
+            # 检查Docker服务状态
+            if ! systemctl is-active --quiet docker; then
+                log_info "启动Docker服务..."
+                sudo systemctl start docker
+                sleep 3
             fi
-            log_success "Docker 容器已启动"
+
+            # 清理旧容器
+            log_info "清理旧容器..."
+            if command -v docker-compose &> /dev/null; then
+                docker-compose down --remove-orphans 2>/dev/null || true
+            else
+                docker compose down --remove-orphans 2>/dev/null || true
+            fi
+
+            # 构建镜像（带超时和错误处理）
+            log_info "构建Docker镜像（最大等待10分钟）..."
+            if command -v docker-compose &> /dev/null; then
+                timeout 600 docker-compose build --no-cache || {
+                    log_error "Docker镜像构建失败或超时"
+                    log_info "尝试查看构建日志..."
+                    docker-compose logs
+                    return 1
+                }
+
+                log_info "启动Docker容器..."
+                docker-compose up -d || {
+                    log_error "Docker容器启动失败"
+                    docker-compose logs
+                    return 1
+                }
+            else
+                timeout 600 docker compose build --no-cache || {
+                    log_error "Docker镜像构建失败或超时"
+                    log_info "尝试查看构建日志..."
+                    docker compose logs
+                    return 1
+                }
+
+                log_info "启动Docker容器..."
+                docker compose up -d || {
+                    log_error "Docker容器启动失败"
+                    docker compose logs
+                    return 1
+                }
+            fi
+
+            # 等待容器启动
+            log_info "等待容器启动..."
+            sleep 10
+
+            log_success "Docker 服务已启动"
             ;;
         systemd)
             sudo systemctl start crm
@@ -311,13 +381,25 @@ verify_service() {
     
     # 检查应用响应
     log_info "检查应用响应..."
-    sleep 3
-    
-    if curl -f http://localhost:5000/auth/login > /dev/null 2>&1; then
-        log_success "应用响应正常"
-    else
-        log_warning "应用暂时无响应，请稍后检查"
-    fi
+
+    # 等待应用启动
+    local max_attempts=30
+    local attempt=1
+
+    while [ $attempt -le $max_attempts ]; do
+        log_info "尝试连接应用... ($attempt/$max_attempts)"
+
+        if curl -f -s --connect-timeout 5 http://localhost:5000/auth/login > /dev/null 2>&1; then
+            log_success "应用响应正常"
+            return 0
+        fi
+
+        sleep 2
+        attempt=$((attempt + 1))
+    done
+
+    log_warning "应用在60秒内未响应，可能需要更多时间启动"
+    log_info "您可以稍后手动检查: curl http://localhost:5000/auth/login"
 }
 
 # 显示日志
@@ -345,12 +427,35 @@ show_logs() {
     echo "----------------------------------------"
 }
 
+# 错误恢复函数
+handle_error() {
+    local error_msg="$1"
+    log_error "$error_msg"
+
+    log_info "尝试错误恢复..."
+
+    # 如果有暂存的修改，恢复它们
+    if [ "$STASHED" = true ]; then
+        log_info "恢复暂存的本地修改..."
+        git stash pop 2>/dev/null || log_warning "无法恢复暂存的修改"
+    fi
+
+    # 显示有用的调试信息
+    log_info "调试信息："
+    echo "  - Docker状态: $(systemctl is-active docker 2>/dev/null || echo '未知')"
+    echo "  - 容器状态: $(docker ps --format 'table {{.Names}}\t{{.Status}}' 2>/dev/null || echo '无法获取')"
+    echo "  - 磁盘空间: $(df -h . | tail -1 | awk '{print $4}' 2>/dev/null || echo '无法获取')"
+    echo "  - 内存使用: $(free -h | grep Mem | awk '{print $3"/"$2}' 2>/dev/null || echo '无法获取')"
+
+    log_warning "如需回滚，请运行: ./rollback-server.sh"
+}
+
 # 清理旧备份
 cleanup_old_backups() {
     log_info "清理7天前的旧备份..."
-    
+
     find instance/ -name "edu_crm_backup_*.db" -mtime +7 -delete 2>/dev/null || true
-    
+
     log_success "旧备份已清理"
 }
 
@@ -383,33 +488,50 @@ main() {
         exit 0
     fi
 
-    # 执行更新步骤
-    backup_database
-    stop_service
-    pull_code
-    update_dependencies
-    start_service
-    
+    # 执行更新步骤（带错误处理）
+    if ! backup_database; then
+        handle_error "数据库备份失败"
+        exit 1
+    fi
+
+    if ! stop_service; then
+        handle_error "停止服务失败"
+        exit 1
+    fi
+
+    if ! pull_code; then
+        handle_error "拉取代码失败"
+        exit 1
+    fi
+
+    if ! update_dependencies; then
+        handle_error "更新依赖失败"
+        exit 1
+    fi
+
+    if ! start_service; then
+        handle_error "启动服务失败"
+        exit 1
+    fi
+
     # 验证服务
     if verify_service; then
         log_success "✅ 更新成功完成！"
         cleanup_old_backups
         show_logs
-        
+
         echo ""
         log_info "更新完成检查清单："
-        echo "  - 登录功能"
-        echo "  - 线索列表页"
-        echo "  - 客户列表页"
-        echo "  - 管理员功能"
+        echo "  - 登录功能: http://localhost:5000/auth/login"
+        echo "  - 线索列表页: http://localhost:5000/leads"
+        echo "  - 客户列表页: http://localhost:5000/customers"
+        echo "  - 管理员功能: http://localhost:5000/admin"
+        echo ""
+        log_info "默认管理员账号: admin / admin123"
         echo ""
     else
-        log_error "❌ 服务验证失败，请检查日志"
+        handle_error "服务验证失败"
         show_logs
-        
-        echo ""
-        log_warning "如需回滚，请运行: ./rollback-server.sh"
-        echo ""
         exit 1
     fi
 }

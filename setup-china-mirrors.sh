@@ -125,8 +125,7 @@ setup_docker_mirrors() {
     "registry-mirrors": [
         "https://docker.mirrors.ustc.edu.cn",
         "https://hub-mirror.c.163.com",
-        "https://mirror.baidubce.com",
-        "https://registry.cn-hangzhou.aliyuncs.com"
+        "https://mirror.baidubce.com"
     ],
     "log-driver": "json-file",
     "log-opts": {
