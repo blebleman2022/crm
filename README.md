@@ -47,44 +47,77 @@ edu-crm/
 └── ui/               # UI设计参考文件
 ```
 
-## 安装和运行
+## 快速部署
 
-### 1. 环境准备
+### 🚀 一键部署（推荐）
+
 ```bash
-# 创建虚拟环境
+# 1. 克隆项目
+git clone https://github.com/blebleman2022/crm.git
+cd crm
+
+# 2. 执行一键部署脚本
+./deploy.sh
+```
+
+脚本会自动：
+- ✅ 检测系统环境
+- ✅ 配置国内镜像源（APT、pip、Docker）
+- ✅ 安装Docker环境
+- ✅ 备份数据库
+- ✅ 构建并启动服务
+- ✅ 验证部署状态
+
+### 📋 访问系统
+
+部署完成后：
+- **系统地址**: http://localhost:5000
+- **登录页面**: http://localhost:5000/auth/login
+- **默认管理员账号**: admin / admin123
+
+### 🛠️ 常用命令
+
+```bash
+# 查看服务状态
+docker-compose ps
+
+# 查看日志
+docker-compose logs -f
+
+# 重启服务
+docker-compose restart
+
+# 停止服务
+docker-compose down
+```
+
+### 💻 本地开发环境
+
+如果需要本地开发：
+
+```bash
+# 1. 创建虚拟环境
 python -m venv venv
+source venv/bin/activate  # Linux/Mac
 
-# 激活虚拟环境 (Windows)
-venv\Scripts\activate
+# 2. 安装依赖
+pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
-# 激活虚拟环境 (Linux/Mac)
-source venv/bin/activate
+# 3. 初始化数据库
+python
+>>> from app import app, db
+>>> with app.app_context():
+...     db.create_all()
+>>> exit()
 
-# 安装依赖
-pip install -r requirements.txt
+# 4. 运行应用
+python run.py
 ```
 
-### 2. 配置环境变量
-```bash
-# 复制环境变量模板
-cp .env.example .env
+### 📚 详细文档
 
-# 编辑 .env 文件，设置必要的配置
-```
-
-### 3. 初始化数据库
-```bash
-python app.py
-```
-
-### 4. 运行应用
-```bash
-# 开发模式
-python app.py
-
-# 生产模式
-gunicorn -w 4 -b 0.0.0.0:8000 app:app
-```
+- [部署指南](DEPLOY-CLOUD.md)
+- [国内镜像源配置](CHINA-MIRRORS.md)
 
 ## 开发说明
 
