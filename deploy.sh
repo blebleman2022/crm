@@ -288,10 +288,10 @@ update_dependencies() {
 # 启动服务
 start_service() {
     log_info "启动服务..."
-    
+
     # 创建必要目录
     mkdir -p instance logs backups
-    
+
     case $DEPLOYMENT_TYPE in
         docker)
             # 确保Docker服务运行
@@ -299,13 +299,30 @@ start_service() {
                 sudo systemctl start docker
                 sleep 3
             fi
-            
+
+            # 检查是否需要使用简化版Dockerfile
+            if [ -f "Dockerfile.simple" ]; then
+                log_info "检测到网络问题，尝试使用简化版Dockerfile..."
+                cp Dockerfile Dockerfile.backup
+                cp Dockerfile.simple Dockerfile
+            fi
+
             # 构建并启动
             log_info "构建Docker镜像（最大等待10分钟）..."
             if command -v docker-compose &> /dev/null; then
                 timeout 600 docker-compose build --no-cache || {
-                    log_error "Docker镜像构建失败"
-                    return 1
+                    log_warning "标准Dockerfile构建失败，尝试简化版..."
+                    if [ -f "Dockerfile.simple" ] && [ ! -f "Dockerfile.backup" ]; then
+                        cp Dockerfile Dockerfile.backup
+                        cp Dockerfile.simple Dockerfile
+                        timeout 600 docker-compose build --no-cache || {
+                            log_error "Docker镜像构建失败"
+                            return 1
+                        }
+                    else
+                        log_error "Docker镜像构建失败"
+                        return 1
+                    fi
                 }
                 docker-compose up -d || {
                     log_error "Docker容器启动失败"
@@ -313,8 +330,18 @@ start_service() {
                 }
             else
                 timeout 600 docker compose build --no-cache || {
-                    log_error "Docker镜像构建失败"
-                    return 1
+                    log_warning "标准Dockerfile构建失败，尝试简化版..."
+                    if [ -f "Dockerfile.simple" ] && [ ! -f "Dockerfile.backup" ]; then
+                        cp Dockerfile Dockerfile.backup
+                        cp Dockerfile.simple Dockerfile
+                        timeout 600 docker compose build --no-cache || {
+                            log_error "Docker镜像构建失败"
+                            return 1
+                        }
+                    else
+                        log_error "Docker镜像构建失败"
+                        return 1
+                    fi
                 }
                 docker compose up -d || {
                     log_error "Docker容器启动失败"
@@ -333,7 +360,7 @@ start_service() {
             echo $! > .app_pid
             ;;
     esac
-    
+
     log_success "服务已启动"
 }
 
