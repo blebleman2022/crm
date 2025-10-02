@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import re
 import os
 from werkzeug.utils import secure_filename
-from PIL import Image
+# from PIL import Image  # 暂时注释，避免依赖问题
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -325,51 +325,8 @@ def upload_logo():
             # 确保目录存在
             os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-            # 使用PIL调整图片尺寸为150x50
-            image = Image.open(file.stream)
-
-            # 目标尺寸
-            target_width, target_height = 150, 50
-
-            # 计算缩放比例，保持宽高比
-            img_width, img_height = image.size
-            scale_w = target_width / img_width
-            scale_h = target_height / img_height
-            scale = min(scale_w, scale_h)
-
-            # 计算新的尺寸
-            new_width = int(img_width * scale)
-            new_height = int(img_height * scale)
-
-            # 调整图片尺寸
-            image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
-
-            # 创建目标尺寸的画布，背景透明（PNG）或白色（其他格式）
-            if file_ext.lower() == 'png':
-                canvas = Image.new('RGBA', (target_width, target_height), (255, 255, 255, 0))
-            else:
-                canvas = Image.new('RGB', (target_width, target_height), (255, 255, 255))
-
-            # 计算居中位置
-            x = (target_width - new_width) // 2
-            y = (target_height - new_height) // 2
-
-            # 将调整后的图片粘贴到画布中心
-            if image.mode == 'RGBA' or 'transparency' in image.info:
-                canvas.paste(image, (x, y), image)
-            else:
-                canvas.paste(image, (x, y))
-
-            image = canvas
-
-            # 如果是PNG，保持透明度
-            if file_ext.lower() == 'png':
-                image.save(filepath, 'PNG', optimize=True)
-            else:
-                # 对于其他格式，转换为RGB
-                if image.mode in ('RGBA', 'LA', 'P'):
-                    image = image.convert('RGB')
-                image.save(filepath, quality=95, optimize=True)
+            # 简化版：直接保存文件（暂时不进行图片处理）
+            file.save(filepath)
 
             flash('Logo上传成功！', 'success')
 
