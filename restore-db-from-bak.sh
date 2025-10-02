@@ -92,19 +92,21 @@ echo ""
 log_step "步骤3/5: 检查bak分支的数据库"
 
 # 检查bak分支是否有数据库文件
-if git ls-tree origin/bak:instance/edu_crm.db &>/dev/null; then
+if git cat-file -e origin/bak:instance/edu_crm.db 2>/dev/null; then
     log_success "bak分支中存在数据库文件"
-    
+
     # 获取数据库文件大小
     BAK_DB_SIZE=$(git cat-file -s origin/bak:instance/edu_crm.db 2>/dev/null)
     log_info "bak分支数据库大小: $BAK_DB_SIZE bytes"
-    
-    if [ "$BAK_DB_SIZE" -eq 0 ]; then
+
+    if [ "$BAK_DB_SIZE" -eq 0 ] || [ -z "$BAK_DB_SIZE" ]; then
         log_error "bak分支的数据库文件也是空的！"
         exit 1
     fi
 else
     log_error "bak分支中没有数据库文件"
+    log_info "尝试列出bak分支的文件..."
+    git ls-tree -r origin/bak --name-only | grep -i "instance\|db"
     exit 1
 fi
 
