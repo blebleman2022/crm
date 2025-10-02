@@ -40,17 +40,6 @@ def create_app(config_name=None):
         from models import User
         return User.query.get(int(user_id))
     
-    # 健康检查端点
-    @app.route('/health')
-    def health_check():
-        """健康检查端点，用于监控和负载均衡"""
-        from datetime import datetime
-        return {
-            'status': 'healthy',
-            'timestamp': datetime.now().isoformat(),
-            'environment': config_name
-        }, 200
-
     # 注册蓝图
     from routes.auth import auth_bp
     from routes.admin import admin_bp
