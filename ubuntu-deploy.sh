@@ -153,34 +153,76 @@ log_step "步骤5/8: 创建systemd服务"
 
 log_info "创建systemd服务文件..."
 
+# 检测CPU核心数
+CPU_CORES=$(nproc)
+WORKERS=$((CPU_CORES * 2 + 1))
+log_info "检测到 $CPU_CORES 个CPU核心，将使用 $WORKERS 个Gunicorn worker"
+
 cat > /etc/systemd/system/crm.service <<EOF
 [Unit]
 Description=CRM Flask Application
 After=network.target
 
 [Service]
-Type=simple
+Type=notify
 User=$ACTUAL_USER
 WorkingDirectory=$PROJECT_DIR
 Environment="PATH=$PROJECT_DIR/venv/bin"
-ExecStart=$PROJECT_DIR/venv/bin/python $PROJECT_DIR/run.py
+Environment="FLASK_ENV=production"
+Environment="PYTHONUNBUFFERED=1"
+
+# 使用Gunicorn运行（生产级WSGI服务器）
+ExecStart=$PROJECT_DIR/venv/bin/gunicorn \\
+    --workers $WORKERS \\
+    --worker-class sync \\
+    --bind 127.0.0.1:5000 \\
+    --timeout 60 \\
+    --access-logfile /var/log/crm/access.log \\
+    --error-logfile /var/log/crm/error.log \\
+    --log-level info \\
+    run:app
+
+# 优雅重启
+ExecReload=/bin/kill -s HUP \$MAINPID
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=5
+
+# 自动重启配置
 Restart=always
 RestartSec=3
 
-# 日志配置
-StandardOutput=append:/var/log/crm/app.log
-StandardError=append:/var/log/crm/error.log
+# 资源限制
+LimitNOFILE=65535
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
-log_success "systemd服务文件已创建"
+log_success "systemd服务文件已创建（使用Gunicorn，$WORKERS个worker）"
 
 # 创建日志目录
 mkdir -p /var/log/crm
 chown $ACTUAL_USER:$ACTUAL_USER /var/log/crm
 log_success "日志目录已创建"
+
+# 配置日志轮转
+log_info "配置日志轮转..."
+cat > /etc/logrotate.d/crm <<EOF
+/var/log/crm/*.log {
+    daily
+    rotate 14
+    compress
+    delaycompress
+    notifempty
+    create 0640 $ACTUAL_USER $ACTUAL_USER
+    sharedscripts
+    postrotate
+        systemctl reload crm > /dev/null 2>&1 || true
+    endscript
+}
+EOF
+log_success "日志轮转已配置（保留14天）"
 
 # 重新加载systemd
 systemctl daemon-reload
