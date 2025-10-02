@@ -11,10 +11,7 @@
 git clone https://gitee.com/blebleman/crm.git ~/crm
 cd ~/crm
 
-# 2. 配置Git
-bash setup-git-config.sh
-
-# 3. 一键部署
+# 2. 一键部署
 sudo bash ubuntu-deploy.sh
 ```
 
