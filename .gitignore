@@ -35,10 +35,12 @@ ENV/
 env.bak/
 venv.bak/
 
-# Database (exclude backup files but keep main db)
+# Database (忽略所有数据库文件)
+instance/*.db
 *_backup_*.db
 *.sqlite
 *.sqlite3
+*.db
 
 # IDE
 .vscode/
