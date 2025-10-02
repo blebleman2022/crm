@@ -6,7 +6,13 @@ from datetime import datetime, timedelta
 import re
 import os
 from werkzeug.utils import secure_filename
-from PIL import Image
+
+# PIL是可选依赖，仅用于logo上传功能
+try:
+    from PIL import Image
+    HAS_PIL = True
+except ImportError:
+    HAS_PIL = False
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -291,13 +297,20 @@ def get_current_logo():
 def logo_management():
     """Logo管理页面"""
     current_logo = get_current_logo()
-    return render_template('admin/logo_management.html', current_logo=current_logo)
+    return render_template('admin/logo_management.html',
+                         current_logo=current_logo,
+                         has_pil=HAS_PIL)
 
 @admin_bp.route('/upload-logo', methods=['POST'])
 @login_required
 @admin_required
 def upload_logo():
     """上传logo"""
+    # 检查PIL是否可用
+    if not HAS_PIL:
+        flash('Logo上传功能需要安装Pillow库。请联系系统管理员。', 'error')
+        return redirect(url_for('admin.logo_management'))
+
     if 'logo' not in request.files:
         flash('请选择要上传的文件', 'error')
         return redirect(url_for('admin.logo_management'))
