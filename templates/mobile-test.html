@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>移动端响应式测试 - EduConnect CRM</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Material Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+    
+    <!-- 移动端响应式样式 -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile-responsive.css') }}">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .demo-section {
+            margin-bottom: 2rem;
+            padding: 1rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            background: white;
+        }
+        
+        .demo-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #111827;
+            border-bottom: 1px solid #f3f4f6;
+            padding-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="min-h-screen">
+        <!-- 移动端头部 -->
+        <header class="mobile-header bg-white shadow-sm">
+            <div class="flex items-center justify-between">
+                <button class="lg:hidden" data-mobile-menu>
+                    <span class="material-symbols-outlined">menu</span>
+                </button>
+                <h1 class="mobile-header-title">移动端测试</h1>
+                <button class="lg:hidden">
+                    <span class="material-symbols-outlined">more_vert</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- 侧边栏 -->
+        <aside class="sidebar fixed inset-y-0 left-0 z-50 w-64 bg-gray-900 lg:block hidden" data-sidebar>
+            <div class="flex h-16 items-center justify-center border-b border-gray-700">
+                <h2 class="text-xl font-bold text-white">EduConnect CRM</h2>
+            </div>
+            <nav class="mt-8 px-4">
+                <a href="#" class="flex items-center px-4 py-2 text-sm font-medium text-gray-300 rounded-md hover:bg-gray-700 hover:text-white">
+                    <span class="material-symbols-outlined mr-3">dashboard</span>
+                    仪表板
+                </a>
+                <a href="#" class="flex items-center px-4 py-2 text-sm font-medium text-gray-300 rounded-md hover:bg-gray-700 hover:text-white">
+                    <span class="material-symbols-outlined mr-3">person_search</span>
+                    线索管理
+                </a>
+                <a href="#" class="flex items-center px-4 py-2 text-sm font-medium text-gray-300 rounded-md hover:bg-gray-700 hover:text-white">
+                    <span class="material-symbols-outlined mr-3">groups</span>
+                    客户管理
+                </a>
+            </nav>
+        </aside>
+
+        <!-- 主内容区 -->
+        <main class="lg:ml-64 p-4">
+            <div class="max-w-4xl mx-auto">
+                <h1 class="text-2xl font-bold text-gray-900 mb-6">移动端响应式测试页面</h1>
+                
+                <!-- 按钮测试 -->
+                <div class="demo-section">
+                    <h2 class="demo-title">按钮测试</h2>
+                    <div class="space-y-3">
+                        <button class="btn bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                            主要按钮
+                        </button>
+                        <button class="btn bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300">
+                            次要按钮
+                        </button>
+                        <div class="action-buttons">
+                            <button class="btn bg-green-600 text-white px-4 py-2 rounded-md">保存</button>
+                            <button class="btn bg-red-600 text-white px-4 py-2 rounded-md">删除</button>
+                            <button class="btn bg-gray-600 text-white px-4 py-2 rounded-md">取消</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 表单测试 -->
+                <div class="demo-section">
+                    <h2 class="demo-title">表单测试</h2>
+                    <form class="space-y-4">
+                        <div class="form-group">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">姓名</label>
+                            <input type="text" class="form-control" placeholder="请输入姓名">
+                        </div>
+                        <div class="form-group">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">邮箱</label>
+                            <input type="email" class="form-control" placeholder="请输入邮箱">
+                        </div>
+                        <div class="form-group">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">电话</label>
+                            <input type="tel" class="form-control" placeholder="请输入电话">
+                        </div>
+                        <div class="form-group">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">备注</label>
+                            <textarea class="form-control" rows="3" placeholder="请输入备注"></textarea>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- 搜索测试 -->
+                <div class="demo-section">
+                    <h2 class="demo-title">搜索测试</h2>
+                    <div class="search-container">
+                        <input type="search" class="search-input" placeholder="搜索内容..." data-search>
+                    </div>
+                </div>
+
+                <!-- 表格测试 -->
+                <div class="demo-section">
+                    <h2 class="demo-title">表格测试</h2>
+                    <div class="table-responsive">
+                        <table class="w-full border-collapse border border-gray-300">
+                            <thead>
+                                <tr class="bg-gray-50">
+                                    <th class="border border-gray-300 px-4 py-2 text-left">姓名</th>
+                                    <th class="border border-gray-300 px-4 py-2 text-left">邮箱</th>
+                                    <th class="border border-gray-300 px-4 py-2 text-left">电话</th>
+                                    <th class="border border-gray-300 px-4 py-2 text-left">状态</th>
+                                    <th class="border border-gray-300 px-4 py-2 text-left">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="border border-gray-300 px-4 py-2" data-label="姓名">张三</td>
+                                    <td class="border border-gray-300 px-4 py-2" data-label="邮箱">zhangsan@example.com</td>
+                                    <td class="border border-gray-300 px-4 py-2" data-label="电话">13800138000</td>
+                                    <td class="border border-gray-300 px-4 py-2" data-label="状态">
+                                        <span class="status-badge bg-green-100 text-green-800">活跃</span>
+                                    </td>
+                                    <td class="border border-gray-300 px-4 py-2" data-label="操作">
+                                        <button class="text-blue-600 hover:text-blue-800 mr-2">编辑</button>
+                                        <button class="text-red-600 hover:text-red-800">删除</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="border border-gray-300 px-4 py-2" data-label="姓名">李四</td>
+                                    <td class="border border-gray-300 px-4 py-2" data-label="邮箱">lisi@example.com</td>
+                                    <td class="border border-gray-300 px-4 py-2" data-label="电话">13900139000</td>
+                                    <td class="border border-gray-300 px-4 py-2" data-label="状态">
+                                        <span class="status-badge bg-yellow-100 text-yellow-800">待跟进</span>
+                                    </td>
+                                    <td class="border border-gray-300 px-4 py-2" data-label="操作">
+                                        <button class="text-blue-600 hover:text-blue-800 mr-2">编辑</button>
+                                        <button class="text-red-600 hover:text-red-800">删除</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 卡片测试 -->
+                <div class="demo-section">
+                    <h2 class="demo-title">移动端卡片测试</h2>
+                    <div class="space-y-4">
+                        <div class="mobile-card">
+                            <div class="mobile-card-header">
+                                <div>
+                                    <h3 class="mobile-card-title">张三</h3>
+                                    <p class="text-sm text-gray-500">线索编号: L001</p>
+                                </div>
+                                <div class="mobile-card-meta">
+                                    <span class="status-badge bg-green-100 text-green-800">已转化</span>
+                                    <p class="text-xs text-gray-400 mt-1">2024-01-15</p>
+                                </div>
+                            </div>
+                            <div class="mobile-card-content space-y-2">
+                                <div class="mobile-card-field">
+                                    <span class="mobile-card-label">联系电话</span>
+                                    <span class="mobile-card-value">13800138000</span>
+                                </div>
+                                <div class="mobile-card-field">
+                                    <span class="mobile-card-label">意向课程</span>
+                                    <span class="mobile-card-value">数学竞赛</span>
+                                </div>
+                                <div class="mobile-card-field">
+                                    <span class="mobile-card-label">销售人员</span>
+                                    <span class="mobile-card-value">王老师</span>
+                                </div>
+                            </div>
+                            <div class="action-buttons mt-3">
+                                <button class="btn bg-blue-600 text-white px-3 py-1 rounded text-sm">查看详情</button>
+                                <button class="btn bg-green-600 text-white px-3 py-1 rounded text-sm">编辑</button>
+                            </div>
+                        </div>
+
+                        <div class="mobile-card">
+                            <div class="mobile-card-header">
+                                <div>
+                                    <h3 class="mobile-card-title">李四</h3>
+                                    <p class="text-sm text-gray-500">线索编号: L002</p>
+                                </div>
+                                <div class="mobile-card-meta">
+                                    <span class="status-badge bg-yellow-100 text-yellow-800">跟进中</span>
+                                    <p class="text-xs text-gray-400 mt-1">2024-01-16</p>
+                                </div>
+                            </div>
+                            <div class="mobile-card-content space-y-2">
+                                <div class="mobile-card-field">
+                                    <span class="mobile-card-label">联系电话</span>
+                                    <span class="mobile-card-value">13900139000</span>
+                                </div>
+                                <div class="mobile-card-field">
+                                    <span class="mobile-card-label">意向课程</span>
+                                    <span class="mobile-card-value">物理竞赛</span>
+                                </div>
+                                <div class="mobile-card-field">
+                                    <span class="mobile-card-label">销售人员</span>
+                                    <span class="mobile-card-value">张老师</span>
+                                </div>
+                            </div>
+                            <div class="action-buttons mt-3">
+                                <button class="btn bg-blue-600 text-white px-3 py-1 rounded text-sm">查看详情</button>
+                                <button class="btn bg-green-600 text-white px-3 py-1 rounded text-sm">编辑</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 响应式信息 -->
+                <div class="demo-section">
+                    <h2 class="demo-title">响应式信息</h2>
+                    <div class="space-y-2 text-sm">
+                        <p><strong>当前屏幕宽度:</strong> <span id="screen-width"></span>px</p>
+                        <p><strong>设备类型:</strong> <span id="device-type"></span></p>
+                        <p class="desktop-only text-blue-600">桌面端专用内容</p>
+                        <p class="mobile-only text-green-600">移动端专用内容</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- 移动端底部操作栏示例 -->
+        <div class="mobile-bottom-actions mobile-only">
+            <button class="btn bg-blue-600 text-white rounded-md">主要操作</button>
+            <button class="btn bg-gray-200 text-gray-800 rounded-md">次要操作</button>
+        </div>
+    </div>
+
+    <!-- 移动端响应式JavaScript -->
+    <script src="{{ url_for('static', filename='js/mobile-responsive.js') }}"></script>
+    
+    <script>
+        // 显示屏幕信息
+        function updateScreenInfo() {
+            document.getElementById('screen-width').textContent = window.innerWidth;
+            
+            let deviceType = 'Unknown';
+            if (window.MobileUtils) {
+                if (window.MobileUtils.isMobile()) {
+                    deviceType = '移动设备';
+                } else if (window.MobileUtils.isTablet()) {
+                    deviceType = '平板设备';
+                } else if (window.MobileUtils.isDesktop()) {
+                    deviceType = '桌面设备';
+                }
+            }
+            document.getElementById('device-type').textContent = deviceType;
+        }
+
+        // 初始化和监听窗口变化
+        document.addEventListener('DOMContentLoaded', updateScreenInfo);
+        window.addEventListener('resize', updateScreenInfo);
+        
+        // 测试移动端提示
+        setTimeout(() => {
+            if (window.MobileUtils && window.MobileUtils.isMobile()) {
+                window.MobileUtils.showMobileToast('移动端功能已加载', 'info');
+            }
+        }, 1000);
+    </script>
+</body>
+</html>

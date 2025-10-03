@@ -4,15 +4,16 @@
 {% block page_title %}线索管理{% endblock %}
 
 {% block content %}
-<div class="max-w-full mx-auto px-4">
-    <div class="flex items-center justify-between mb-6">
-        <div>
+<div class="max-w-full mx-auto px-2 lg:px-4">
+    <!-- 移动端头部操作区 -->
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 lg:mb-6 gap-3">
+        <div class="w-full sm:w-auto">
             {% if filter_type and filter_period %}
-            <p class="text-sm text-gray-600 mt-1">
+            <p class="text-xs lg:text-sm text-gray-600">
                 <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                     {{ filter_type }}
                 </span>
-                <span class="ml-2">{{ filter_period }}</span>
+                <span class="ml-2 hidden sm:inline">{{ filter_period }}</span>
                 <a href="{{ url_for('leads.list_leads') }}" class="ml-2 text-blue-600 hover:text-blue-800 text-xs">
                     清除筛选
                 </a>
@@ -20,27 +21,33 @@
             {% endif %}
         </div>
         <a href="{{ url_for('leads.add_lead') }}"
-           class="flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">
-            <span class="material-symbols-outlined">add</span>
-            <span>添加线索</span>
+           class="flex items-center justify-center gap-2 rounded-md bg-blue-600 px-3 lg:px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 w-full sm:w-auto">
+            <span class="material-symbols-outlined text-lg">add</span>
+            <span class="hidden sm:inline">添加线索</span>
+            <span class="sm:hidden">添加</span>
         </a>
     </div>
 
-    <div class="bg-white p-4 rounded-lg shadow-sm">
+    <!-- 移动端优化的筛选区域 -->
+    <div class="bg-white p-3 lg:p-4 rounded-lg shadow-sm mobile-filters">
         <!-- 搜索和筛选 -->
-        <form method="GET" class="space-y-4 mb-4">
-            <!-- 第一行：搜索、阶段、销售 -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <div class="md:col-span-2">
-                    <label class="sr-only" for="search">搜索</label>
-                    <div class="relative">
-                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                            <span class="material-symbols-outlined text-gray-400">search</span>
-                        </div>
-                        <input class="block w-full rounded-md border-0 py-2.5 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"
-                               id="search" name="search" placeholder="搜索学员姓名或家长微信名" type="search" value="{{ search }}"/>
+        <form method="GET" class="space-y-3 lg:space-y-4 mb-4">
+            <!-- 移动端搜索框 -->
+            <div class="w-full">
+                <label class="sr-only" for="search">搜索</label>
+                <div class="relative search-container">
+                    <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                        <span class="material-symbols-outlined text-gray-400 search-icon">search</span>
                     </div>
+                    <input class="search-input block w-full rounded-md border-0 py-3 lg:py-2.5 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 text-base lg:text-sm"
+                           id="search" name="search" placeholder="搜索学员姓名或家长微信名" type="search" value="{{ search }}"/>
                 </div>
+            </div>
+
+            <!-- 移动端筛选器 -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div>
+                    <label class="mobile-filter-label lg:sr-only">阶段</label>
 
                 <div>
                     <select class="block w-full rounded-md border-0 py-2.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"

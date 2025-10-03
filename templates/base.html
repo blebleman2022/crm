@@ -16,7 +16,10 @@
     
     <!-- Material Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
-    
+
+    <!-- 移动端响应式样式 -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile-responsive.css') }}">
+
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -40,8 +43,24 @@
             border-color: #bfdbfe;
             color: #1e40af;
         }
+
+        /* 移动端优化的基础样式 */
+        @media (max-width: 768px) {
+            .container {
+                padding-left: 16px;
+                padding-right: 16px;
+            }
+
+            /* 确保触摸目标足够大 */
+            button, .btn, a {
+                min-height: 44px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+            }
+        }
     </style>
-    
+
     {% block extra_css %}{% endblock %}
 </head>
 <body class="bg-slate-50">
@@ -78,6 +97,9 @@
         {% endif %}
     {% endwith %}
     
+    <!-- 移动端响应式JavaScript -->
+    <script src="{{ url_for('static', filename='js/mobile-responsive.js') }}"></script>
+
     {% block extra_js %}{% endblock %}
 </body>
 </html>

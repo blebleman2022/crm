@@ -16,19 +16,27 @@
     
     <!-- Material Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
-    
+
+    <!-- 移动端响应式样式 -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile-responsive.css') }}">
+
     <style>
         body {
             font-family: 'Inter', sans-serif;
         }
     </style>
-    
+
     {% block extra_css %}{% endblock %}
 </head>
 <body class="bg-gray-50 text-gray-900">
     <div class="flex h-screen w-full">
+        <!-- 移动端菜单按钮 -->
+        <button class="lg:hidden fixed top-4 left-4 z-50 bg-white rounded-md p-2 shadow-md" data-mobile-menu>
+            <span class="material-symbols-outlined">menu</span>
+        </button>
+
         <!-- Sidebar -->
-        <aside class="flex flex-shrink-0 flex-col border-r border-gray-200 bg-white" style="width: 200px;">
+        <aside class="flex flex-shrink-0 flex-col border-r border-gray-200 bg-white lg:block hidden" style="width: 200px;" data-sidebar>
             <div class="flex h-16 shrink-0 items-center justify-center border-b border-gray-200 px-4">
                 {% set custom_logo = get_logo_url() %}
                 {% if custom_logo %}
@@ -36,7 +44,8 @@
                 {% else %}
                     <div class="flex items-center gap-3">
                         <span class="material-symbols-outlined text-3xl text-blue-600">school</span>
-                        <h2 class="text-gray-900 text-xl font-bold leading-tight tracking-[-0.015em]">EduConnect CRM</h2>
+                        <h2 class="text-gray-900 text-xl font-bold leading-tight tracking-[-0.015em] hidden sm:block">EduConnect CRM</h2>
+                        <h2 class="text-gray-900 text-lg font-bold leading-tight tracking-[-0.015em] sm:hidden">CRM</h2>
                     </div>
                 {% endif %}
             </div>
@@ -78,22 +87,27 @@
             </nav>
         </aside>
 
-        <div class="flex flex-1 flex-col">
+        <div class="flex flex-1 flex-col lg:ml-0 ml-0">
             <!-- Header -->
-            <header class="flex h-16 shrink-0 items-center justify-between whitespace-nowrap border-b border-gray-200 px-10 bg-white">
-                <div class="flex items-center gap-8">
-                    <h1 class="text-2xl font-bold text-gray-900">{% block page_title %}{% if current_user.role == 'teacher' %}服务交付{% else %}线索管理{% endif %}{% endblock %}</h1>
+            <header class="flex h-16 shrink-0 items-center justify-between whitespace-nowrap border-b border-gray-200 px-4 lg:px-10 bg-white">
+                <div class="flex items-center gap-4 lg:gap-8">
+                    <!-- 移动端标题简化 -->
+                    <h1 class="text-lg lg:text-2xl font-bold text-gray-900">
+                        <span class="hidden sm:inline">{% block page_title %}{% if current_user.role == 'teacher' %}服务交付{% else %}线索管理{% endif %}{% endblock %}</span>
+                        <span class="sm:hidden">{% if current_user.role == 'teacher' %}交付{% else %}线索{% endif %}</span>
+                    </h1>
                 </div>
-                <div class="flex items-center gap-4">
+                <div class="flex items-center gap-2 lg:gap-4">
                     <div class="flex items-center gap-2">
-                        <span class="text-sm text-gray-700">{{ current_user.username }}老师</span>
-                        <a href="{{ url_for('auth.logout') }}" class="text-sm text-gray-500 hover:text-gray-700">退出</a>
+                        <span class="text-xs lg:text-sm text-gray-700 hidden sm:inline">{{ current_user.username }}老师</span>
+                        <span class="text-xs lg:text-sm text-gray-700 sm:hidden">{{ current_user.username[0] }}</span>
+                        <a href="{{ url_for('auth.logout') }}" class="text-xs lg:text-sm text-gray-500 hover:text-gray-700">退出</a>
                     </div>
                 </div>
             </header>
 
             <!-- Main Content -->
-            <main class="flex-1 gap-8 p-8">
+            <main class="flex-1 gap-4 lg:gap-8 p-4 lg:p-8">
                 {% block content %}{% endblock %}
             </main>
         </div>
@@ -128,7 +142,10 @@
             </script>
         {% endif %}
     {% endwith %}
-    
+
+    <!-- 移动端响应式JavaScript -->
+    <script src="{{ url_for('static', filename='js/mobile-responsive.js') }}"></script>
+
     {% block extra_js %}{% endblock %}
 </body>
 </html>
