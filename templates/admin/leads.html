@@ -7,21 +7,22 @@
 <div class="max-w-full mx-auto px-4">
     <div class="bg-white p-4 rounded-lg shadow-sm">
         <!-- 搜索和筛选 -->
-        <form method="GET" class="space-y-4 mb-4">
+        <form method="GET" class="space-y-4 mb-6">
             <!-- 第一行：搜索、阶段、销售 -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <div class="md:col-span-2">
-                    <label class="sr-only" for="search">搜索</label>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="sm:col-span-2 lg:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1" for="search">搜索</label>
                     <div class="relative">
                         <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                            <span class="material-symbols-outlined text-gray-400">search</span>
+                            <span class="material-symbols-outlined text-gray-400 text-lg">search</span>
                         </div>
-                        <input class="block w-full rounded-md border-0 py-2.5 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"
+                        <input class="block w-full rounded-md border-0 py-2.5 pl-10 pr-3 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"
                                id="search" name="search" placeholder="搜索学员姓名或家长微信名" type="search" value="{{ search }}"/>
                     </div>
                 </div>
 
                 <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">线索阶段</label>
                     <select class="block w-full rounded-md border-0 py-2.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"
                             name="stage">
                         <option value="">所有阶段</option>
@@ -32,6 +33,7 @@
                 </div>
 
                 <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">责任销售</label>
                     <select class="block w-full rounded-md border-0 py-2.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"
                             name="sales">
                         <option value="">所有销售</option>
@@ -43,41 +45,53 @@
             </div>
 
             <!-- 第二行：时间段筛选 -->
-            <div class="flex items-center gap-3 bg-gray-50 p-3 rounded-md">
-                <div class="flex items-center gap-2">
-                    <label class="text-sm font-medium text-gray-700">时间类型:</label>
-                    <select class="rounded-md border-0 py-1.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"
-                            name="date_type">
-                        <option value="">不筛选</option>
-                        <option value="first_payment" {% if date_type == 'first_payment' %}selected{% endif %}>首笔支付</option>
-                        <option value="second_payment" {% if date_type == 'second_payment' %}selected{% endif %}>次笔支付</option>
-                        <option value="full_payment" {% if date_type == 'full_payment' %}selected{% endif %}>全款支付</option>
-                    </select>
-                </div>
+            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">时间类型</label>
+                        <select class="block w-full rounded-md border-0 py-2 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"
+                                name="date_type">
+                            <option value="">不筛选</option>
+                            <option value="first_payment" {% if date_type == 'first_payment' %}selected{% endif %}>首笔支付</option>
+                            <option value="second_payment" {% if date_type == 'second_payment' %}selected{% endif %}>次笔支付</option>
+                            <option value="full_payment" {% if date_type == 'full_payment' %}selected{% endif %}>全款支付</option>
+                        </select>
+                    </div>
 
-                <div class="flex items-center gap-2">
-                    <label for="start_date" class="text-sm font-medium text-gray-700">开始日期:</label>
-                    <input type="date"
-                           id="start_date"
-                           name="start_date"
-                           value="{{ start_date }}"
-                           class="rounded-md border-0 py-1.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"/>
-                </div>
+                    <div>
+                        <label for="start_date" class="block text-sm font-medium text-gray-700 mb-1">开始日期</label>
+                        <input type="date"
+                               id="start_date"
+                               name="start_date"
+                               value="{{ start_date }}"
+                               class="block w-full rounded-md border-0 py-2 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"/>
+                    </div>
 
-                <div class="flex items-center gap-2">
-                    <label for="end_date" class="text-sm font-medium text-gray-700">结束日期:</label>
-                    <input type="date"
-                           id="end_date"
-                           name="end_date"
-                           value="{{ end_date }}"
-                           class="rounded-md border-0 py-1.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"/>
-                </div>
+                    <div>
+                        <label for="end_date" class="block text-sm font-medium text-gray-700 mb-1">结束日期</label>
+                        <input type="date"
+                               id="end_date"
+                               name="end_date"
+                               value="{{ end_date }}"
+                               class="block w-full rounded-md border-0 py-2 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"/>
+                    </div>
 
-                <button type="submit"
-                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                    <span class="material-symbols-outlined mr-1 text-sm">search</span>
-                    查询
-                </button>
+                    <div class="sm:col-span-2 lg:col-span-1">
+                        <button type="submit"
+                                class="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                            <span class="material-symbols-outlined mr-2 text-lg">search</span>
+                            查询
+                        </button>
+                    </div>
+
+                    <div class="sm:col-span-2 lg:col-span-1">
+                        <a href="{{ url_for('admin.leads') }}"
+                           class="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                            <span class="material-symbols-outlined mr-2 text-lg">refresh</span>
+                            重置
+                        </a>
+                    </div>
+                </div>
             </div>
         </form>
         <!-- 线索列表 -->

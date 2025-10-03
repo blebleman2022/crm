@@ -4,9 +4,19 @@
 
 /* 侧边栏响应式控制 */
 @media (max-width: 768px) {
-    /* 隐藏桌面端侧边栏 */
-    .sidebar {
+    /* 隐藏桌面端侧边栏，但允许移动端侧边栏显示 */
+    .sidebar:not(.mobile-sidebar) {
         display: none !important;
+    }
+
+    /* 移动端侧边栏默认隐藏 */
+    .sidebar.mobile-sidebar {
+        display: none;
+    }
+
+    /* 移动端侧边栏打开时显示 */
+    .sidebar.mobile-sidebar.open {
+        display: flex !important;
     }
 }
 
@@ -28,7 +38,7 @@
     input, textarea, select {
         font-size: 16px !important;
     }
-    
+
     /* 触摸友好的按钮尺寸 */
     .btn, button, .button {
         min-height: 44px;
@@ -36,13 +46,13 @@
         padding: 12px 16px;
         font-size: 16px;
     }
-    
+
     /* 表格移动端适配 */
     .table-responsive {
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
     }
-    
+
     /* 卡片式表格布局 - 只在移动端应用 */
     .mobile-table {
         display: block;
@@ -95,7 +105,7 @@
             display: none !important;
         }
     }
-    
+
     .mobile-table tr {
         border: 1px solid #e5e7eb;
         border-radius: 8px;
@@ -104,14 +114,14 @@
         background: white;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     }
-    
+
     .mobile-table td {
         border: none;
         padding: 4px 0;
         position: relative;
         padding-left: 35%;
     }
-    
+
     .mobile-table td:before {
         content: attr(data-label);
         position: absolute;
@@ -121,7 +131,7 @@
         color: #374151;
         white-space: nowrap;
     }
-    
+
     /* 移动端导航优化 */
     .mobile-nav-overlay {
         position: fixed;
@@ -133,7 +143,7 @@
         z-index: 40;
         transition: opacity 0.3s ease;
     }
-    
+
     .mobile-sidebar {
         position: fixed;
         top: 0;
@@ -146,16 +156,16 @@
         transition: transform 0.3s ease;
         overflow-y: auto;
     }
-    
+
     .mobile-sidebar.open {
         transform: translateX(0);
     }
-    
+
     /* 移动端表单优化 */
     .form-group {
         margin-bottom: 20px;
     }
-    
+
     .form-control {
         width: 100%;
         padding: 12px 16px;
@@ -164,31 +174,59 @@
         font-size: 16px;
         transition: border-color 0.2s;
     }
-    
+
     .form-control:focus {
         outline: none;
         border-color: #3b82f6;
         box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
     }
-    
+
+
+    /* 表单紧凑化（移动端） */
+    form.space-y-6 > * + * {
+        margin-top: 12px !important; /* 默认 24px，改为更紧凑 */
+    }
+    form.p-6 {
+        padding: 16px !important; /* 默认 24px，改为 16px */
+    }
+    form p.text-gray-500 {
+        margin-top: 4px !important;
+        font-size: 12px !important;
+        line-height: 1.4 !important;
+    }
+
+    /* 表单控件一致高度（避免 iPhone 实机挤压/换行） */
+    form input[type="text"],
+    form input[type="tel"],
+    form input[type="date"],
+    form select,
+    form textarea {
+        min-height: 44px; /* 触摸友好 */
+    }
+
+    /* 标签微调 */
+    form label.block.text-sm {
+        line-height: 1.2;
+    }
+
     /* 移动端模态框优化 */
     .modal {
         padding: 16px;
     }
-    
+
     .modal-content {
         margin: 0;
         max-height: 90vh;
         overflow-y: auto;
     }
-    
+
     /* 移动端分页优化 */
     .pagination {
         flex-wrap: wrap;
         justify-content: center;
         gap: 8px;
     }
-    
+
     .pagination .page-link {
         min-width: 44px;
         min-height: 44px;
@@ -196,13 +234,13 @@
         align-items: center;
         justify-content: center;
     }
-    
+
     /* 移动端搜索框优化 */
     .search-container {
         position: relative;
         margin-bottom: 20px;
     }
-    
+
     .search-input {
         width: 100%;
         padding: 12px 16px 12px 48px;
@@ -210,7 +248,7 @@
         border-radius: 8px;
         font-size: 16px;
     }
-    
+
     .search-icon {
         position: absolute;
         left: 16px;
@@ -218,7 +256,9 @@
         transform: translateY(-50%);
         color: #6b7280;
     }
-    
+
+
+
     /* 移动端操作按钮组 */
     .action-buttons {
         display: flex;
@@ -226,13 +266,13 @@
         gap: 8px;
         margin-top: 12px;
     }
-    
+
     .action-buttons .btn {
         flex: 1;
         min-width: 120px;
         text-align: center;
     }
-    
+
     /* 移动端状态标签 */
     .status-badge {
         display: inline-block;
@@ -243,7 +283,7 @@
         text-align: center;
         min-width: 60px;
     }
-    
+
     /* 移动端卡片布局 */
     .mobile-card {
         background: white;
@@ -253,7 +293,7 @@
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         border: 1px solid #e5e7eb;
     }
-    
+
     .mobile-card-header {
         display: flex;
         justify-content: space-between;
@@ -262,37 +302,37 @@
         padding-bottom: 12px;
         border-bottom: 1px solid #f3f4f6;
     }
-    
+
     .mobile-card-title {
         font-weight: 600;
         color: #111827;
         font-size: 16px;
         line-height: 1.4;
     }
-    
+
     .mobile-card-meta {
         font-size: 12px;
         color: #6b7280;
         text-align: right;
     }
-    
+
     .mobile-card-content {
         space-y: 8px;
     }
-    
+
     .mobile-card-field {
         display: flex;
         justify-content: space-between;
         align-items: center;
         padding: 4px 0;
     }
-    
+
     .mobile-card-label {
         font-size: 14px;
         color: #6b7280;
         font-weight: 500;
     }
-    
+
     .mobile-card-value {
         font-size: 14px;
         color: #111827;
@@ -300,7 +340,7 @@
         max-width: 60%;
         word-break: break-word;
     }
-    
+
     /* 移动端底部固定操作栏 */
     .mobile-bottom-actions {
         position: fixed;
@@ -313,21 +353,21 @@
         z-index: 30;
         box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
     }
-    
+
     .mobile-bottom-actions .btn {
         width: 100%;
         margin-bottom: 8px;
     }
-    
+
     .mobile-bottom-actions .btn:last-child {
         margin-bottom: 0;
     }
-    
+
     /* 为底部操作栏预留空间 */
     .has-bottom-actions {
         padding-bottom: 120px;
     }
-    
+
     /* 移动端头部优化 */
     .mobile-header {
         position: sticky;
@@ -337,14 +377,14 @@
         border-bottom: 1px solid #e5e7eb;
         padding: 12px 16px;
     }
-    
+
     .mobile-header-title {
         font-size: 18px;
         font-weight: 600;
         color: #111827;
         text-align: center;
     }
-    
+
     /* 移动端筛选器 */
     .mobile-filters {
         background: white;
@@ -353,31 +393,66 @@
         margin-bottom: 16px;
         border: 1px solid #e5e7eb;
     }
-    
+
     .mobile-filter-row {
         display: flex;
         gap: 12px;
         margin-bottom: 12px;
         align-items: center;
     }
-    
+
     .mobile-filter-row:last-child {
         margin-bottom: 0;
     }
-    
+
     .mobile-filter-label {
         min-width: 80px;
         font-size: 14px;
         font-weight: 500;
         color: #374151;
     }
-    
+
     .mobile-filter-input {
         flex: 1;
         padding: 8px 12px;
         border: 1px solid #d1d5db;
         border-radius: 6px;
         font-size: 14px;
+    }
+
+    /* 移动端表单网格优化 */
+    .grid.grid-cols-1.md\\:grid-cols-4 {
+        grid-template-columns: 1fr !important;
+        gap: 16px !important;
+    }
+
+    .grid.grid-cols-1.md\\:grid-cols-4 > div {
+        margin-bottom: 16px;
+    }
+
+    /* 移动端时间筛选区域 */
+    .flex.items-center.gap-3.bg-gray-50 {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 16px !important;
+    }
+
+    .flex.items-center.gap-3.bg-gray-50 > div {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 8px !important;
+    }
+
+    .flex.items-center.gap-3.bg-gray-50 label {
+        font-weight: 600 !important;
+        margin-bottom: 4px !important;
+    }
+
+    /* 移动端按钮优化 */
+    form button, form .btn {
+        min-height: 44px !important;
+        font-size: 16px !important;
+        width: 100% !important;
     }
 }
 
@@ -386,13 +461,13 @@
     .tablet-responsive {
         padding: 16px;
     }
-    
+
     .tablet-grid {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
         gap: 16px;
     }
-    
+
     .tablet-sidebar {
         width: 240px;
     }
@@ -403,7 +478,7 @@
     .desktop-only {
         display: block;
     }
-    
+
     .mobile-only {
         display: none;
     }
@@ -414,15 +489,15 @@
     .desktop-only {
         display: none !important;
     }
-    
+
     .mobile-only {
         display: block;
     }
-    
+
     .mobile-inline {
         display: inline-block;
     }
-    
+
     .mobile-flex {
         display: flex;
     }
@@ -433,11 +508,11 @@
     .hover-effect:hover {
         background-color: initial;
     }
-    
+
     .hover-effect:active {
         background-color: #f3f4f6;
     }
-    
+
     /* 增大可点击区域 */
     .touch-target {
         min-height: 44px;
@@ -453,11 +528,11 @@
     .landscape-hide {
         display: none;
     }
-    
+
     .mobile-header {
         padding: 8px 16px;
     }
-    
+
     .mobile-card {
         padding: 12px;
         margin-bottom: 12px;

@@ -365,15 +365,16 @@
                         <div>
                             <label for="meeting_at" class="block text-sm font-medium text-gray-700">线下见面时间</label>
                             <div class="mt-1">
-                                <div class="flex space-x-2">
-                                    <!-- 日期选择 -->
+                                <!-- iPhone 实机也保持一行显示：日期自适应 + 小时/分钟固定宽度 -->
+                                <div class="flex items-center gap-2 flex-nowrap whitespace-nowrap">
+                                    <!-- 日期选择（占满剩余宽度） -->
                                     <input type="date" id="meeting_date"
                                            value="{{ lead.meeting_at.strftime('%Y-%m-%d') if lead.meeting_at else '' }}"
-                                           class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                                           class="flex-1 min-w-0 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm" />
 
-                                    <!-- 小时选择 -->
+                                    <!-- 小时选择（固定宽度） -->
                                     <select id="meeting_hour"
-                                            class="rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                                            class="w-16 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
                                         <option value="">时</option>
                                         <option value="08" {{ 'selected' if lead.meeting_at and lead.meeting_at.strftime('%H') == '08' else '' }}>08</option>
                                         <option value="09" {{ 'selected' if lead.meeting_at and lead.meeting_at.strftime('%H') == '09' else '' }}>09</option>
@@ -391,9 +392,9 @@
                                         <option value="21" {{ 'selected' if lead.meeting_at and lead.meeting_at.strftime('%H') == '21' else '' }}>21</option>
                                     </select>
 
-                                    <!-- 分钟选择 -->
+                                    <!-- 分钟选择（固定宽度） -->
                                     <select id="meeting_minute"
-                                            class="rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                                            class="w-16 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
                                         <option value="">分</option>
                                         <option value="00" {{ 'selected' if lead.meeting_at and lead.meeting_at.strftime('%M') == '00' else '' }}>00</option>
                                         <option value="30" {{ 'selected' if lead.meeting_at and lead.meeting_at.strftime('%M') == '30' else '' }}>30</option>

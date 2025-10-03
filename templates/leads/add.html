@@ -167,14 +167,14 @@
             <div>
                 <label for="meeting_at" class="block text-sm font-medium text-gray-700">线下见面时间</label>
                 <div class="mt-1">
-                    <div class="flex space-x-2">
-                        <!-- 日期选择 -->
+                    <div class="flex items-center gap-2 flex-nowrap whitespace-nowrap">
+                        <!-- 日期选择（自适应宽度） -->
                         <input type="date" id="meeting_date"
-                               class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                               class="flex-1 min-w-0 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
 
-                        <!-- 小时选择 -->
+                        <!-- 小时选择（固定宽度） -->
                         <select id="meeting_hour"
-                                class="rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                                class="w-16 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
                             <option value="">时</option>
                             <option value="08">08</option>
                             <option value="09">09</option>
@@ -192,9 +192,9 @@
                             <option value="21">21</option>
                         </select>
 
-                        <!-- 分钟选择 -->
+                        <!-- 分钟选择（固定宽度） -->
                         <select id="meeting_minute"
-                                class="rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                                class="w-16 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
                             <option value="">分</option>
                             <option value="00">00</option>
                             <option value="30">30</option>

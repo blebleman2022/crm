@@ -68,3 +68,7 @@ htmlcov/
 # Backup files
 *.bak
 *.backup
+
+
+# Database (do not push local db)
+instance/*.db
