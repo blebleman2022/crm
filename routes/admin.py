@@ -493,7 +493,11 @@ def search_leads():
 def edit_lead_form(lead_id):
     """获取编辑线索表单（AJAX）"""
     lead = Lead.query.get_or_404(lead_id)
-    sales_users = User.query.filter_by(role='sales', status=True).all()
+    # 列出所有销售与销售管理角色
+    sales_users = User.query.filter(
+        User.role.in_(['sales_manager', 'salesperson']),
+        User.status == True
+    ).order_by(User.role.desc(), User.username.asc()).all()
 
     # 返回编辑表单HTML片段
     return render_template('admin/edit_lead_form.html', lead=lead, sales_users=sales_users)

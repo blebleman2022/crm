@@ -377,18 +377,10 @@
 let currentView = 'calendar';
 let currentWeekStart = new Date();
 
-// 设置当前周的开始日期（周一）
+// 设置当前视图起点为“今天”（第一列=今天）
 function setCurrentWeekStart() {
     const today = new Date();
-    const dayOfWeek = today.getDay();
-    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // 周日为0，需要特殊处理
-
-    // 使用本地时间计算，避免时区问题
-    const year = today.getFullYear();
-    const month = today.getMonth();
-    const date = today.getDate();
-
-    currentWeekStart = new Date(year, month, date + diff);
+    currentWeekStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     currentWeekStart.setHours(0, 0, 0, 0);
 }
 
@@ -438,7 +430,7 @@ function renderDateHeaders() {
     const dateHeaders = document.getElementById('dateHeaders');
     dateHeaders.innerHTML = '';
 
-    const weekDays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+    const weekdays = ['周日','周一','周二','周三','周四','周五','周六'];
 
     for (let i = 0; i < 7; i++) {
         const date = new Date(currentWeekStart);
@@ -449,12 +441,12 @@ function renderDateHeaders() {
         const isToday = date.toDateString() === today.toDateString();
 
         const headerDiv = document.createElement('div');
-        // 高度减为原来的一半，如果是今天则添加浅蓝色背景
         const todayClass = isToday ? 'bg-blue-50' : '';
         headerDiv.className = `p-1.5 text-center border-r border-gray-200 last:border-r-0 ${todayClass}`;
 
+        const label = weekdays[date.getDay()];
         headerDiv.innerHTML = `
-            <div class="text-sm font-medium text-gray-900">${weekDays[i]}</div>
+            <div class="text-sm font-medium text-gray-900">${label}</div>
             <div class="text-xs text-gray-500">${date.getMonth() + 1}/${date.getDate()}</div>
         `;
         dateHeaders.appendChild(headerDiv);
@@ -507,19 +499,19 @@ function createCollapsibleTimeSection(container, sectionId, sectionName, timeRan
 
     // 创建切换按钮
     const toggleDiv = document.createElement('div');
-    toggleDiv.className = 'time-section-toggle grid grid-cols-8 min-h-[40px] border-b border-gray-200';
+    toggleDiv.className = 'time-section-toggle grid grid-cols-8 min-h-[28px] border-b border-gray-200';
     toggleDiv.id = `toggle-${sectionId}`;
 
     const toggleLabel = document.createElement('div');
-    toggleLabel.className = 'col-span-8 p-3 flex items-center justify-between cursor-pointer';
+    toggleLabel.className = 'col-span-8 p-1.5 flex items-center justify-between cursor-pointer';
     toggleLabel.innerHTML = `
-        <div class="flex items-center space-x-3">
-            <span class="material-symbols-outlined toggle-icon text-blue-600" id="icon-${sectionId}">expand_more</span>
-            <span class="font-medium text-gray-700">${sectionName}</span>
-            <span class="toggle-text">${timeRange}</span>
-            ${hasAppointments ? '<span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">有约见</span>' : ''}
+        <div class="flex items-center space-x-2">
+            <span class="material-symbols-outlined toggle-icon text-blue-600 text-base" id="icon-${sectionId}">expand_more</span>
+            <span class="text-xs font-bold text-gray-800">${sectionName}</span>
+            <span class="text-xs text-gray-600">${timeRange}</span>
+            ${hasAppointments ? '<span class="text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full">有约见</span>' : ''}
         </div>
-        <span class="toggle-text">点击展开/收缩</span>
+        <span class="text-xs text-gray-500">点击展开/收缩</span>
     `;
 
     toggleDiv.appendChild(toggleLabel);
@@ -565,7 +557,7 @@ function createNormalTimeSlots(container, startHour, endHour, endMinute) {
 function createTimeSlotRow(hour, minute, bgClass = 'normal-time-slot') {
     const timeSlotDiv = document.createElement('div');
     // 调整高度：正常时间段为原来的2/3 (约33px)
-    timeSlotDiv.className = `grid grid-cols-8 min-h-[33px] hover:bg-gray-50 transition-colors duration-200 border-b border-gray-200 ${bgClass}`;
+    timeSlotDiv.className = `grid grid-cols-8 min-h-[24px] hover:bg-gray-50 transition-colors duration-200 border-b border-gray-200 ${bgClass}`;
 
     // 根据背景类设置内联样式
     if (bgClass === 'early-time-slot') {
@@ -581,7 +573,7 @@ function createTimeSlotRow(hour, minute, bgClass = 'normal-time-slot') {
 
     // 时间标签
     const timeLabel = document.createElement('div');
-    timeLabel.className = 'p-2 text-xs font-medium text-gray-600 border-r border-gray-200 bg-gray-100 flex items-center justify-center';
+    timeLabel.className = 'p-1 text-xs font-medium text-gray-600 border-r border-gray-200 bg-gray-100 flex items-center justify-center';
     timeLabel.innerHTML = `
         <span class="font-bold text-gray-800">${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}</span>
     `;
@@ -591,13 +583,14 @@ function createTimeSlotRow(hour, minute, bgClass = 'normal-time-slot') {
     for (let day = 0; day < 7; day++) {
         const date = new Date(currentWeekStart);
         date.setDate(currentWeekStart.getDate() + day);
-        const isWeekend = day >= 5;
+        const dayOfWeek = date.getDay();
+        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const isToday = date.getTime() === today.getTime();
 
         const daySlot = document.createElement('div');
-        daySlot.className = `border-r border-gray-200 last:border-r-0 p-1 cursor-pointer transition-all duration-200 relative ${
+        daySlot.className = `border-r border-gray-200 last:border-r-0 p-0.5 cursor-pointer transition-all duration-200 relative ${
             isWeekend ? 'bg-orange-25 hover:bg-orange-50' : 'hover:bg-blue-50'
         } ${isToday ? 'bg-blue-50' : ''}`;
         daySlot.dataset.date = getDateString(day);
@@ -628,43 +621,42 @@ function createTimeSlotRow(hour, minute, bgClass = 'normal-time-slot') {
 // 创建约见元素
 function createAppointmentElement(appointment) {
     const appointmentDiv = document.createElement('div');
-    appointmentDiv.className = `appointment-item mb-1 p-2 rounded-lg shadow-sm cursor-pointer transform transition-all duration-300 ${
+    appointmentDiv.className = `appointment-item mb-0.5 px-1.5 py-0.5 rounded shadow-sm cursor-pointer transform transition-all duration-200 ${
         appointment.location === '浦东' ?
-        'bg-emerald-500 text-white hover:bg-emerald-600' :
+        'bg-green-500 text-white hover:bg-green-600' :
         'bg-blue-500 text-white hover:bg-blue-600'
     }`;
 
-    // 显示格式：家长微信名+地点 - 单行显示
+    // 仅显示地点（浦东/浦西）
     appointmentDiv.innerHTML = `
-        <div class="text-xs font-semibold truncate">
-            ${appointment.client} · ${appointment.location || '未知地点'}
+        <div class="text-xs font-semibold text-center">
+            ${appointment.location || '未知'}
         </div>
     `;
 
     appointmentDiv.title = `${appointment.time} - ${appointment.client} (${appointment.location || '未知地点'})`;
 
-    // 添加悬浮效果
+    // 悬浮效果
     appointmentDiv.addEventListener('mouseenter', function() {
-        this.style.transform = 'translateY(-2px) scale(1.05)';
-        this.style.boxShadow = '0 8px 25px rgba(0, 0, 0, 0.15)';
+        this.style.transform = 'scale(1.05)';
+        this.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
         this.style.zIndex = '10';
     });
 
     appointmentDiv.addEventListener('mouseleave', function() {
-        this.style.transform = 'translateY(0) scale(1)';
-        this.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+        this.style.transform = 'scale(1)';
+        this.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
         this.style.zIndex = '1';
     });
 
-    // 添加点击效果
+    // 点击效果
     appointmentDiv.addEventListener('click', function(e) {
         e.preventDefault();
-        // 点击动画效果
         this.style.transform = 'scale(0.95)';
         setTimeout(() => {
-            this.style.transform = 'translateY(-2px) scale(1.05)';
+            this.style.transform = 'scale(1.05)';
             showConsultationDetails(appointment.leadId);
-        }, 150);
+        }, 100);
     });
 
     return appointmentDiv;

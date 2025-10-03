@@ -2,7 +2,7 @@
 import os
 
 # 服务器套接字
-bind = "0.0.0.0:80"
+bind = "0.0.0.0:5000"  # 修改为5000端口，适配直接部署
 backlog = 2048
 
 # 工作进程
@@ -33,7 +33,7 @@ limit_request_field_size = 8190
 
 # 应用模块
 wsgi_module = "run:app"
-pythonpath = "/app"
+# pythonpath = "/app"  # Docker路径，直接部署时不需要
 
 # 用户和组 (Docker中已经切换用户，这里不需要再设置)
 # user = "appuser"

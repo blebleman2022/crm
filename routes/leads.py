@@ -274,7 +274,14 @@ def list_leads():
     if current_user.is_salesperson():
         query = query.filter(Lead.sales_user_id == current_user.id)
     elif current_user.is_sales_manager():
-        query = query.filter(Lead.sales_user_id == current_user.id)
+        # 
+        # 
+        # 
+        allowed_ids = db.session.query(User.id).filter(
+            User.role.in_(['sales_manager', 'salesperson']),
+            User.status == True
+        ).subquery()
+        query = query.filter(Lead.sales_user_id.in_(allowed_ids))
     # 管理员可以看到所有线索，不需要额外过滤
 
     # 搜索过滤
@@ -666,6 +673,14 @@ def edit_lead(lead_id):
     """编辑线索"""
     lead = Lead.query.get_or_404(lead_id)
 
+    # 
+    if request.method == 'POST' and current_user.is_sales() and lead.sales_user_id != current_user.id and not current_user.is_admin():
+        flash('您不能更改其他销售或销售管理角色负责的线索信息', 'error')
+
+
+
+        return redirect(url_for('leads.edit_lead', lead_id=lead.id))
+
     # 阶段映射
     stage_mapping = {
         'contact': '获取联系方式',
@@ -1025,6 +1040,11 @@ def convert_to_customer(lead_id):
 
     lead = Lead.query.get_or_404(lead_id)
 
+    #
+    # 权限控制：销售管理不能对他人负责的线索执行“转客户”
+    if current_user.is_sales_manager() and lead.sales_user_id != current_user.id:
+        return jsonify({'success': False, 'message': '您不能操作其他销售/销售管理负责的线索'})
+
     # 检查线索是否已经是次笔支付或全款支付阶段
     if lead.stage not in ['次笔支付', '全款支付']:
         return jsonify({'success': False, 'message': '只有次笔支付或全款支付阶段的线索才能转换为客户'})
@@ -1132,6 +1152,9 @@ def add_payment():
         lead = Lead.query.get(lead_id)
         if not lead:
             return jsonify({'success': False, 'message': '线索不存在'})
+        # 权限控制：销售管理不能为他人负责的线索操作付款
+        if current_user.is_sales_manager() and lead.sales_user_id != current_user.id:
+            return jsonify({'success': False, 'message': '您不能为他人负责的线索操作付款'})
 
         # 解析付款日期
         try:
@@ -1184,6 +1207,9 @@ def delete_payment(payment_id):
 
         # 获取关联的线索
         lead = payment.lead
+        #
+        if current_user.is_sales_manager() and lead and lead.sales_user_id != current_user.id:
+            return jsonify({'success': False, 'message': '您不能为他人负责的线索操作付款'})
 
         db.session.delete(payment)
 
@@ -1215,6 +1241,9 @@ def update_contract_amount():
         lead = Lead.query.get(lead_id)
         if not lead:
             return jsonify({'success': False, 'message': '线索不存在'})
+        # 权限控制：销售相关角色不能更改他人负责的线索
+        if (current_user.is_sales_manager() or current_user.is_salesperson()) and lead.sales_user_id != current_user.id:
+            return jsonify({'success': False, 'message': '您不能更改他人负责的线索信息'})
 
         # 解析合同金额
         try:

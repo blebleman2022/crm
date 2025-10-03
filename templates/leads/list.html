@@ -30,24 +30,19 @@
 
     <!-- 移动端优化的筛选区域 -->
     <div class="bg-white p-3 lg:p-4 rounded-lg shadow-sm mobile-filters">
-        <!-- 搜索和筛选 -->
+        <!-- 搜索和筛选（桌面端一行，移动端自动换行） -->
         <form method="GET" class="space-y-3 lg:space-y-4 mb-4">
-            <!-- 移动端搜索框 -->
-            <div class="w-full">
-                <label class="sr-only" for="search">搜索</label>
-                <div class="relative search-container">
-                    <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                        <span class="material-symbols-outlined text-gray-400 search-icon">search</span>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div class="md:col-span-2">
+                    <label class="sr-only" for="search">搜索</label>
+                    <div class="relative">
+                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                            <span class="material-symbols-outlined text-gray-400">search</span>
+                        </div>
+                        <input class="block w-full rounded-md border-0 py-2.5 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"
+                               id="search" name="search" placeholder="搜索学员姓名或家长微信名" type="search" value="{{ search }}"/>
                     </div>
-                    <input class="search-input block w-full rounded-md border-0 py-3 lg:py-2.5 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 text-base lg:text-sm"
-                           id="search" name="search" placeholder="搜索学员姓名或家长微信名" type="search" value="{{ search }}"/>
                 </div>
-            </div>
-
-            <!-- 移动端筛选器 -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                <div>
-                    <label class="mobile-filter-label lg:sr-only">阶段</label>
 
                 <div>
                     <select class="block w-full rounded-md border-0 py-2.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"
@@ -189,9 +184,10 @@
                         <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">{{ lead.updated_at.strftime('%m-%d') }}</td>
                         <td class="whitespace-nowrap px-3 py-3 text-right text-sm font-medium">
                             <div class="flex items-center justify-end gap-2">
-                                <a class="text-blue-600 hover:text-blue-800" href="{{ url_for('leads.edit_lead', lead_id=lead.id) }}">编辑</a>
+                                <button onclick="editLead({{ lead.id }}, {{ lead.sales_user_id }})"
+                                        class="text-blue-600 hover:text-blue-800 bg-transparent border-none cursor-pointer">编辑</button>
                                 {% if lead.stage in ['次笔支付', '全款支付'] and not lead.customer %}
-                                    <button onclick="convertToCustomer({{ lead.id }}, '{{ lead.student_name }}')" 
+                                    <button onclick="convertToCustomer({{ lead.id }}, '{{ lead.student_name }}')"
                                             class="text-green-600 hover:text-green-800">转客户</button>
                                 {% endif %}
                             </div>
@@ -266,6 +262,28 @@ document.querySelectorAll('select[name="stage"], select[name="sales"]').forEach(
         this.form.submit();
     });
 });
+
+// 编辑线索权限检查
+function editLead(leadId, leadSalesUserId) {
+    // 获取当前用户信息
+    const currentUserId = {{ current_user.id }};
+    const currentUserRole = '{{ current_user.role }}';
+
+    // 管理员可以编辑所有线索
+    if (currentUserRole === 'admin') {
+        window.location.href = `/leads/${leadId}/edit`;
+        return;
+    }
+
+    // 销售相关角色只能编辑自己负责的线索
+    if ((currentUserRole === 'sales_manager' || currentUserRole === 'salesperson') && leadSalesUserId !== currentUserId) {
+        alert('不能更改其他销售负责的线索信息');
+        return;
+    }
+
+    // 有权限，跳转到编辑页面
+    window.location.href = `/leads/${leadId}/edit`;
+}
 
 let currentConvertLeadId = null;
 let currentConvertStudentName = null;
