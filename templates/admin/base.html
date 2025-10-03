@@ -16,7 +16,10 @@
     
     <!-- Material Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
-    
+
+    <!-- 移动端响应式样式 -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile-responsive.css') }}">
+
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -39,8 +42,13 @@
 </head>
 <body class="bg-gray-50 text-gray-900">
     <div class="flex h-screen w-full">
+        <!-- 移动端菜单按钮 -->
+        <button class="lg:hidden fixed top-4 left-4 z-50 bg-white rounded-md p-2 shadow-md" data-mobile-menu>
+            <span class="material-symbols-outlined">menu</span>
+        </button>
+
         <!-- Sidebar -->
-        <aside class="flex flex-shrink-0 flex-col border-r border-gray-200 bg-white" style="width: 200px;">
+        <aside class="flex flex-shrink-0 flex-col border-r border-gray-200 bg-white lg:block hidden" style="width: 200px;" data-sidebar>
             <div class="h-16 flex items-center px-6">
                 {% set custom_logo = get_logo_url() %}
                 {% if custom_logo %}
@@ -137,7 +145,10 @@
             </script>
         {% endif %}
     {% endwith %}
-    
+
+    <!-- 移动端响应式JavaScript -->
+    <script src="{{ url_for('static', filename='js/mobile-responsive.js') }}"></script>
+
     {% block extra_js %}{% endblock %}
 </body>
 </html>
