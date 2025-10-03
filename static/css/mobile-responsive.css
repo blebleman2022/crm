@@ -2,6 +2,26 @@
    CRM系统移动端响应式适配样式
    ======================================== */
 
+/* 侧边栏响应式控制 */
+@media (max-width: 768px) {
+    /* 隐藏桌面端侧边栏 */
+    .sidebar {
+        display: none !important;
+    }
+}
+
+@media (min-width: 769px) {
+    /* 桌面端强制显示侧边栏 */
+    .sidebar {
+        display: flex !important;
+    }
+
+    /* 隐藏移动端菜单按钮 */
+    [data-mobile-menu] {
+        display: none !important;
+    }
+}
+
 /* 基础移动端优化 */
 @media (max-width: 768px) {
     /* 防止iOS自动缩放 */
