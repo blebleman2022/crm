@@ -21,17 +21,12 @@ def create_app(config_name=None):
     app = Flask(__name__)
     
     # 加载配置
-    if config_name == 'production':
-        from config_production import ProductionConfig
-        app.config.from_object(ProductionConfig)
-        ProductionConfig.init_app(app)
-    elif config_name == 'testing':
-        from config_production import TestingConfig
-        app.config.from_object(TestingConfig)
-        TestingConfig.init_app(app)
-    else:
-        from config import Config
-        app.config.from_object(Config)
+    from config import config as config_dict
+
+    # 根据环境选择配置
+    config_class = config_dict.get(config_name, config_dict['default'])
+    app.config.from_object(config_class)
+    config_class.init_app(app)
     
     # 初始化扩展
     from models import db
