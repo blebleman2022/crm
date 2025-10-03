@@ -23,20 +23,57 @@
         -webkit-overflow-scrolling: touch;
     }
     
-    /* 卡片式表格布局 */
+    /* 卡片式表格布局 - 只在移动端应用 */
     .mobile-table {
         display: block;
     }
-    
+
     .mobile-table thead {
         display: none;
     }
-    
+
     .mobile-table tbody,
     .mobile-table tr,
     .mobile-table td {
         display: block;
         width: 100%;
+    }
+
+    /* 桌面端强制恢复正常表格布局 */
+    @media (min-width: 769px) {
+        table:not(.force-mobile) {
+            display: table !important;
+        }
+
+        table:not(.force-mobile) thead {
+            display: table-header-group !important;
+        }
+
+        table:not(.force-mobile) tbody {
+            display: table-row-group !important;
+        }
+
+        table:not(.force-mobile) tr {
+            display: table-row !important;
+            border: none !important;
+            margin-bottom: 0 !important;
+            padding: 0 !important;
+            background: transparent !important;
+            box-shadow: none !important;
+        }
+
+        table:not(.force-mobile) td,
+        table:not(.force-mobile) th {
+            display: table-cell !important;
+            border: 1px solid #e5e7eb !important;
+            padding: 8px 12px !important;
+            position: static !important;
+            width: auto !important;
+        }
+
+        table:not(.force-mobile) td:before {
+            display: none !important;
+        }
     }
     
     .mobile-table tr {

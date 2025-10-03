@@ -101,6 +101,8 @@ class MobileTable {
 
     init() {
         this.convertTables();
+        // 初始化时立即检查设备类型
+        this.handleResize();
         window.addEventListener('resize', () => this.handleResize());
     }
 
@@ -136,7 +138,32 @@ class MobileTable {
         if (isMobile()) {
             tables.forEach(table => table.classList.add('mobile-table'));
         } else {
-            tables.forEach(table => table.classList.remove('mobile-table'));
+            tables.forEach(table => {
+                table.classList.remove('mobile-table');
+                // 强制重置表格样式
+                table.style.display = '';
+                const thead = table.querySelector('thead');
+                if (thead) thead.style.display = '';
+                const tbody = table.querySelector('tbody');
+                if (tbody) tbody.style.display = '';
+                const rows = table.querySelectorAll('tr');
+                rows.forEach(row => {
+                    row.style.display = '';
+                    row.style.border = '';
+                    row.style.marginBottom = '';
+                    row.style.padding = '';
+                    row.style.background = '';
+                    row.style.boxShadow = '';
+                });
+                const cells = table.querySelectorAll('td, th');
+                cells.forEach(cell => {
+                    cell.style.display = '';
+                    cell.style.border = '';
+                    cell.style.padding = '';
+                    cell.style.position = '';
+                    cell.style.width = '';
+                });
+            });
         }
     }
 }
