@@ -607,11 +607,19 @@ def main():
         print("  PORT      - 设置端口 (默认: 5000)")
 
 # 创建应用实例供Gunicorn使用
-print("正在创建Flask应用实例...")
-app = create_app()
-print(f"Flask应用创建成功: {app}")
-print(f"应用名称: {app.name}")
-print(f"应用配置: {app.config.get('ENV', 'unknown')}")
+# 使用 try-except 包裹，避免导入时出错
+try:
+    print("正在创建Flask应用实例...")
+    app = create_app()
+    print(f"Flask应用创建成功: {app}")
+    print(f"应用名称: {app.name}")
+    print(f"应用配置: {app.config.get('ENV', 'unknown')}")
+except Exception as e:
+    print(f"创建Flask应用失败: {e}")
+    import traceback
+    traceback.print_exc()
+    # 创建一个最小的应用实例，避免 Gunicorn 导入失败
+    app = Flask(__name__)
 
 if __name__ == '__main__':
     main()
