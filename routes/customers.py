@@ -213,7 +213,8 @@ def edit_customer(customer_id):
                 CommunicationManager.add_customer_communication(
                     lead_id=customer.lead_id,
                     customer_id=customer.id,
-                    content=f"客户信息更新备注：{notes}"
+                    content=f"客户信息更新备注：{notes}",
+                    user_id=current_user.id
                 )
 
             customer.customer_notes = notes
@@ -403,7 +404,8 @@ def update_customer_progress(customer_id):
             CommunicationManager.add_customer_communication(
                 lead_id=customer.lead_id,
                 customer_id=customer.id,
-                content=f"进度更新备注：{notes}"
+                content=f"进度更新备注：{notes}",
+                user_id=current_user.id
             )
 
         # 更新客户备注

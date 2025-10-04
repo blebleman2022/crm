@@ -137,7 +137,8 @@ def edit_tutoring(delivery_id):
                 CommunicationManager.add_customer_communication(
                     lead_id=delivery.customer.lead_id,
                     customer_id=delivery.customer_id,
-                    content=f"交付备注更新：{delivery_notes}"
+                    content=f"交付备注更新：{delivery_notes}",
+                    user_id=current_user.id
                 )
 
             # 更新交付信息

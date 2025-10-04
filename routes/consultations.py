@@ -75,8 +75,8 @@ def consultation_details(lead_id):
         # 获取该线索对应的客户记录（如果存在）
         customer = Customer.query.filter_by(lead_id=lead_id).first()
 
-        # 获取该线索的线索阶段沟通记录
-        communication_records = CommunicationManager.get_lead_communications(lead_id)
+        # 约见详情页显示所有沟通记录（线索+客户阶段）
+        communication_records = CommunicationManager.get_all_communications_by_lead(lead_id)
 
         return render_template('consultations/details.html',
                              lead=lead,
@@ -225,6 +225,7 @@ def add_communication_record(lead_id):
                 lead_id=lead_id,
                 customer_id=customer.id,
                 content=content,
+                user_id=current_user.id,
                 created_at=consultation_time
             )
         else:
@@ -232,6 +233,7 @@ def add_communication_record(lead_id):
             record = CommunicationManager.add_lead_communication(
                 lead_id=lead_id,
                 content=content,
+                user_id=current_user.id,
                 created_at=consultation_time
             )
 

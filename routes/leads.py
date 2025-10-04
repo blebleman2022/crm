@@ -574,6 +574,7 @@ def add_lead():
                     CommunicationManager.add_lead_communication(
                         lead_id=lead.id,
                         content=notes,
+                        user_id=current_user.id,
                         created_at=contact_obtained_datetime or datetime.utcnow()
                     )
                 except Exception as e:
