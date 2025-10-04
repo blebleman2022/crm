@@ -72,3 +72,7 @@ htmlcov/
 
 # Database (do not push local db)
 instance/*.db
+
+# Sensitive information
+测试账号信息.md
+沟通记录填写人功能说明.md
