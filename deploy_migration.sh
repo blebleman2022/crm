@@ -23,18 +23,32 @@ if [ ! -f "run.py" ]; then
     exit 1
 fi
 
-# 检查虚拟环境
+# 查找并激活虚拟环境
+VENV_ACTIVATED=0
+
 if [ -z "$VIRTUAL_ENV" ]; then
-    echo -e "${YELLOW}⚠️  警告：虚拟环境未激活${NC}"
-    echo "正在尝试激活虚拟环境..."
-    
-    if [ -d "venv" ]; then
-        source venv/bin/activate
-        echo -e "${GREEN}✅ 虚拟环境已激活${NC}"
-    else
-        echo -e "${RED}❌ 错误：找不到虚拟环境目录 venv${NC}"
+    echo -e "${YELLOW}⚠️  虚拟环境未激活，正在查找虚拟环境...${NC}"
+
+    # 尝试常见的虚拟环境目录名
+    for venv_dir in venv env .venv virtualenv; do
+        if [ -d "$venv_dir" ] && [ -f "$venv_dir/bin/activate" ]; then
+            echo "找到虚拟环境：$venv_dir"
+            source "$venv_dir/bin/activate"
+            VENV_ACTIVATED=1
+            echo -e "${GREEN}✅ 虚拟环境已激活${NC}"
+            break
+        fi
+    done
+
+    if [ $VENV_ACTIVATED -eq 0 ]; then
+        echo -e "${RED}❌ 错误：找不到虚拟环境${NC}"
+        echo "请手动激活虚拟环境后再运行此脚本："
+        echo "  source venv/bin/activate"
+        echo "  bash deploy_migration.sh"
         exit 1
     fi
+else
+    echo -e "${GREEN}✅ 虚拟环境已激活：$VIRTUAL_ENV${NC}"
 fi
 
 # 检查数据库文件
