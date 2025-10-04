@@ -1005,6 +1005,17 @@ def lead_api(lead_id):
     # 检查是否已转为客户
     customer = Customer.query.filter_by(lead_id=lead.id).first()
 
+    # 获取线索阶段沟通记录
+    from communication_utils import CommunicationManager
+    communications = CommunicationManager.get_lead_communications(lead_id)
+    communications_data = [{
+        'id': comm.id,
+        'content': comm.content,
+        'created_at': comm.created_at.strftime('%Y-%m-%d %H:%M') if comm.created_at else None,
+        'user_name': comm.user.username if comm.user else None,
+        'user_role': comm.user.role if comm.user else None
+    } for comm in communications]
+
     lead_data = {
         'id': lead.id,
         'student_name': lead.student_name,
@@ -1023,6 +1034,7 @@ def lead_api(lead_id):
         # 奖项和额外要求优先从线索表读取，如果已转为客户则从客户表读取
         'competition_award_level': customer.competition_award_level if customer else lead.competition_award_level,
         'additional_requirements': customer.additional_requirements if customer else lead.additional_requirements,
+        'communications': communications_data,
         'created_at': lead.created_at.isoformat() if lead.created_at else None,
         'updated_at': lead.updated_at.isoformat() if lead.updated_at else None
     }

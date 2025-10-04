@@ -76,6 +76,25 @@
                         </table>
                     </div>
                 </div>
+
+                <!-- 沟通记录 -->
+                <div id="communicationContent" class="mb-4 hidden">
+                    <div class="flex items-center mb-3">
+                        <span class="material-symbols-outlined text-blue-600 mr-2">chat</span>
+                        <h4 class="text-sm font-medium text-gray-900" id="communicationTitle">沟通记录</h4>
+                    </div>
+                    <!-- 沟通记录列表 -->
+                    <div class="overflow-hidden border border-gray-200 rounded-lg max-h-60 overflow-y-auto">
+                        <div id="communicationList" class="divide-y divide-gray-200">
+                            <!-- 动态生成沟通记录 -->
+                        </div>
+                        <!-- 空状态 -->
+                        <div id="communicationEmpty" class="hidden p-4 text-center text-gray-500 text-sm">
+                            <span class="material-symbols-outlined text-gray-400 text-2xl">inbox</span>
+                            <p class="mt-2">暂无沟通记录</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -150,6 +169,9 @@ function populateStudentDetail(data, isCustomer) {
         // 显示线索的服务内容
         displayDefaultServiceRows(studentData);
     }
+
+    // 显示沟通记录
+    displayCommunications(studentData.communications || [], isCustomer);
 }
 
 // 显示服务内容表格（客户）
@@ -292,6 +314,59 @@ function displayDefaultServiceRows(studentData) {
     }
 }
 
+// 显示沟通记录
+function displayCommunications(communications, isCustomer) {
+    const communicationContent = document.getElementById('communicationContent');
+    const communicationList = document.getElementById('communicationList');
+    const communicationEmpty = document.getElementById('communicationEmpty');
+    const communicationTitle = document.getElementById('communicationTitle');
+
+    // 设置标题
+    communicationTitle.textContent = isCustomer ? '客户阶段沟通记录' : '线索阶段沟通记录';
+
+    // 显示沟通记录区域
+    communicationContent.classList.remove('hidden');
+
+    // 清空列表
+    communicationList.innerHTML = '';
+
+    if (communications && communications.length > 0) {
+        communicationEmpty.classList.add('hidden');
+
+        communications.forEach(comm => {
+            // 角色中文映射
+            const roleMap = {
+                'admin': '管理员',
+                'sales_manager': '销售管理',
+                'salesperson': '销售',
+                'teacher': '班主任'
+            };
+
+            const roleName = comm.user_role ? roleMap[comm.user_role] || comm.user_role : '';
+            const userName = comm.user_name || '未知用户';
+            const userInfo = roleName ? `${userName}老师（${roleName}）` : `${userName}老师`;
+
+            const commDiv = document.createElement('div');
+            commDiv.className = 'p-3 bg-white hover:bg-gray-50';
+            commDiv.innerHTML = `
+                <div class="flex items-start">
+                    <span class="material-symbols-outlined text-blue-600 mr-2 text-sm mt-0.5">chat_bubble</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-gray-900 whitespace-pre-wrap">${comm.content}</p>
+                        <div class="flex items-center gap-2 mt-1">
+                            <p class="text-xs text-gray-500">${comm.created_at}</p>
+                            ${comm.user_name ? `<span class="text-xs text-gray-400">•</span><p class="text-xs text-gray-600">${userInfo}</p>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+            communicationList.appendChild(commDiv);
+        });
+    } else {
+        communicationEmpty.classList.remove('hidden');
+    }
+}
+
 // 关闭学员详情弹窗
 function closeStudentDetailModal() {
     const modal = document.getElementById('studentDetailModal');
@@ -302,11 +377,18 @@ function closeStudentDetailModal() {
     document.getElementById('studentDetailLoading').classList.remove('hidden');
     document.getElementById('studentDetailContent').classList.add('hidden');
     document.getElementById('serviceContent').classList.add('hidden');
+    document.getElementById('communicationContent').classList.add('hidden');
 
     // 清空服务内容表格
     const serviceTableBody = document.getElementById('serviceTableBody');
     if (serviceTableBody) {
         serviceTableBody.innerHTML = '';
+    }
+
+    // 清空沟通记录
+    const communicationList = document.getElementById('communicationList');
+    if (communicationList) {
+        communicationList.innerHTML = '';
     }
 }
 

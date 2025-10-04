@@ -11,78 +11,82 @@ class CommunicationManager:
     """沟通记录管理器"""
     
     @staticmethod
-    def add_lead_communication(lead_id, content, created_at=None):
+    def add_lead_communication(lead_id, content, user_id=None, created_at=None):
         """
         添加线索阶段沟通记录
-        
+
         Args:
             lead_id (int): 线索ID
             content (str): 沟通内容
+            user_id (int): 填写人ID，默认为None
             created_at (datetime): 创建时间，默认为当前时间
-            
+
         Returns:
             CommunicationRecord: 创建的沟通记录
         """
         if not content or not content.strip():
             raise ValueError("沟通内容不能为空")
-            
+
         # 验证线索是否存在
         lead = Lead.query.get(lead_id)
         if not lead:
             raise ValueError(f"线索ID {lead_id} 不存在")
-            
+
         record = CommunicationRecord(
             lead_id=lead_id,
             customer_id=None,  # 线索阶段没有客户ID
+            user_id=user_id,
             content=content.strip(),
             created_at=created_at or datetime.utcnow()
         )
-        
+
         db.session.add(record)
         db.session.commit()
-        
+
         return record
     
     @staticmethod
-    def add_customer_communication(lead_id, customer_id, content, created_at=None):
+    def add_customer_communication(lead_id, customer_id, content, user_id=None, created_at=None):
         """
         添加客户阶段沟通记录
-        
+
         Args:
             lead_id (int): 线索ID
             customer_id (int): 客户ID
             content (str): 沟通内容
+            user_id (int): 填写人ID，默认为None
             created_at (datetime): 创建时间，默认为当前时间
-            
+
         Returns:
             CommunicationRecord: 创建的沟通记录
         """
         if not content or not content.strip():
             raise ValueError("沟通内容不能为空")
-            
+
         # 验证线索和客户是否存在
         lead = Lead.query.get(lead_id)
         if not lead:
             raise ValueError(f"线索ID {lead_id} 不存在")
-            
+
         customer = Customer.query.get(customer_id)
         if not customer:
             raise ValueError(f"客户ID {customer_id} 不存在")
-            
+
         # 验证客户是否属于该线索
         if customer.lead_id != lead_id:
             raise ValueError(f"客户ID {customer_id} 不属于线索ID {lead_id}")
-            
+
         record = CommunicationRecord(
             lead_id=lead_id,
             customer_id=customer_id,
+            user_id=user_id,
             content=content.strip(),
             created_at=created_at or datetime.utcnow()
         )
-        
+
         db.session.add(record)
         db.session.commit()
-        
+
         return record
     
     @staticmethod

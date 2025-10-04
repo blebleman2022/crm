@@ -334,6 +334,17 @@ def customer_api(customer_id):
     payments = Payment.query.filter_by(lead_id=customer.lead_id).all()
     paid_amount = sum(payment.amount for payment in payments) if payments else 0
 
+    # 获取客户阶段沟通记录
+    from communication_utils import CommunicationManager
+    communications = CommunicationManager.get_customer_communications(customer_id)
+    communications_data = [{
+        'id': comm.id,
+        'content': comm.content,
+        'created_at': comm.created_at.strftime('%Y-%m-%d %H:%M') if comm.created_at else None,
+        'user_name': comm.user.username if comm.user else None,
+        'user_role': comm.user.role if comm.user else None
+    } for comm in communications]
+
     customer_data = {
         'id': customer.id,
         'student_name': customer.lead.student_name,
@@ -350,6 +361,7 @@ def customer_api(customer_id):
         'additional_requirements': customer.additional_requirements,
         'exam_year': customer.exam_year,
         'notes': customer.customer_notes,
+        'communications': communications_data,
         'created_at': customer.created_at.isoformat() if customer.created_at else None,
         'updated_at': customer.updated_at.isoformat() if customer.updated_at else None
     }

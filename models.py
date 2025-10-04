@@ -286,6 +286,7 @@ class CommunicationRecord(db.Model):
     # 始终保持线索关联，客户关联可选
     lead_id = db.Column(db.Integer, db.ForeignKey('leads.id'), nullable=False, comment='线索ID')
     customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'), nullable=True, comment='客户ID（转化后）')
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True, comment='填写人ID')
 
     # 核心字段
     content = db.Column(db.Text, nullable=False, comment='沟通内容')
@@ -294,6 +295,7 @@ class CommunicationRecord(db.Model):
     # 关联关系
     lead = db.relationship('Lead', backref='communication_records')
     customer = db.relationship('Customer', backref='communication_records')
+    user = db.relationship('User', backref='communication_records')
 
     def __repr__(self):
         stage = 'customer' if self.customer_id else 'lead'
