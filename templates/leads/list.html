@@ -130,7 +130,7 @@
                                 <button onclick="showStudentDetailModal({{ lead.id }}, false)" class="text-blue-600 hover:text-blue-800 cursor-pointer">
                                     {{ lead.student_name or '-' }}
                                 </button>
-                                {% if lead.customer and lead.customer.additional_requirements %}
+                                {% if lead.additional_requirements %}
                                     <span class="material-symbols-outlined text-red-600 text-sm" title="有额外要求">add_circle</span>
                                 {% endif %}
                             </div>
