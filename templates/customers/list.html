@@ -182,7 +182,7 @@
                         </td>
                         <td class="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
                             {% if current_user.is_admin() or current_user.is_sales_manager() or current_user.is_teacher() %}
-                            <button onclick="openProgressModal({{ customer.id }})" class="text-blue-600 hover:text-blue-800">进度更新</button>
+                            <button onclick="openProgressModal({{ customer.id }}, {{ customer.lead.sales_user_id }})" class="text-blue-600 hover:text-blue-800">进度更新</button>
                             {% else %}
                             <span class="text-gray-400">-</span>
                             {% endif %}
@@ -341,7 +341,17 @@ function assignTeacher() {
 
 {% if current_user.is_admin() or current_user.is_sales_manager() or current_user.is_teacher() %}
 // 进度更新模态窗口功能
-function openProgressModal(customerId) {
+function openProgressModal(customerId, salesUserId) {
+    // 获取当前用户信息
+    const currentUserId = {{ current_user.id }};
+    const currentUserRole = '{{ current_user.role }}';
+
+    // 权限检查：销售管理只能更新自己负责的客户进度
+    if (currentUserRole === 'sales_manager' && salesUserId !== currentUserId) {
+        alert('不能更改其他销售负责的客户进度');
+        return;
+    }
+
     // 获取客户详细信息
     fetch(`/customers/${customerId}/progress`)
         .then(response => response.json())

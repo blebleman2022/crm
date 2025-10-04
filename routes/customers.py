@@ -56,8 +56,12 @@ def list_customers():
             (Customer.teacher_user_id.isnot(None))
         )
     elif current_user.is_sales_manager():
-        # 销售管理可以看到自己负责的所有客户
-        query = query.filter(Lead.sales_user_id == current_user.id)
+        # 销售管理可以看到所有销售和销售管理负责的客户（参照线索列表逻辑）
+        allowed_ids = db.session.query(User.id).filter(
+            User.role.in_(['sales_manager', 'salesperson']),
+            User.status == True
+        ).subquery()
+        query = query.filter(Lead.sales_user_id.in_(allowed_ids))
     # 管理员可以看到所有客户，不需要额外过滤
 
     # 搜索过滤
