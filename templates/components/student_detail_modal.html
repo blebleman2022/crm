@@ -334,17 +334,8 @@ function displayCommunications(communications, isCustomer) {
         communicationEmpty.classList.add('hidden');
 
         communications.forEach(comm => {
-            // 角色中文映射
-            const roleMap = {
-                'admin': '管理员',
-                'sales_manager': '销售管理',
-                'salesperson': '销售',
-                'teacher': '班主任'
-            };
-
-            const roleName = comm.user_role ? roleMap[comm.user_role] || comm.user_role : '';
             const userName = comm.user_name || '未知用户';
-            const userInfo = roleName ? `${userName}老师（${roleName}）` : `${userName}老师`;
+            const userInfo = `${userName}老师`;
 
             const commDiv = document.createElement('div');
             commDiv.className = 'p-3 bg-white hover:bg-gray-50';

@@ -4,7 +4,7 @@
 
 from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for
 from flask_login import login_required, current_user
-from models import db, Lead, Customer, CommunicationRecord
+from models import db, Lead, Customer, CommunicationRecord, User
 from datetime import datetime
 import functools
 from communication_utils import CommunicationManager
@@ -38,10 +38,23 @@ def sales_or_admin_required(f):
 def list_consultations():
     """咨询管理主页面 - 显示所有已约见的线索"""
     try:
-        # 查询所有有线下见面记录的线索（meeting_at不为空）
-        leads_with_meetings = db.session.query(Lead).filter(
-            Lead.meeting_at.isnot(None)
-        ).order_by(Lead.meeting_at.desc()).all()
+        # 基础查询：所有有线下见面记录的线索（meeting_at不为空）
+        query = db.session.query(Lead).filter(Lead.meeting_at.isnot(None))
+
+        # 权限过滤
+        if current_user.role == 'salesperson':
+            # 销售只能看到自己负责的线索
+            query = query.filter(Lead.sales_user_id == current_user.id)
+        elif current_user.role == 'sales_manager':
+            # 销售管理可以看到所有销售和销售管理负责的线索
+            sales_users = User.query.filter(
+                User.role.in_(['sales_manager', 'salesperson'])
+            ).all()
+            sales_user_ids = [u.id for u in sales_users]
+            query = query.filter(Lead.sales_user_id.in_(sales_user_ids))
+        # admin角色可以看到所有
+
+        leads_with_meetings = query.order_by(Lead.meeting_at.desc()).all()
 
         return render_template('consultations/list.html',
                              consultation_data=leads_with_meetings)

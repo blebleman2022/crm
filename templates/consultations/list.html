@@ -158,13 +158,16 @@
                             客户信息
                         </th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            责任销售
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            线索来源
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             约见时间
                         </th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             约见地点
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            线索来源
                         </th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             操作
@@ -198,6 +201,12 @@
                                 </div>
                             </div>
                         </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {{ lead.sales_user.username if lead.sales_user else '-' }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ lead.lead_source or '-' }}
+                        </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="text-sm text-gray-900">
                                 <button onclick="editMeetingTime({{ lead.id }}, '{{ lead.meeting_at.strftime('%Y-%m-%d') if lead.meeting_at else '' }}', '{{ lead.meeting_at.strftime('%H') if lead.meeting_at else '' }}', '{{ lead.meeting_at.strftime('%M') if lead.meeting_at else '' }}', '{{ lead.meeting_location or '' }}')"
@@ -226,9 +235,6 @@
                                 <span>{{ lead.meeting_location or '点击设置约见地点' }}</span>
                                 <i class="fas fa-edit ml-2 text-xs opacity-70"></i>
                             </button>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {{ lead.lead_source or '未知' }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <button onclick="showConsultationDetails({{ lead.id }})"
