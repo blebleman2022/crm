@@ -596,7 +596,7 @@ function createTimeSlotRow(hour, minute, bgClass = 'normal-time-slot') {
         const isToday = date.getTime() === today.getTime();
 
         const daySlot = document.createElement('div');
-        daySlot.className = `border-r border-gray-200 last:border-r-0 p-0.5 cursor-pointer transition-all duration-200 relative ${
+        daySlot.className = `border-r border-gray-200 last:border-r-0 cursor-pointer transition-all duration-200 relative ${
             isWeekend ? 'bg-orange-25 hover:bg-orange-50' : 'hover:bg-blue-50'
         } ${isToday ? 'bg-blue-50' : ''}`;
         daySlot.dataset.date = getDateString(day);
@@ -627,15 +627,16 @@ function createTimeSlotRow(hour, minute, bgClass = 'normal-time-slot') {
 // 创建约见元素
 function createAppointmentElement(appointment) {
     const appointmentDiv = document.createElement('div');
-    appointmentDiv.className = `appointment-item mb-0.5 px-1.5 py-0.5 rounded shadow-sm cursor-pointer transform transition-all duration-200 ${
+    // 让底色充满整个单元格，去掉margin和padding，增大文字
+    appointmentDiv.className = `appointment-item h-full w-full flex items-center justify-center cursor-pointer transform transition-all duration-200 ${
         appointment.location === '浦东' ?
         'bg-green-500 text-white hover:bg-green-600' :
         'bg-blue-500 text-white hover:bg-blue-600'
     }`;
 
-    // 显示：地点-线索来源-责任销售（一行显示）
+    // 显示：地点-线索来源-责任销售（一行显示），增大文字到text-xs
     appointmentDiv.innerHTML = `
-        <div class="text-[10px] font-semibold text-center leading-tight">
+        <div class="text-xs font-semibold text-center leading-tight px-1">
             ${appointment.location || '未知'} - ${appointment.leadSource || '-'} - ${appointment.salesUser || '-'}
         </div>
     `;
@@ -644,23 +645,23 @@ function createAppointmentElement(appointment) {
 
     // 悬浮效果
     appointmentDiv.addEventListener('mouseenter', function() {
-        this.style.transform = 'scale(1.05)';
+        this.style.transform = 'scale(1.02)';
         this.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
         this.style.zIndex = '10';
     });
 
     appointmentDiv.addEventListener('mouseleave', function() {
         this.style.transform = 'scale(1)';
-        this.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
+        this.style.boxShadow = 'none';
         this.style.zIndex = '1';
     });
 
     // 点击效果
     appointmentDiv.addEventListener('click', function(e) {
         e.preventDefault();
-        this.style.transform = 'scale(0.95)';
+        this.style.transform = 'scale(0.98)';
         setTimeout(() => {
-            this.style.transform = 'scale(1.05)';
+            this.style.transform = 'scale(1.02)';
             showConsultationDetails(appointment.leadId);
         }, 100);
     });
