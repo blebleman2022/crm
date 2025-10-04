@@ -627,8 +627,8 @@ function createTimeSlotRow(hour, minute, bgClass = 'normal-time-slot') {
 // 创建约见元素
 function createAppointmentElement(appointment) {
     const appointmentDiv = document.createElement('div');
-    // 让底色充满整个单元格，去掉margin和padding，增大文字
-    appointmentDiv.className = `appointment-item h-full w-full flex items-center justify-center cursor-pointer transform transition-all duration-200 ${
+    // 让底色充满整个单元格，去掉margin和padding，增大文字，添加圆角
+    appointmentDiv.className = `appointment-item h-full w-full flex items-center justify-center cursor-pointer transform transition-all duration-200 rounded-md ${
         appointment.location === '浦东' ?
         'bg-green-500 text-white hover:bg-green-600' :
         'bg-blue-500 text-white hover:bg-blue-600'
@@ -925,10 +925,16 @@ function renderConsultationDetails(data) {
         communicationRecordsHtml = communication_records.map(record => `
             <div class="bg-white border border-gray-200 rounded-lg p-4 mb-3 shadow-sm">
                 <div class="flex items-center justify-between mb-3">
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${record.stage === '线索阶段' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}">
-                        <i class="fas ${record.stage === '线索阶段' ? 'fa-user-plus' : 'fa-user-check'} mr-1"></i>
-                        ${record.stage}
-                    </span>
+                    <div class="flex items-center space-x-2">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${record.stage === '线索阶段' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}">
+                            <i class="fas ${record.stage === '线索阶段' ? 'fa-user-plus' : 'fa-user-check'} mr-1"></i>
+                            ${record.stage}
+                        </span>
+                        <span class="text-xs text-gray-600 flex items-center">
+                            <i class="fas fa-user mr-1"></i>
+                            ${record.user_name ? record.user_name + '老师' : '<span class="text-gray-400">未知</span>'}
+                        </span>
+                    </div>
                     <span class="text-xs text-gray-500 flex items-center">
                         <i class="fas fa-clock mr-1"></i>
                         ${new Date(record.created_at).toLocaleString('zh-CN')}
