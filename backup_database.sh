@@ -26,6 +26,11 @@ LOG_FILE="$BACKUP_DIR/backup.log"
 # 保留最近N天的备份（默认30天）
 KEEP_DAYS=30
 
+# 创建备份目录（如果不存在）- 必须在日志函数之前创建
+if [ ! -d "$BACKUP_DIR" ]; then
+    mkdir -p "$BACKUP_DIR"
+fi
+
 # 日志函数
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
@@ -54,11 +59,8 @@ if [ ! -f "$DB_FILE" ]; then
     exit 1
 fi
 
-# 创建备份目录（如果不存在）
-if [ ! -d "$BACKUP_DIR" ]; then
-    log_info "创建备份目录：$BACKUP_DIR"
-    mkdir -p "$BACKUP_DIR"
-fi
+# 确认备份目录已创建
+log_info "备份目录：$BACKUP_DIR"
 
 # 获取数据库文件大小
 DB_SIZE=$(du -h "$DB_FILE" | cut -f1)
