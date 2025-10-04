@@ -75,8 +75,8 @@ def consultation_details(lead_id):
         # 获取该线索对应的客户记录（如果存在）
         customer = Customer.query.filter_by(lead_id=lead_id).first()
 
-        # 获取该线索的所有沟通记录
-        communication_records = CommunicationManager.get_all_communications_by_lead(lead_id)
+        # 获取该线索的线索阶段沟通记录
+        communication_records = CommunicationManager.get_lead_communications(lead_id)
 
         return render_template('consultations/details.html',
                              lead=lead,
@@ -115,21 +115,26 @@ def consultation_details_data(lead_id):
 
         # 获取沟通记录
         if customer_only and customer:
+            # 客户列表页调用：只获取客户阶段记录
             communication_records = CommunicationManager.get_customer_communications(customer.id)
         else:
-            communication_records = CommunicationManager.get_all_communications_by_lead(lead_id)
+            # 约见管理详情页和线索列表页调用：只获取线索阶段记录
+            communication_records = CommunicationManager.get_lead_communications(lead_id)
 
         # 格式化沟通记录
         communication_records_data = []
         for record in communication_records:
             stage = "客户阶段" if record.customer_id else "线索阶段"
+            # 添加填写人信息
+            user_name = record.user.username if record.user else None
             communication_records_data.append({
                 'id': record.id,
                 'content': record.content,
                 'created_at': record.created_at.isoformat() if record.created_at else None,
                 'stage': stage,
                 'lead_id': record.lead_id,
-                'customer_id': record.customer_id
+                'customer_id': record.customer_id,
+                'user_name': user_name
             })
 
         # 获取统计信息
