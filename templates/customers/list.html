@@ -9,8 +9,8 @@
     <div class="bg-white p-6 rounded-lg shadow-sm">
         <!-- 搜索和筛选 -->
         <form method="GET" class="mb-6 space-y-4">
-            <!-- 第一行：搜索、奖项、班主任 -->
-            <div class="grid grid-cols-1 {% if current_user.role == 'teacher' %}md:grid-cols-2{% else %}md:grid-cols-3{% endif %} gap-4">
+            <!-- 第一行：搜索、服务内容、销售 -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                     <label class="sr-only" for="search">搜索</label>
                     <div class="relative">
@@ -24,24 +24,23 @@
 
                 <div>
                     <select class="block w-full rounded-md border-0 py-2.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"
-                            name="award">
-                        <option value="">所有奖项要求</option>
-                        <option value="市奖" {% if award_filter == '市奖' %}selected{% endif %}>市奖</option>
-                        <option value="国奖" {% if award_filter == '国奖' %}selected{% endif %}>国奖</option>
+                            name="service_type">
+                        <option value="">所有服务内容</option>
+                        <option value="tutoring" {% if service_type == 'tutoring' %}selected{% endif %}>课题辅导</option>
+                        <option value="competition" {% if service_type == 'competition' %}selected{% endif %}>竞赛辅导</option>
+                        <option value="upgrade_guidance" {% if service_type == 'upgrade_guidance' %}selected{% endif %}>升学陪跑</option>
                     </select>
                 </div>
 
-                {% if current_user.role != 'teacher' %}
                 <div>
                     <select class="block w-full rounded-md border-0 py-2.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"
-                            name="teacher">
-                        <option value="">所有班主任</option>
-                        {% for teacher in teachers %}
-                            <option value="{{ teacher.id }}" {% if teacher_filter == teacher.id|string %}selected{% endif %}>{{ teacher.username }}</option>
+                            name="sales">
+                        <option value="">所有销售</option>
+                        {% for sales in sales_users %}
+                            <option value="{{ sales.id }}" {% if sales_filter == sales.id|string %}selected{% endif %}>{{ sales.username }}</option>
                         {% endfor %}
                     </select>
                 </div>
-                {% endif %}
             </div>
 
             <!-- 第二行：时间段筛选 -->
@@ -198,18 +197,18 @@
         <div class="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-4">
             <div class="flex flex-1 justify-between sm:hidden">
                 {% if customers.has_prev %}
-                    <a href="{{ url_for('customers.list_customers', page=customers.prev_num, search=search, teacher=teacher_filter, award=award_filter) }}" 
+                    <a href="{{ url_for('customers.list_customers', page=customers.prev_num, search=search, sales=sales_filter, service_type=service_type) }}"
                        class="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">上一页</a>
                 {% endif %}
                 {% if customers.has_next %}
-                    <a href="{{ url_for('customers.list_customers', page=customers.next_num, search=search, teacher=teacher_filter, award=award_filter) }}" 
+                    <a href="{{ url_for('customers.list_customers', page=customers.next_num, search=search, sales=sales_filter, service_type=service_type) }}"
                        class="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">下一页</a>
                 {% endif %}
             </div>
             <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
                 <div>
                     <p class="text-sm text-gray-700">
-                        显示第 <span class="font-medium">{{ (customers.page - 1) * customers.per_page + 1 }}</span> 到 
+                        显示第 <span class="font-medium">{{ (customers.page - 1) * customers.per_page + 1 }}</span> 到
                         <span class="font-medium">{{ customers.page * customers.per_page if customers.page * customers.per_page < customers.total else customers.total }}</span> 条，
                         共 <span class="font-medium">{{ customers.total }}</span> 条记录
                     </p>
@@ -217,16 +216,16 @@
                 <div>
                     <nav class="isolate inline-flex -space-x-px rounded-md shadow-sm">
                         {% if customers.has_prev %}
-                            <a href="{{ url_for('customers.list_customers', page=customers.prev_num, search=search, teacher=teacher_filter, award=award_filter) }}" 
+                            <a href="{{ url_for('customers.list_customers', page=customers.prev_num, search=search, sales=sales_filter, service_type=service_type) }}"
                                class="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
                                 <span class="material-symbols-outlined h-5 w-5">chevron_left</span>
                             </a>
                         {% endif %}
-                        
+
                         {% for page_num in customers.iter_pages() %}
                             {% if page_num %}
                                 {% if page_num != customers.page %}
-                                    <a href="{{ url_for('customers.list_customers', page=page_num, search=search, teacher=teacher_filter, award=award_filter) }}" 
+                                    <a href="{{ url_for('customers.list_customers', page=page_num, search=search, sales=sales_filter, service_type=service_type) }}"
                                        class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">{{ page_num }}</a>
                                 {% else %}
                                     <span class="relative z-10 inline-flex items-center bg-blue-600 px-4 py-2 text-sm font-semibold text-white">{{ page_num }}</span>
@@ -235,9 +234,9 @@
                                 <span class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-700 ring-1 ring-inset ring-gray-300">…</span>
                             {% endif %}
                         {% endfor %}
-                        
+
                         {% if customers.has_next %}
-                            <a href="{{ url_for('customers.list_customers', page=customers.next_num, search=search, teacher=teacher_filter, award=award_filter) }}" 
+                            <a href="{{ url_for('customers.list_customers', page=customers.next_num, search=search, sales=sales_filter, service_type=service_type) }}"
                                class="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
                                 <span class="material-symbols-outlined h-5 w-5">chevron_right</span>
                             </a>
@@ -283,7 +282,7 @@
 
 <script>
 // 自动提交搜索表单
-document.querySelectorAll('select[name="teacher"], select[name="award"]').forEach(select => {
+document.querySelectorAll('select[name="service_type"], select[name="sales"]').forEach(select => {
     select.addEventListener('change', function() {
         this.form.submit();
     });

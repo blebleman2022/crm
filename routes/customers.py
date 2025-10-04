@@ -31,8 +31,7 @@ def list_customers():
     """客户列表"""
     page = request.args.get('page', 1, type=int)
     search = request.args.get('search', '', type=str)
-    teacher_filter = request.args.get('teacher', '', type=str)
-    award_filter = request.args.get('award', '', type=str)
+    sales_filter = request.args.get('sales', '', type=str)  # 销售筛选
     service_type = request.args.get('service_type', '', type=str)  # 服务类型筛选
     completed = request.args.get('completed', '', type=str)  # 已完成筛选
 
@@ -71,13 +70,9 @@ def list_customers():
             (Lead.contact_info.contains(search))
         )
 
-    # 班主任过滤（仅对非班主任角色有效）
-    if teacher_filter and current_user.role != 'teacher':
-        query = query.filter(Customer.teacher_user_id == teacher_filter)
-
-    # 奖项要求过滤（从线索表读取）
-    if award_filter:
-        query = query.filter(Lead.competition_award_level == award_filter)
+    # 销售筛选
+    if sales_filter:
+        query = query.filter(Lead.sales_user_id == sales_filter)
 
     # 服务类型筛选
     if service_type == 'tutoring':
@@ -86,6 +81,9 @@ def list_customers():
     elif service_type == 'competition':
         # 筛选有竞赛辅导服务的客户
         query = query.filter(Lead.service_types.contains('competition'))
+    elif service_type == 'upgrade_guidance':
+        # 筛选有升学陪跑服务的客户
+        query = query.filter(Lead.service_types.contains('upgrade_guidance'))
 
     # 已完成筛选
     if completed == 'true':
@@ -116,17 +114,19 @@ def list_customers():
         page=page, per_page=20, error_out=False
     )
 
-    # 获取所有班主任用于筛选（包括销售管理角色）
-    teachers = get_teachers()
+    # 获取所有销售用户用于筛选
+    sales_users = User.query.filter(
+        User.role.in_(['sales_manager', 'salesperson']),
+        User.status == True
+    ).order_by(User.username).all()
 
     return render_template('customers/list.html',
                          customers=customers,
                          search=search,
-                         teacher_filter=teacher_filter,
-                         award_filter=award_filter,
+                         sales_filter=sales_filter,
                          service_type=service_type,
                          completed=completed,
-                         teachers=teachers,
+                         sales_users=sales_users,
                          start_date=start_date,
                          end_date=end_date)
 
