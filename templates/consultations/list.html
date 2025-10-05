@@ -630,20 +630,21 @@ function createAppointmentElement(appointment) {
     const now = new Date();
     const isPast = appointmentTime < now;
 
-    // 根据时间状态和地点设置颜色
+    // 根据时间状态和地点设置颜色（移除 hover 颜色变化）
     let colorClass;
     if (isPast) {
         // 过去的约见使用灰色
-        colorClass = 'bg-gray-400 text-white hover:bg-gray-500';
+        colorClass = 'bg-gray-400 text-white';
     } else {
         // 未来的约见根据地点使用不同颜色
         colorClass = appointment.location === '浦东' ?
-            'bg-green-500 text-white hover:bg-green-600' :
-            'bg-blue-500 text-white hover:bg-blue-600';
+            'bg-green-500 text-white' :
+            'bg-blue-500 text-white';
     }
 
     // 让底色充满整个单元格，去掉margin和padding，增大文字，添加圆角
-    appointmentDiv.className = `appointment-item h-full w-full flex items-center justify-center cursor-pointer transform transition-all duration-200 rounded-md ${colorClass}`;
+    // 使用 absolute 定位确保不超出单元格边界
+    appointmentDiv.className = `appointment-item absolute inset-0 flex items-center justify-center cursor-pointer transition-shadow duration-200 rounded-md ${colorClass}`;
 
     // 显示：地点-线索来源-责任销售（一行显示），增大文字到text-xs
     // 使用 pointer-events-none 防止内部元素阻止点击事件
@@ -655,15 +656,13 @@ function createAppointmentElement(appointment) {
 
     appointmentDiv.title = `${appointment.time} - ${appointment.client}\n地点: ${appointment.location || '未知'}\n来源: ${appointment.leadSource || '未知'}\n销售: ${appointment.salesUser || '未知'}`;
 
-    // 悬浮效果
+    // 悬浮效果 - 只改变阴影，不改变大小和颜色
     appointmentDiv.addEventListener('mouseenter', function() {
-        this.style.transform = 'scale(1.02)';
         this.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
         this.style.zIndex = '10';
     });
 
     appointmentDiv.addEventListener('mouseleave', function() {
-        this.style.transform = 'scale(1)';
         this.style.boxShadow = 'none';
         this.style.zIndex = '1';
     });
@@ -672,9 +671,10 @@ function createAppointmentElement(appointment) {
     appointmentDiv.addEventListener('click', function(e) {
         e.preventDefault();
         e.stopPropagation(); // 阻止事件冒泡
-        this.style.transform = 'scale(0.98)';
+        // 点击时稍微降低透明度作为反馈
+        this.style.opacity = '0.8';
         setTimeout(() => {
-            this.style.transform = 'scale(1.02)';
+            this.style.opacity = '1';
             showConsultationDetails(appointment.leadId);
         }, 100);
     });
