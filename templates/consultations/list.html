@@ -635,8 +635,9 @@ function createAppointmentElement(appointment) {
     }`;
 
     // 显示：地点-线索来源-责任销售（一行显示），增大文字到text-xs
+    // 使用 pointer-events-none 防止内部元素阻止点击事件
     appointmentDiv.innerHTML = `
-        <div class="text-xs font-semibold text-center leading-tight px-1">
+        <div class="text-xs font-semibold text-center leading-tight px-1 pointer-events-none">
             ${appointment.location || '未知'} - ${appointment.leadSource || '-'} - ${appointment.salesUser || '-'}
         </div>
     `;
@@ -656,9 +657,10 @@ function createAppointmentElement(appointment) {
         this.style.zIndex = '1';
     });
 
-    // 点击效果
+    // 点击效果 - 阻止事件冒泡，确保只触发约见详情
     appointmentDiv.addEventListener('click', function(e) {
         e.preventDefault();
+        e.stopPropagation(); // 阻止事件冒泡
         this.style.transform = 'scale(0.98)';
         setTimeout(() => {
             this.style.transform = 'scale(1.02)';
