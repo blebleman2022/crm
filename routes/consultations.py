@@ -57,11 +57,12 @@ def list_consultations():
         leads_with_meetings = query.order_by(Lead.meeting_at.desc()).all()
 
         return render_template('consultations/list.html',
-                             consultation_data=leads_with_meetings)
+                             consultation_data=leads_with_meetings,
+                             now=datetime.now)
 
     except Exception as e:
         flash(f'获取咨询数据失败: {str(e)}', 'error')
-        return render_template('consultations/list.html', consultation_data=[])
+        return render_template('consultations/list.html', consultation_data=[], now=datetime.now)
 
 @consultations_bp.route('/details/<int:lead_id>')
 @login_required
