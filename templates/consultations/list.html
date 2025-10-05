@@ -594,9 +594,10 @@ function createTimeSlotRow(hour, minute, bgClass = 'normal-time-slot') {
         // 如果有约见，不添加交互样式；如果没有约见，添加 hover 效果
         if (appointments.length > 0) {
             // 有约见：只保留边框和基础样式
+            // 如果有多个约见，使用 flex 布局垂直排列
             daySlot.className = `border-r border-gray-200 last:border-r-0 relative ${
-                isToday ? 'bg-blue-50' : ''
-            }`;
+                appointments.length > 1 ? 'flex flex-col gap-1 p-1' : ''
+            } ${isToday ? 'bg-blue-50' : ''}`;
         } else {
             // 无约见：添加 hover 交互效果
             daySlot.className = `border-r border-gray-200 last:border-r-0 cursor-pointer transition-all duration-200 relative ${
@@ -610,7 +611,7 @@ function createTimeSlotRow(hour, minute, bgClass = 'normal-time-slot') {
 
         if (appointments.length > 0) {
             appointments.forEach((appointment, index) => {
-                const appointmentDiv = createAppointmentElement(appointment);
+                const appointmentDiv = createAppointmentElement(appointment, appointments.length);
                 daySlot.appendChild(appointmentDiv);
             });
         }
@@ -622,7 +623,7 @@ function createTimeSlotRow(hour, minute, bgClass = 'normal-time-slot') {
 }
 
 // 创建约见元素
-function createAppointmentElement(appointment) {
+function createAppointmentElement(appointment, totalCount = 1) {
     const appointmentDiv = document.createElement('div');
 
     // 判断约见时间是否已过去
@@ -642,9 +643,14 @@ function createAppointmentElement(appointment) {
             'bg-blue-500 text-white';
     }
 
-    // 让底色充满整个单元格，去掉margin和padding，增大文字，添加圆角
-    // 使用 absolute 定位确保不超出单元格边界
-    appointmentDiv.className = `appointment-item absolute inset-0 flex items-center justify-center cursor-pointer transition-shadow duration-200 rounded-md ${colorClass}`;
+    // 根据约见数量调整样式
+    if (totalCount > 1) {
+        // 多个约见：使用 flex-1 平分空间，不使用 absolute
+        appointmentDiv.className = `appointment-item flex-1 flex items-center justify-center cursor-pointer transition-shadow duration-200 rounded-md ${colorClass}`;
+    } else {
+        // 单个约见：使用 absolute 填充整个单元格
+        appointmentDiv.className = `appointment-item absolute inset-0 flex items-center justify-center cursor-pointer transition-shadow duration-200 rounded-md ${colorClass}`;
+    }
 
     // 显示：地点-线索来源-责任销售（一行显示），增大文字到text-xs
     // 使用 pointer-events-none 防止内部元素阻止点击事件
