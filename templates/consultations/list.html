@@ -587,23 +587,33 @@ function createTimeSlotRow(hour, minute, bgClass = 'normal-time-slot') {
         today.setHours(0, 0, 0, 0);
         const isToday = date.getTime() === today.getTime();
 
+        // 查找该时间段的约见记录
+        const appointments = findAppointmentsForTimeSlot(day, hour, minute);
+
         const daySlot = document.createElement('div');
-        daySlot.className = `border-r border-gray-200 last:border-r-0 cursor-pointer transition-all duration-200 relative ${
-            isWeekend ? 'bg-orange-25 hover:bg-orange-50' : 'hover:bg-blue-50'
-        } ${isToday ? 'bg-blue-50' : ''}`;
+        // 如果有约见，不添加交互样式；如果没有约见，添加 hover 效果
+        if (appointments.length > 0) {
+            // 有约见：只保留边框和基础样式
+            daySlot.className = `border-r border-gray-200 last:border-r-0 relative ${
+                isToday ? 'bg-blue-50' : ''
+            }`;
+        } else {
+            // 无约见：添加 hover 交互效果
+            daySlot.className = `border-r border-gray-200 last:border-r-0 cursor-pointer transition-all duration-200 relative ${
+                isWeekend ? 'bg-orange-25 hover:bg-orange-50' : 'hover:bg-blue-50'
+            } ${isToday ? 'bg-blue-50' : ''}`;
+        }
+
         daySlot.dataset.date = getDateString(day);
         daySlot.dataset.hour = hour;
         daySlot.dataset.minute = minute;
 
-        // 查找该时间段的约见记录
-        const appointments = findAppointmentsForTimeSlot(day, hour, minute);
         if (appointments.length > 0) {
             appointments.forEach((appointment, index) => {
                 const appointmentDiv = createAppointmentElement(appointment);
                 daySlot.appendChild(appointmentDiv);
             });
         }
-        // 移除空时间段的加号提示
 
         timeSlotDiv.appendChild(daySlot);
     }
