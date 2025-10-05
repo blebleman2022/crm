@@ -177,10 +177,10 @@
                 <tbody class="bg-white divide-y divide-gray-200">
                     {% for lead in consultation_data %}
                     {% set is_past = lead.meeting_at and lead.meeting_at < now() %}
-                    <tr class="{% if is_past %}bg-gray-100 hover:bg-gray-150{% else %}hover:bg-gray-50{% endif %}">
+                    <tr class="hover:bg-gray-50">
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div>
-                                <div class="text-sm font-medium {% if is_past %}text-gray-600{% else %}text-gray-900{% endif %}">
+                                <div class="text-sm font-medium text-gray-900">
                                     {{ lead.parent_wechat_display_name or '未知' }}
                                 </div>
                                 <div class="text-sm text-gray-500">
@@ -193,7 +193,7 @@
                                 {% endif %}
                             </div>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm {% if is_past %}text-gray-600{% else %}text-gray-900{% endif %}">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {{ lead.sales_user.username if lead.sales_user else '-' }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -222,7 +222,7 @@
                         <td class="px-6 py-4 whitespace-nowrap">
                             <button onclick="editMeetingTime({{ lead.id }}, '{{ lead.meeting_at.strftime('%Y-%m-%d') if lead.meeting_at else '' }}', '{{ lead.meeting_at.strftime('%H') if lead.meeting_at else '' }}', '{{ lead.meeting_at.strftime('%M') if lead.meeting_at else '' }}', '{{ lead.meeting_location or '' }}')"
                                     class="inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 cursor-pointer border hover:shadow-sm
-                                    {% if is_past %}text-gray-600 bg-gray-200 border-gray-300 hover:bg-gray-300 hover:border-gray-400{% elif lead.meeting_location == '浦东' %}text-blue-700 bg-blue-50 border-blue-200 hover:bg-blue-100 hover:border-blue-300{% elif lead.meeting_location == '浦西' %}text-green-700 bg-green-50 border-green-200 hover:bg-green-100 hover:border-green-300{% else %}text-gray-600 bg-gray-50 border-gray-200 hover:bg-gray-100 hover:border-gray-300{% endif %}">
+                                    {% if lead.meeting_location == '浦东' %}text-blue-700 bg-blue-50 border-blue-200 hover:bg-blue-100 hover:border-blue-300{% elif lead.meeting_location == '浦西' %}text-green-700 bg-green-50 border-green-200 hover:bg-green-100 hover:border-green-300{% else %}text-gray-600 bg-gray-50 border-gray-200 hover:bg-gray-100 hover:border-gray-300{% endif %}">
                                 <i class="fas fa-map-marker-alt mr-2"></i>
                                 <span>{{ lead.meeting_location or '点击设置约见地点' }}</span>
                                 <i class="fas fa-edit ml-2 text-xs opacity-70"></i>
@@ -230,7 +230,7 @@
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <button onclick="showConsultationDetails({{ lead.id }})"
-                                    class="{% if is_past %}text-gray-600 hover:text-gray-800{% else %}text-primary-600 hover:text-primary-900{% endif %}">
+                                    class="text-primary-600 hover:text-primary-900">
                                 <i class="fas fa-eye mr-1"></i>约见明细
                             </button>
                         </td>
