@@ -261,6 +261,11 @@ def list_leads():
     start_date = request.args.get('start_date', '', type=str)
     end_date = request.args.get('end_date', '', type=str)
 
+    # 如果结束日期未填写，默认为当前日期
+    if date_type and start_date and not end_date:
+        from datetime import date
+        end_date = date.today().strftime('%Y-%m-%d')
+
     # 新增：仪表板跳转的筛选参数
     first_payment_date_start = request.args.get('first_payment_date_start', '', type=str)
     first_payment_date_end = request.args.get('first_payment_date_end', '', type=str)
@@ -326,13 +331,23 @@ def list_leads():
                     )
                 )
             elif date_type == 'full_payment':
-                # 全款支付时间筛选（使用阶段判断）
-                query = query.filter(
+                # 全款支付时间筛选（使用最后一笔支付时间）
+                # 子查询：获取每个线索的最后一笔支付日期
+                from sqlalchemy import select
+                last_payment_subquery = (
+                    select(Payment.lead_id, func.max(Payment.payment_date).label('last_payment_date'))
+                    .group_by(Payment.lead_id)
+                    .subquery()
+                )
+
+                query = query.join(
+                    last_payment_subquery,
+                    Lead.id == last_payment_subquery.c.lead_id
+                ).filter(
                     and_(
                         Lead.stage == '全款支付',
-                        Lead.updated_at.isnot(None),
-                        func.date(Lead.updated_at) >= start_dt,
-                        func.date(Lead.updated_at) <= end_dt
+                        last_payment_subquery.c.last_payment_date >= start_dt,
+                        last_payment_subquery.c.last_payment_date <= end_dt
                     )
                 )
         except ValueError:
@@ -405,8 +420,9 @@ def list_leads():
         filter_period = f"{first_payment_date_start} 至 {first_payment_date_end}"
 
     # 获取班主任列表（用于转客户时选择）
+    # 包含：班主任、销售管理
     teachers = User.query.filter(
-        User.role.in_(['teacher', 'sales']),
+        User.role.in_(['teacher', 'sales_manager']),
         User.status == True
     ).all()
 
