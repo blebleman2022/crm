@@ -248,7 +248,7 @@ def dashboard():
 
 @leads_bp.route('/list')
 @login_required
-@sales_required
+@sales_or_admin_required
 def list_leads():
     """线索列表"""
     page = request.args.get('page', 1, type=int)
