@@ -69,10 +69,10 @@
                     <select name="source" id="source" required
                             class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
                         <option value="">请选择线索来源</option>
-                        <option value="周cc">周cc</option>
-                        <option value="李博士">李博士</option>
-                        <option value="喜顺">喜顺</option>
-                        <option value="视频号">视频号</option>
+                        <option value="周cc" {% if current_user_group == '周cc' %}selected{% endif %}>周cc</option>
+                        <option value="李博士" {% if current_user_group == '李博士' %}selected{% endif %}>李博士</option>
+                        <option value="喜顺" {% if current_user_group == '喜顺' %}selected{% endif %}>喜顺</option>
+                        <option value="视频号" {% if current_user_group == '视频号' %}selected{% endif %}>视频号</option>
                         <option value="其他">其他</option>
                     </select>
                 </div>

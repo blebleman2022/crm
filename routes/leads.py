@@ -603,7 +603,9 @@ def add_lead():
             db.session.rollback()
             flash(f'创建线索失败: {str(e)}', 'error')
 
-    return render_template('leads/add.html', sales_users=get_available_sales_users_for_assignment(current_user))
+    return render_template('leads/add.html',
+                         sales_users=get_available_sales_users_for_assignment(current_user),
+                         current_user_group=current_user.group_name)
 
 @leads_bp.route('/check-phone', methods=['POST'])
 @login_required
@@ -685,7 +687,7 @@ def is_basic_info_locked(lead):
 
 @leads_bp.route('/<int:lead_id>/edit', methods=['GET', 'POST'])
 @login_required
-@sales_required
+@sales_or_admin_required
 def edit_lead(lead_id):
     """编辑线索"""
     lead = Lead.query.get_or_404(lead_id)
@@ -1005,7 +1007,7 @@ def lead_detail(lead_id):
 
 @leads_bp.route('/<int:lead_id>/api')
 @login_required
-@sales_required
+@sales_or_admin_required
 def lead_api(lead_id):
     """线索API详情 - 用于弹窗显示"""
     lead = Lead.query.get_or_404(lead_id)
@@ -1055,9 +1057,9 @@ def lead_api(lead_id):
 
 @leads_bp.route('/<int:lead_id>/convert', methods=['POST'])
 @login_required
-@sales_required
+@sales_or_admin_required
 def convert_to_customer(lead_id):
-    """将线索转换为客户 - 仅销售管理可操作"""
+    """将线索转换为客户 - 仅销售管理和管理员可操作"""
     # 检查权限：销售角色不能操作转客户
     if current_user.is_salesperson():
         return jsonify({'success': False, 'message': '您没有权限操作转客户功能'})
@@ -1155,9 +1157,9 @@ def convert_to_customer(lead_id):
 
 @leads_bp.route('/add_payment', methods=['POST'])
 @login_required
-@sales_required
+@sales_or_admin_required
 def add_payment():
-    """添加付款记录 - 仅销售管理可操作"""
+    """添加付款记录 - 仅销售管理和管理员可操作"""
     # 检查权限：销售角色不能操作付款管理
     if current_user.is_salesperson():
         return jsonify({'success': False, 'message': '您没有权限操作付款管理'})
@@ -1217,9 +1219,9 @@ def add_payment():
 
 @leads_bp.route('/delete_payment/<int:payment_id>', methods=['DELETE'])
 @login_required
-@sales_required
+@sales_or_admin_required
 def delete_payment(payment_id):
-    """删除付款记录 - 仅销售管理可操作"""
+    """删除付款记录 - 仅销售管理和管理员可操作"""
     # 检查权限：销售角色不能操作付款管理
     if current_user.is_salesperson():
         return jsonify({'success': False, 'message': '您没有权限操作付款管理'})
