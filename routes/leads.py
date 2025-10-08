@@ -98,7 +98,7 @@ def update_lead_payment_times(lead):
 
 @leads_bp.route('/dashboard')
 @login_required
-@sales_or_admin_required
+@sales_required
 def dashboard():
     """线索管理仪表板"""
     from datetime import date, timedelta
@@ -248,7 +248,7 @@ def dashboard():
 
 @leads_bp.route('/list')
 @login_required
-@sales_or_admin_required
+@sales_required
 def list_leads():
     """线索列表"""
     page = request.args.get('page', 1, type=int)
@@ -442,7 +442,7 @@ def list_leads():
 
 @leads_bp.route('/add', methods=['GET', 'POST'])
 @login_required
-@sales_or_admin_required
+@sales_required
 def add_lead():
     """添加线索"""
     if request.method == 'POST':
@@ -607,7 +607,7 @@ def add_lead():
 
 @leads_bp.route('/check-phone', methods=['POST'])
 @login_required
-@sales_or_admin_required
+@sales_required
 def check_phone():
     """检查手机号是否重复"""
     data = request.get_json()
@@ -630,7 +630,7 @@ def check_phone():
 
 @leads_bp.route('/check-wechat', methods=['POST'])
 @login_required
-@sales_or_admin_required
+@sales_required
 def check_wechat():
     """检查家长微信号是否重复"""
     data = request.get_json()
@@ -685,7 +685,7 @@ def is_basic_info_locked(lead):
 
 @leads_bp.route('/<int:lead_id>/edit', methods=['GET', 'POST'])
 @login_required
-@sales_or_admin_required
+@sales_required
 def edit_lead(lead_id):
     """编辑线索"""
     lead = Lead.query.get_or_404(lead_id)
@@ -997,7 +997,7 @@ def edit_lead(lead_id):
 
 @leads_bp.route('/<int:lead_id>/detail')
 @login_required
-@sales_or_admin_required
+@sales_required
 def lead_detail(lead_id):
     """线索详情"""
     lead = Lead.query.get_or_404(lead_id)
@@ -1005,7 +1005,7 @@ def lead_detail(lead_id):
 
 @leads_bp.route('/<int:lead_id>/api')
 @login_required
-@sales_or_admin_required
+@sales_required
 def lead_api(lead_id):
     """线索API详情 - 用于弹窗显示"""
     lead = Lead.query.get_or_404(lead_id)
@@ -1055,9 +1055,9 @@ def lead_api(lead_id):
 
 @leads_bp.route('/<int:lead_id>/convert', methods=['POST'])
 @login_required
-@sales_or_admin_required
+@sales_required
 def convert_to_customer(lead_id):
-    """将线索转换为客户 - 仅销售管理和管理员可操作"""
+    """将线索转换为客户 - 仅销售管理可操作"""
     # 检查权限：销售角色不能操作转客户
     if current_user.is_salesperson():
         return jsonify({'success': False, 'message': '您没有权限操作转客户功能'})
@@ -1155,9 +1155,9 @@ def convert_to_customer(lead_id):
 
 @leads_bp.route('/add_payment', methods=['POST'])
 @login_required
-@sales_or_admin_required
+@sales_required
 def add_payment():
-    """添加付款记录 - 仅销售管理和管理员可操作"""
+    """添加付款记录 - 仅销售管理可操作"""
     # 检查权限：销售角色不能操作付款管理
     if current_user.is_salesperson():
         return jsonify({'success': False, 'message': '您没有权限操作付款管理'})
@@ -1217,9 +1217,9 @@ def add_payment():
 
 @leads_bp.route('/delete_payment/<int:payment_id>', methods=['DELETE'])
 @login_required
-@sales_or_admin_required
+@sales_required
 def delete_payment(payment_id):
-    """删除付款记录 - 仅销售管理和管理员可操作"""
+    """删除付款记录 - 仅销售管理可操作"""
     # 检查权限：销售角色不能操作付款管理
     if current_user.is_salesperson():
         return jsonify({'success': False, 'message': '您没有权限操作付款管理'})
@@ -1250,7 +1250,7 @@ def delete_payment(payment_id):
 
 @leads_bp.route('/update_contract_amount', methods=['POST'])
 @login_required
-@sales_or_admin_required
+@sales_required
 def update_contract_amount():
     """更新合同金额"""
     try:
