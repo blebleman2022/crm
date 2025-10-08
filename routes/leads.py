@@ -98,7 +98,7 @@ def update_lead_payment_times(lead):
 
 @leads_bp.route('/dashboard')
 @login_required
-@sales_required
+@sales_or_admin_required
 def dashboard():
     """线索管理仪表板"""
     from datetime import date, timedelta
@@ -442,7 +442,7 @@ def list_leads():
 
 @leads_bp.route('/add', methods=['GET', 'POST'])
 @login_required
-@sales_required
+@sales_or_admin_required
 def add_lead():
     """添加线索"""
     if request.method == 'POST':
@@ -607,7 +607,7 @@ def add_lead():
 
 @leads_bp.route('/check-phone', methods=['POST'])
 @login_required
-@sales_required
+@sales_or_admin_required
 def check_phone():
     """检查手机号是否重复"""
     data = request.get_json()
@@ -630,7 +630,7 @@ def check_phone():
 
 @leads_bp.route('/check-wechat', methods=['POST'])
 @login_required
-@sales_required
+@sales_or_admin_required
 def check_wechat():
     """检查家长微信号是否重复"""
     data = request.get_json()
