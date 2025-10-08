@@ -997,7 +997,7 @@ def edit_lead(lead_id):
 
 @leads_bp.route('/<int:lead_id>/detail')
 @login_required
-@sales_required
+@sales_or_admin_required
 def lead_detail(lead_id):
     """线索详情"""
     lead = Lead.query.get_or_404(lead_id)
@@ -1250,7 +1250,7 @@ def delete_payment(payment_id):
 
 @leads_bp.route('/update_contract_amount', methods=['POST'])
 @login_required
-@sales_required
+@sales_or_admin_required
 def update_contract_amount():
     """更新合同金额"""
     try:
