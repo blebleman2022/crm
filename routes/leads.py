@@ -802,11 +802,6 @@ def edit_lead(lead_id):
             flash(f'{", ".join(missing_fields)}为必填项', 'error')
             return render_template('leads/edit.html', lead=lead, sales_users=get_sales_users(), is_basic_info_locked=is_basic_info_locked, is_field_locked=is_field_locked)
 
-        # 验证服务类型
-        if not service_types:
-            flash('请至少选择一种服务类型', 'error')
-            return render_template('leads/edit.html', lead=lead, sales_users=get_sales_users(), is_basic_info_locked=is_basic_info_locked, is_field_locked=is_field_locked)
-
         # 验证竞赛辅导和奖项等级的联动
         if 'competition' in service_types:
             if not competition_award_level:
