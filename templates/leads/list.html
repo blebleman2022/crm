@@ -290,6 +290,13 @@ let currentConvertStudentName = null;
 
 // 转换为客户 - 显示班主任选择模态框
 function convertToCustomer(leadId, studentName) {
+    // 权限检查：普通销售没有转客户权限
+    const currentUserRole = '{{ current_user.role }}';
+    if (currentUserRole === 'salesperson') {
+        alert('您没有权限操作转客户功能，请联系销售管理');
+        return;
+    }
+
     currentConvertLeadId = leadId;
     currentConvertStudentName = studentName;
     document.getElementById('convertToCustomerModal').classList.remove('hidden');
