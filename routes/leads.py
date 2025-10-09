@@ -1056,17 +1056,21 @@ def lead_api(lead_id):
 @login_required
 @sales_or_admin_required
 def convert_to_customer(lead_id):
-    """将线索转换为客户 - 仅销售管理和管理员可操作"""
-    # 检查权限：销售角色不能操作转客户
-    if current_user.is_salesperson():
-        return jsonify({'success': False, 'message': '您没有权限操作转客户功能'})
-
+    """将线索转换为客户 - 销售管理和管理员可操作"""
     lead = Lead.query.get_or_404(lead_id)
 
-    #
-    # 权限控制：销售管理不能对他人负责的线索执行“转客户”
-    if current_user.is_sales_manager() and lead.sales_user_id != current_user.id:
-        return jsonify({'success': False, 'message': '您不能操作其他销售/销售管理负责的线索'})
+    # 权限控制：
+    # - 管理员：可以为所有线索转客户
+    # - 销售管理：可以为所有销售角色（普通销售和销售管理）负责的线索转客户
+    # - 普通销售：没有转客户权限
+    if current_user.is_salesperson():
+        return jsonify({'success': False, 'message': '您没有权限操作转客户功能，请联系销售管理'})
+    
+    # 销售管理只能为销售角色负责的线索转客户（不能为管理员、班主任等其他角色负责的线索转客户）
+    if current_user.is_sales_manager():
+        lead_owner = User.query.get(lead.sales_user_id)
+        if not lead_owner or not lead_owner.is_sales():
+            return jsonify({'success': False, 'message': '您只能为销售角色负责的线索转客户'})
 
     # 检查线索是否已经是次笔支付或全款支付阶段
     if lead.stage not in ['次笔支付', '全款支付']:
