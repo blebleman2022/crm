@@ -692,13 +692,10 @@ def edit_lead(lead_id):
     """编辑线索"""
     lead = Lead.query.get_or_404(lead_id)
 
-    # 
-    if request.method == 'POST' and current_user.is_sales() and lead.sales_user_id != current_user.id and not current_user.is_admin():
-        flash('您不能更改其他销售或销售管理角色负责的线索信息', 'error')
-
-
-
-        return redirect(url_for('leads.edit_lead', lead_id=lead.id))
+    # 权限检查：销售角色只能查看和编辑自己负责的线索
+    if current_user.is_sales() and lead.sales_user_id != current_user.id and not current_user.is_admin():
+        flash('您只能查看和编辑自己负责的线索', 'error')
+        return redirect(url_for('leads.list_leads'))
 
     # 阶段映射
     stage_mapping = {
