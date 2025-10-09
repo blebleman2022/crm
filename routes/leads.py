@@ -1159,10 +1159,7 @@ def convert_to_customer(lead_id):
 @login_required
 @sales_or_admin_required
 def add_payment():
-    """添加付款记录 - 仅销售管理和管理员可操作"""
-    # 检查权限：销售角色不能操作付款管理
-    if current_user.is_salesperson():
-        return jsonify({'success': False, 'message': '您没有权限操作付款管理'})
+    """添加付款记录 - 销售角色可操作自己负责的线索"""
 
     try:
         lead_id = request.form.get('lead_id', type=int)
@@ -1178,9 +1175,10 @@ def add_payment():
         lead = Lead.query.get(lead_id)
         if not lead:
             return jsonify({'success': False, 'message': '线索不存在'})
-        # 权限控制：销售管理不能为他人负责的线索操作付款
-        if current_user.is_sales_manager() and lead.sales_user_id != current_user.id:
-            return jsonify({'success': False, 'message': '您不能为他人负责的线索操作付款'})
+
+        # 权限控制：销售角色只能为自己负责的线索操作付款
+        if current_user.is_sales() and lead.sales_user_id != current_user.id:
+            return jsonify({'success': False, 'message': '您只能为自己负责的线索操作付款'})
 
         # 解析付款日期
         try:
@@ -1221,10 +1219,7 @@ def add_payment():
 @login_required
 @sales_or_admin_required
 def delete_payment(payment_id):
-    """删除付款记录 - 仅销售管理和管理员可操作"""
-    # 检查权限：销售角色不能操作付款管理
-    if current_user.is_salesperson():
-        return jsonify({'success': False, 'message': '您没有权限操作付款管理'})
+    """删除付款记录 - 销售角色可操作自己负责的线索"""
 
     try:
         payment = Payment.query.get(payment_id)
@@ -1233,9 +1228,10 @@ def delete_payment(payment_id):
 
         # 获取关联的线索
         lead = payment.lead
-        #
-        if current_user.is_sales_manager() and lead and lead.sales_user_id != current_user.id:
-            return jsonify({'success': False, 'message': '您不能为他人负责的线索操作付款'})
+
+        # 权限控制：销售角色只能为自己负责的线索操作付款
+        if current_user.is_sales() and lead and lead.sales_user_id != current_user.id:
+            return jsonify({'success': False, 'message': '您只能为自己负责的线索操作付款'})
 
         db.session.delete(payment)
 
