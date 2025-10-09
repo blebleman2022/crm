@@ -603,7 +603,9 @@ def add_lead():
             db.session.rollback()
             flash(f'创建线索失败: {str(e)}', 'error')
 
-    return render_template('leads/add.html', sales_users=get_available_sales_users_for_assignment(current_user))
+    return render_template('leads/add.html',
+                         sales_users=get_available_sales_users_for_assignment(current_user),
+                         current_user_group=current_user.group_name)
 
 @leads_bp.route('/check-phone', methods=['POST'])
 @login_required
@@ -802,8 +804,8 @@ def edit_lead(lead_id):
             flash(f'{", ".join(missing_fields)}为必填项', 'error')
             return render_template('leads/edit.html', lead=lead, sales_users=get_sales_users(), is_basic_info_locked=is_basic_info_locked, is_field_locked=is_field_locked)
 
-        # 验证竞赛辅导和奖项等级的联动
-        if 'competition' in service_types:
+        # 验证竞赛辅导和奖项等级的联动（仅当选择了竞赛辅导时）
+        if service_types and 'competition' in service_types:
             if not competition_award_level:
                 flash('选择了竞赛辅导服务，必须设置目标奖项等级', 'error')
                 return render_template('leads/edit.html', lead=lead, sales_users=get_sales_users(), is_basic_info_locked=is_basic_info_locked, is_field_locked=is_field_locked)

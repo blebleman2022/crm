@@ -180,7 +180,7 @@
                 <div>
                     <p class="text-sm text-gray-700">
                         显示第 <span class="font-medium">{{ (leads.page - 1) * 20 + 1 }}</span> 到
-                        <span class="font-medium">{{ min(leads.page * 20, leads.total) }}</span> 条，
+                        <span class="font-medium">{{ [leads.page * 20, leads.total]|min }}</span> 条，
                         共 <span class="font-medium">{{ leads.total }}</span> 条记录
                     </p>
                 </div>
