@@ -98,7 +98,7 @@
                                 {% if customer.is_priority %}
                                     <span class="material-symbols-outlined text-yellow-500 text-lg" title="重点关注客户">star</span>
                                 {% endif %}
-                                <button onclick="showStudentDetailModal({{ customer.id }}, true)" class="text-blue-600 hover:text-blue-800 cursor-pointer">
+                                <button onclick="showStudentDetailModal({{ customer.id }}, true, {% if current_user.is_teacher() %}true{% else %}false{% endif %})" class="text-blue-600 hover:text-blue-800 cursor-pointer">
                                     {{ customer.lead.student_name }}
                                 </button>
                                 {% if customer.lead.additional_requirements %}

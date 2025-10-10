@@ -32,6 +32,32 @@
     <div class="bg-white p-3 lg:p-4 rounded-lg shadow-sm mobile-filters">
         <!-- 搜索和筛选（桌面端一行，移动端自动换行） -->
         <form method="GET" class="space-y-3 lg:space-y-4 mb-4">
+            {% if current_user.is_salesperson() %}
+            <!-- 销售角色：只显示搜索和阶段筛选 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                    <label class="sr-only" for="search">搜索</label>
+                    <div class="relative">
+                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                            <span class="material-symbols-outlined text-gray-400">search</span>
+                        </div>
+                        <input class="block w-full rounded-md border-0 py-2.5 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"
+                               id="search" name="search" placeholder="搜索学员姓名或家长微信名" type="search" value="{{ search }}"/>
+                    </div>
+                </div>
+
+                <div>
+                    <select class="block w-full rounded-md border-0 py-2.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"
+                            name="stage">
+                        <option value="">所有阶段</option>
+                        {% for stage in stages %}
+                            <option value="{{ stage }}" {% if stage_filter == stage %}selected{% endif %}>{{ stage }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            {% else %}
+            <!-- 销售管理/管理员：显示所有筛选 -->
             <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
                 <div class="md:col-span-2">
                     <label class="sr-only" for="search">搜索</label>
@@ -74,6 +100,7 @@
                     </select>
                 </div>
             </div>
+            {% endif %}
 
             <!-- 第二行：时间段筛选 -->
             <div class="flex items-center gap-3 bg-gray-50 p-3 rounded-md">
