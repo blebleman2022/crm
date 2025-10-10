@@ -82,6 +82,20 @@ def create_app(config_name=None):
 
         return dict(get_logo_url=get_logo_url)
 
+    # 添加千位分隔符过滤器
+    @app.template_filter('format_currency')
+    def format_currency(value):
+        """格式化货币，添加千位分隔符"""
+        if value is None:
+            return '-'
+        try:
+            # 转换为浮点数
+            num = float(value)
+            # 格式化为带千位分隔符的字符串，保留2位小数
+            return '{:,.2f}'.format(num)
+        except (ValueError, TypeError):
+            return value
+
     # 健康检查端点
     @app.route('/health')
     def health_check():

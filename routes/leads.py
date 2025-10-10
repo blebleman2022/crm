@@ -1002,6 +1002,44 @@ def lead_detail(lead_id):
     lead = Lead.query.get_or_404(lead_id)
     return render_template('leads/detail.html', lead=lead)
 
+@leads_bp.route('/<int:lead_id>/payments')
+@login_required
+@sales_required
+def lead_payments(lead_id):
+    """获取线索的付款明细 - 用于弹窗显示"""
+    lead = Lead.query.get_or_404(lead_id)
+
+    # 权限检查：销售人员只能查看自己负责的线索，销售管理可以查看所有
+    if current_user.is_salesperson() and lead.sales_user_id != current_user.id:
+        return jsonify({'success': False, 'message': '您没有权限查看此线索的付款明细'}), 403
+
+    # 获取付款记录
+    payments = Payment.query.filter_by(lead_id=lead.id).order_by(Payment.payment_date.asc()).all()
+    total_paid = sum(payment.amount for payment in payments) if payments else 0
+
+    # 构建付款记录列表
+    payment_list = []
+    for payment in payments:
+        payment_list.append({
+            'id': payment.id,
+            'payment_date': payment.payment_date.strftime('%Y-%m-%d'),
+            'amount': float(payment.amount),
+            'payment_notes': payment.payment_notes or '-'
+        })
+
+    return jsonify({
+        'success': True,
+        'lead': {
+            'id': lead.id,
+            'student_name': lead.student_name or '未填写',
+            'parent_wechat_display_name': lead.parent_wechat_display_name,
+            'contract_amount': float(lead.contract_amount) if lead.contract_amount else 0,
+            'total_paid': float(total_paid),
+            'unpaid': float((lead.contract_amount or 0) - total_paid)
+        },
+        'payments': payment_list
+    })
+
 @leads_bp.route('/<int:lead_id>/api')
 @login_required
 @sales_or_admin_required
