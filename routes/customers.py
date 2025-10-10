@@ -109,10 +109,11 @@ def list_customers():
         except ValueError:
             pass
 
-    # 分页
-    customers = query.order_by(Customer.created_at.desc()).paginate(
-        page=page, per_page=20, error_out=False
-    )
+    # 分页 - 按次笔付款时间倒序排列（NULL值排最后），相同时间按客户创建时间倒序
+    customers = query.order_by(
+        Lead.second_payment_at.desc().nullslast(),
+        Customer.created_at.desc()
+    ).paginate(page=page, per_page=20, error_out=False)
 
     # 获取所有销售用户用于筛选
     sales_users = User.query.filter(
