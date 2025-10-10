@@ -56,10 +56,11 @@ def list_customers():
         )
     elif current_user.is_sales_manager():
         # 销售管理可以看到所有销售和销售管理负责的客户（参照线索列表逻辑）
-        allowed_ids = db.session.query(User.id).filter(
+        from sqlalchemy import select
+        allowed_ids = select(User.id).filter(
             User.role.in_(['sales_manager', 'salesperson']),
             User.status == True
-        ).subquery()
+        ).scalar_subquery()
         query = query.filter(Lead.sales_user_id.in_(allowed_ids))
     # 管理员可以看到所有客户，不需要额外过滤
 
