@@ -1,0 +1,186 @@
+{% extends "leads/base.html" %}
+
+{% block title %}线索管理 - EduConnect CRM{% endblock %}
+{% block page_title %}线索管理{% endblock %}
+
+{% block content %}
+<div class="max-w-full mx-auto px-2 lg:px-4">
+    <!-- 说明文字 -->
+    <div class="mb-4">
+        <p class="text-sm text-gray-600">
+            <span class="material-symbols-outlined text-sm align-middle">info</span>
+            此页面仅显示<span class="font-semibold text-yellow-700">首笔支付阶段</span>的线索，供班主任了解潜在客户情况。
+        </p>
+    </div>
+
+    <!-- 筛选区域 -->
+    <div class="bg-white p-3 lg:p-4 rounded-lg shadow-sm mb-4">
+        <form method="GET" class="space-y-3">
+            <!-- 第一行：搜索框 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                    <label class="sr-only" for="search">搜索</label>
+                    <div class="relative">
+                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                            <span class="material-symbols-outlined text-gray-400">search</span>
+                        </div>
+                        <input class="block w-full rounded-md border-0 py-2.5 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"
+                               id="search" name="search" placeholder="搜索学员姓名或家长微信名" type="search" value="{{ search }}"/>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 第二行：时间筛选 -->
+            <div class="flex items-center gap-3 bg-gray-50 p-3 rounded-md flex-wrap">
+                <div class="flex items-center gap-2">
+                    <label class="text-sm font-medium text-gray-700">首笔支付时间:</label>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <label for="start_date" class="text-sm font-medium text-gray-700">开始日期:</label>
+                    <input type="date"
+                           id="start_date"
+                           name="start_date"
+                           value="{{ start_date }}"
+                           class="rounded-md border-0 py-1.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"/>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <label for="end_date" class="text-sm font-medium text-gray-700">结束日期:</label>
+                    <input type="date"
+                           id="end_date"
+                           name="end_date"
+                           value="{{ end_date }}"
+                           class="rounded-md border-0 py-1.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"/>
+                </div>
+
+                <button type="submit"
+                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    <span class="material-symbols-outlined mr-1 text-sm">search</span>
+                    查询
+                </button>
+
+                {% if search or start_date or end_date %}
+                <a href="{{ url_for('delivery.leads_list') }}"
+                   class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                    <span class="material-symbols-outlined mr-1 text-sm">clear</span>
+                    清除筛选
+                </a>
+                {% endif %}
+            </div>
+        </form>
+
+        <!-- 线索列表 -->
+        <div class="mt-4">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">学员姓名</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">家长微信名</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">年级</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">责任销售</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">最后更新</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 bg-white">
+                    {% for lead in leads.items %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="whitespace-nowrap px-3 py-3 text-sm font-medium text-gray-900">
+                            <div class="flex items-center space-x-2">
+                                <span>{{ lead.student_name or '-' }}</span>
+                                {% if lead.additional_requirements %}
+                                    <span class="material-symbols-outlined text-red-600 text-sm" title="有额外要求">add_circle</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
+                            {% if lead.parent_wechat_display_name %}
+                                <span class="text-sm">{{ lead.parent_wechat_display_name }}</span>
+                            {% else %}
+                                <span class="text-gray-400">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
+                            {% if lead.grade %}
+                                <span class="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                                    {{ lead.grade }}
+                                </span>
+                            {% else %}
+                                <span class="text-gray-400">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">{{ lead.sales_user.username }}</td>
+                        <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">{{ lead.updated_at.strftime('%Y-%m-%d') }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="px-3 py-8 text-center text-sm text-gray-500">
+                            <div class="flex flex-col items-center">
+                                <span class="material-symbols-outlined text-4xl text-gray-300 mb-2">inbox</span>
+                                <p>暂无首笔支付阶段的线索</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 分页 -->
+        {% if leads.pages > 1 %}
+        <div class="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-4">
+            <div class="flex flex-1 justify-between sm:hidden">
+                {% if leads.has_prev %}
+                    <a href="{{ url_for('delivery.leads_list', page=leads.prev_num, search=search, start_date=start_date, end_date=end_date) }}" 
+                       class="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">上一页</a>
+                {% endif %}
+                {% if leads.has_next %}
+                    <a href="{{ url_for('delivery.leads_list', page=leads.next_num, search=search, start_date=start_date, end_date=end_date) }}" 
+                       class="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">下一页</a>
+                {% endif %}
+            </div>
+            <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                <div>
+                    <p class="text-sm text-gray-700">
+                        显示第 <span class="font-medium">{{ (leads.page - 1) * 20 + 1 }}</span> 到 
+                        <span class="font-medium">{{ min(leads.page * 20, leads.total) }}</span> 条， 
+                        共 <span class="font-medium">{{ leads.total }}</span> 条记录
+                    </p>
+                </div>
+                <div>
+                    <nav class="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                        {% if leads.has_prev %}
+                            <a href="{{ url_for('delivery.leads_list', page=leads.prev_num, search=search, start_date=start_date, end_date=end_date) }}" 
+                               class="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0">
+                                <span class="sr-only">上一页</span>
+                                <span class="material-symbols-outlined">chevron_left</span>
+                            </a>
+                        {% endif %}
+                        
+                        {% for page_num in range(1, leads.pages + 1) %}
+                            {% if page_num == leads.page %}
+                                <span class="relative z-10 inline-flex items-center bg-blue-600 px-4 py-2 text-sm font-semibold text-white focus:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">{{ page_num }}</span>
+                            {% elif page_num == 1 or page_num == leads.pages or (page_num >= leads.page - 2 and page_num <= leads.page + 2) %}
+                                <a href="{{ url_for('delivery.leads_list', page=page_num, search=search, start_date=start_date, end_date=end_date) }}" 
+                                   class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0">{{ page_num }}</a>
+                            {% elif page_num == leads.page - 3 or page_num == leads.page + 3 %}
+                                <span class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-700 ring-1 ring-inset ring-gray-300 focus:outline-offset-0">...</span>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if leads.has_next %}
+                            <a href="{{ url_for('delivery.leads_list', page=leads.next_num, search=search, start_date=start_date, end_date=end_date) }}" 
+                               class="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0">
+                                <span class="sr-only">下一页</span>
+                                <span class="material-symbols-outlined">chevron_right</span>
+                            </a>
+                        {% endif %}
+                    </nav>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

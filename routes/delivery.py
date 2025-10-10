@@ -1,8 +1,9 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from functools import wraps
-from models import User, Customer, Lead, TutoringDelivery, CompetitionDelivery, db
+from models import User, Customer, Lead, TutoringDelivery, CompetitionDelivery, Payment, db
 from datetime import datetime, date
+from sqlalchemy import and_, func
 
 delivery_bp = Blueprint('delivery', __name__)
 
@@ -65,6 +66,72 @@ def dashboard():
                          competition_completed=competition_completed,
                          recent_tutoring=recent_tutoring,
                          recent_competition=recent_competition)
+
+@delivery_bp.route('/leads')
+@login_required
+@teacher_required
+def leads_list():
+    """班主任线索管理 - 只显示首笔支付阶段的线索"""
+    page = request.args.get('page', 1, type=int)
+    search = request.args.get('search', '', type=str)
+    start_date = request.args.get('start_date', '', type=str)
+    end_date = request.args.get('end_date', '', type=str)
+
+    # 基础查询：只显示首笔支付阶段的线索
+    query = Lead.query.filter(Lead.stage == '首笔支付')
+
+    # 搜索过滤（学员姓名或家长微信名）
+    if search:
+        query = query.filter(
+            db.or_(
+                Lead.student_name.contains(search),
+                Lead.parent_wechat_display_name.contains(search)
+            )
+        )
+
+    # 首笔支付时间筛选
+    if start_date and end_date:
+        try:
+            start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()
+
+            # 查询首笔支付时间在指定范围内的线索
+            # 首笔支付时间 = 第一笔付款的 payment_date
+            lead_ids_in_range = db.session.query(Payment.lead_id).filter(
+                and_(
+                    func.date(Payment.payment_date) >= start_dt,
+                    func.date(Payment.payment_date) <= end_dt
+                )
+            ).group_by(Payment.lead_id).having(
+                func.min(Payment.payment_date) >= start_dt
+            ).all()
+
+            lead_ids = [lid[0] for lid in lead_ids_in_range]
+            if lead_ids:
+                query = query.filter(Lead.id.in_(lead_ids))
+            else:
+                # 如果没有符合条件的线索，返回空结果
+                query = query.filter(Lead.id == -1)
+        except ValueError:
+            pass
+
+    # 分页 - 按更新时间倒序
+    leads = query.order_by(Lead.updated_at.desc()).paginate(
+        page=page, per_page=20, error_out=False
+    )
+
+    # 获取所有销售用户（用于显示）
+    sales_users = User.query.filter(
+        User.role.in_(['sales_manager', 'salesperson']),
+        User.status == True
+    ).order_by(User.username).all()
+
+    return render_template('delivery/leads_list.html',
+                         leads=leads,
+                         search=search,
+                         start_date=start_date,
+                         end_date=end_date,
+                         sales_users=sales_users)
 
 @delivery_bp.route('/tutoring')
 @login_required

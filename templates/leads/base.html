@@ -59,7 +59,15 @@
                             仪表板
                         </a>
                     </li>
-                    {% if current_user.role != 'teacher' %}
+                    {% if current_user.role == 'teacher' %}
+                    <li>
+                        <a class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium {% if request.endpoint == 'delivery.leads_list' %}text-white bg-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}"
+                           href="{{ url_for('delivery.leads_list') }}">
+                            <span class="material-symbols-outlined text-lg {% if request.endpoint == 'delivery.leads_list' %}text-white{% else %}text-gray-500{% endif %}">campaign</span>
+                            线索管理
+                        </a>
+                    </li>
+                    {% else %}
                     <li>
                         <a class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium {% if request.endpoint in ['leads.list_leads', 'leads.add_lead', 'leads.edit_lead'] %}text-white bg-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}"
                            href="{{ url_for('leads.list_leads') }}">
