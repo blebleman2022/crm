@@ -1053,9 +1053,8 @@ def lead_payments(lead_id):
 
 @leads_bp.route('/<int:lead_id>/api')
 @login_required
-@sales_or_admin_required
 def lead_api(lead_id):
-    """线索API详情 - 用于弹窗显示"""
+    """线索API详情 - 用于弹窗显示（销售、管理员、班主任均可查看）"""
     lead = Lead.query.get_or_404(lead_id)
 
     # 计算已付款总额
