@@ -627,14 +627,17 @@ function createAppointmentElement(appointment) {
         'bg-blue-500 text-white hover:bg-blue-600'
     }`;
 
-    // 仅显示地点（浦东/浦西）
+    // 显示格式：地点-销售-来源
+    const location = appointment.location || '未知';
+    const sales = appointment.sales || '未知';
+    const source = appointment.source || '未知';
     appointmentDiv.innerHTML = `
         <div class="text-xs font-semibold text-center">
-            ${appointment.location || '未知'}
+            ${location}-${sales}-${source}
         </div>
     `;
 
-    appointmentDiv.title = `${appointment.time} - ${appointment.client} (${appointment.location || '未知地点'})`;
+    appointmentDiv.title = `${appointment.time} - ${appointment.client}\n地点: ${location}\n销售: ${sales}\n来源: ${source}`;
 
     // 悬浮效果
     appointmentDiv.addEventListener('mouseenter', function() {
@@ -759,7 +762,9 @@ function findAppointmentsForTimeSlot(dayOffset, hour, minute) {
             leadId: {{ lead.id }},
             time: '{{ lead.meeting_at.strftime('%Y-%m-%d %H:%M') }}',
             client: '{{ lead.parent_wechat_display_name or '未知客户' }}',
-            location: '{{ lead.meeting_location or '' }}'
+            location: '{{ lead.meeting_location or '' }}',
+            sales: '{{ lead.sales_user.username if lead.sales_user else '未知' }}',
+            source: '{{ lead.source or '未知' }}'
         },
         {% endif %}
         {% endfor %}
@@ -798,7 +803,9 @@ function findAppointmentsForSlot(dayOffset, hour) {
             leadId: {{ lead.id }},
             time: '{{ lead.meeting_at.strftime('%Y-%m-%d %H:%M') }}',
             client: '{{ lead.parent_wechat_display_name or '未知客户' }}',
-            location: '{{ lead.meeting_location or '' }}'
+            location: '{{ lead.meeting_location or '' }}',
+            sales: '{{ lead.sales_user.username if lead.sales_user else '未知' }}',
+            source: '{{ lead.source or '未知' }}'
         },
         {% endif %}
         {% endfor %}

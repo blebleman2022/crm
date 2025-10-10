@@ -190,7 +190,19 @@
                             <div class="flex items-center justify-end gap-2">
                                 <button onclick="editLead({{ lead.id }}, {{ lead.sales_user_id }})"
                                         class="text-blue-600 hover:text-blue-800 bg-transparent border-none cursor-pointer">编辑</button>
-                                {% if lead.stage in ['次笔支付', '全款支付'] and not lead.customer %}
+                                {% set can_convert = false %}
+                                {% if not lead.customer %}
+                                    {% if lead.stage in ['次笔支付', '全款支付'] %}
+                                        {% set can_convert = true %}
+                                    {% elif lead.stage == '首笔支付' %}
+                                        {# 计算首笔支付金额 #}
+                                        {% set first_payment_amount = lead.payments|selectattr('payment_date', 'ne', none)|sort(attribute='payment_date')|first %}
+                                        {% if first_payment_amount and first_payment_amount.amount > 3000 %}
+                                            {% set can_convert = true %}
+                                        {% endif %}
+                                    {% endif %}
+                                {% endif %}
+                                {% if can_convert %}
                                     <button onclick="convertToCustomer({{ lead.id }}, '{{ lead.student_name }}')"
                                             class="text-green-600 hover:text-green-800">转客户</button>
                                 {% endif %}
