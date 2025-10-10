@@ -126,12 +126,22 @@ def leads_list():
         User.status == True
     ).order_by(User.username).all()
 
+    # 批量查询定金支付日期（首笔付款日期）
+    lead_ids = [lead.id for lead in leads.items]
+    first_payment_dates = {}
+    if lead_ids:
+        for lead_id in lead_ids:
+            payments = Payment.query.filter_by(lead_id=lead_id).order_by(Payment.payment_date.asc()).limit(1).all()
+            if payments and payments[0].payment_date:
+                first_payment_dates[lead_id] = payments[0].payment_date
+
     return render_template('delivery/leads_list.html',
                          leads=leads,
                          search=search,
                          start_date=start_date,
                          end_date=end_date,
-                         sales_users=sales_users)
+                         sales_users=sales_users,
+                         first_payment_dates=first_payment_dates)
 
 @delivery_bp.route('/tutoring')
 @login_required

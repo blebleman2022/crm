@@ -32,7 +32,7 @@
     <div class="bg-white p-3 lg:p-4 rounded-lg shadow-sm mobile-filters">
         <!-- 搜索和筛选（桌面端一行，移动端自动换行） -->
         <form method="GET" class="space-y-3 lg:space-y-4 mb-4">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
                 <div class="md:col-span-2">
                     <label class="sr-only" for="search">搜索</label>
                     <div class="relative">
@@ -60,6 +60,16 @@
                         <option value="">所有销售</option>
                         {% for sales in sales_users %}
                             <option value="{{ sales.id }}" {% if sales_filter == sales.id|string %}selected{% endif %}>{{ sales.username }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <select class="block w-full rounded-md border-0 py-2.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"
+                            name="lead_source">
+                        <option value="">所有来源</option>
+                        {% for source in lead_sources %}
+                            <option value="{{ source }}" {% if lead_source_filter == source %}selected{% endif %}>{{ source }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -211,11 +221,11 @@
         <div class="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-4">
             <div class="flex flex-1 justify-between sm:hidden">
                 {% if leads.has_prev %}
-                    <a href="{{ url_for('leads.list_leads', page=leads.prev_num, search=search, stage=stage_filter, sales=sales_filter) }}" 
+                    <a href="{{ url_for('leads.list_leads', page=leads.prev_num, search=search, stage=stage_filter, sales=sales_filter, lead_source=lead_source_filter) }}"
                        class="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">上一页</a>
                 {% endif %}
                 {% if leads.has_next %}
-                    <a href="{{ url_for('leads.list_leads', page=leads.next_num, search=search, stage=stage_filter, sales=sales_filter) }}" 
+                    <a href="{{ url_for('leads.list_leads', page=leads.next_num, search=search, stage=stage_filter, sales=sales_filter, lead_source=lead_source_filter) }}"
                        class="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">下一页</a>
                 {% endif %}
             </div>
@@ -230,7 +240,7 @@
                 <div>
                     <nav class="isolate inline-flex -space-x-px rounded-md shadow-sm">
                         {% if leads.has_prev %}
-                            <a href="{{ url_for('leads.list_leads', page=leads.prev_num, search=search, stage=stage_filter, sales=sales_filter) }}" 
+                            <a href="{{ url_for('leads.list_leads', page=leads.prev_num, search=search, stage=stage_filter, sales=sales_filter, lead_source=lead_source_filter) }}"
                                class="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
                                 <span class="material-symbols-outlined h-5 w-5">chevron_left</span>
                             </a>
@@ -239,7 +249,7 @@
                         {% for page_num in leads.iter_pages() %}
                             {% if page_num %}
                                 {% if page_num != leads.page %}
-                                    <a href="{{ url_for('leads.list_leads', page=page_num, search=search, stage=stage_filter, sales=sales_filter) }}" 
+                                    <a href="{{ url_for('leads.list_leads', page=page_num, search=search, stage=stage_filter, sales=sales_filter, lead_source=lead_source_filter) }}"
                                        class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">{{ page_num }}</a>
                                 {% else %}
                                     <span class="relative z-10 inline-flex items-center bg-blue-600 px-4 py-2 text-sm font-semibold text-white">{{ page_num }}</span>
@@ -250,7 +260,7 @@
                         {% endfor %}
                         
                         {% if leads.has_next %}
-                            <a href="{{ url_for('leads.list_leads', page=leads.next_num, search=search, stage=stage_filter, sales=sales_filter) }}" 
+                            <a href="{{ url_for('leads.list_leads', page=leads.next_num, search=search, stage=stage_filter, sales=sales_filter, lead_source=lead_source_filter) }}"
                                class="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
                                 <span class="material-symbols-outlined h-5 w-5">chevron_right</span>
                             </a>

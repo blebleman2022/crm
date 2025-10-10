@@ -5,14 +5,6 @@
 
 {% block content %}
 <div class="max-w-full mx-auto px-2 lg:px-4">
-    <!-- 说明文字 -->
-    <div class="mb-4">
-        <p class="text-sm text-gray-600">
-            <span class="material-symbols-outlined text-sm align-middle">info</span>
-            此页面仅显示<span class="font-semibold text-yellow-700">首笔支付阶段</span>的线索，供班主任了解潜在客户情况。
-        </p>
-    </div>
-
     <!-- 筛选区域 -->
     <div class="bg-white p-3 lg:p-4 rounded-lg shadow-sm mb-4">
         <form method="GET" class="space-y-3">
@@ -33,7 +25,7 @@
             <!-- 第二行：时间筛选 -->
             <div class="flex items-center gap-3 bg-gray-50 p-3 rounded-md flex-wrap">
                 <div class="flex items-center gap-2">
-                    <label class="text-sm font-medium text-gray-700">首笔支付时间:</label>
+                    <label class="text-sm font-medium text-gray-700">定金支付时间:</label>
                 </div>
 
                 <div class="flex items-center gap-2">
@@ -79,7 +71,7 @@
                         <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">家长微信名</th>
                         <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">年级</th>
                         <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">责任销售</th>
-                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">最后更新</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">定金支付</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200 bg-white">
@@ -87,7 +79,9 @@
                     <tr class="hover:bg-gray-50">
                         <td class="whitespace-nowrap px-3 py-3 text-sm font-medium text-gray-900">
                             <div class="flex items-center space-x-2">
-                                <span>{{ lead.student_name or '-' }}</span>
+                                <button onclick="showStudentDetailModal({{ lead.id }}, false)" class="text-blue-600 hover:text-blue-800 cursor-pointer">
+                                    {{ lead.student_name or '-' }}
+                                </button>
                                 {% if lead.additional_requirements %}
                                     <span class="material-symbols-outlined text-red-600 text-sm" title="有额外要求">add_circle</span>
                                 {% endif %}
@@ -110,7 +104,13 @@
                             {% endif %}
                         </td>
                         <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">{{ lead.sales_user.username }}</td>
-                        <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">{{ lead.updated_at.strftime('%Y-%m-%d') }}</td>
+                        <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
+                            {% if first_payment_dates.get(lead.id) %}
+                                {{ first_payment_dates[lead.id].strftime('%Y-%m-%d') }}
+                            {% else %}
+                                <span class="text-gray-400">-</span>
+                            {% endif %}
+                        </td>
                     </tr>
                     {% else %}
                     <tr>
@@ -182,5 +182,8 @@
         {% endif %}
     </div>
 </div>
+
+<!-- 包含学员详情弹窗组件 -->
+{% include 'components/student_detail_modal.html' %}
 {% endblock %}
 

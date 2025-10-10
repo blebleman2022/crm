@@ -255,6 +255,7 @@ def list_leads():
     search = request.args.get('search', '', type=str)
     stage_filter = request.args.get('stage', '', type=str)
     sales_filter = request.args.get('sales', '', type=str)
+    lead_source_filter = request.args.get('lead_source', '', type=str)
 
     # 时间段筛选参数
     date_type = request.args.get('date_type', '', type=str)  # first_payment, second_payment, full_payment
@@ -305,6 +306,10 @@ def list_leads():
     # 销售过滤
     if sales_filter:
         query = query.filter_by(sales_user_id=sales_filter)
+
+    # 线索来源过滤
+    if lead_source_filter:
+        query = query.filter_by(lead_source=lead_source_filter)
 
     # 时间段筛选
     if date_type and start_date and end_date:
@@ -402,10 +407,14 @@ def list_leads():
     
     # 获取所有销售人员用于筛选
     sales_users = User.query.filter(User.role.in_(['sales_manager', 'salesperson']), User.status == True).all()
-    
+
     # 线索阶段选项
     stages = ['获取联系方式', '线下见面', '首笔支付', '次笔支付', '全款支付']
-    
+
+    # 获取所有线索来源（去重）
+    lead_sources = db.session.query(Lead.lead_source).filter(Lead.lead_source.isnot(None)).distinct().order_by(Lead.lead_source).all()
+    lead_sources = [source[0] for source in lead_sources]
+
     # 确定筛选类型（用于页面标题显示）
     filter_type = None
     filter_period = None
@@ -431,8 +440,10 @@ def list_leads():
                          search=search,
                          stage_filter=stage_filter,
                          sales_filter=sales_filter,
+                         lead_source_filter=lead_source_filter,
                          sales_users=sales_users,
                          stages=stages,
+                         lead_sources=lead_sources,
                          filter_type=filter_type,
                          filter_period=filter_period,
                          teachers=teachers,
@@ -1110,24 +1121,9 @@ def convert_to_customer(lead_id):
         if not lead_owner or not lead_owner.is_sales():
             return jsonify({'success': False, 'message': '您只能为销售角色负责的线索转客户'})
 
-    # 检查线索阶段和支付金额
-    # 允许转客户的条件：
-    # 1. 次笔支付或全款支付阶段
-    # 2. 首笔支付阶段且首笔支付金额 > 3000
-    can_convert = False
-
-    if lead.stage in ['次笔支付', '全款支付']:
-        can_convert = True
-    elif lead.stage == '首笔支付':
-        # 检查首笔支付金额
-        payments_with_date = [p for p in lead.payments if p.payment_date is not None]
-        if payments_with_date:
-            first_payment = sorted(payments_with_date, key=lambda p: p.payment_date)[0]
-            if first_payment.amount > 3000:
-                can_convert = True
-
-    if not can_convert:
-        return jsonify({'success': False, 'message': '只有次笔支付、全款支付阶段，或首笔支付金额超过3000元的线索才能转换为客户'})
+    # 检查线索是否已经是次笔支付或全款支付阶段
+    if lead.stage not in ['次笔支付', '全款支付']:
+        return jsonify({'success': False, 'message': '只有次笔支付或全款支付阶段的线索才能转换为客户'})
 
     # 检查是否已经转换过
     if lead.customer:
