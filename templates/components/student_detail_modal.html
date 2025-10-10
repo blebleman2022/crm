@@ -44,7 +44,7 @@
                                     <td class="px-3 py-2 text-sm text-gray-600 bg-gray-50">家长微信名</td>
                                     <td id="parentWechatDisplayName" class="px-3 py-2 text-sm font-medium text-gray-900">-</td>
                                 </tr>
-                                <tr>
+                                <tr id="contactInfoRow">
                                     <td class="px-3 py-2 text-sm text-gray-600 bg-gray-50">联系方式</td>
                                     <td id="contactInfo" class="px-3 py-2 text-sm font-medium text-gray-900">-</td>
                                 </tr>
@@ -112,26 +112,26 @@
 let currentStudentData = null;
 
 // 显示学员详情弹窗
-function showStudentDetailModal(studentId, isCustomer = false) {
+function showStudentDetailModal(studentId, isCustomer = false, hideContactInfo = false) {
     const modal = document.getElementById('studentDetailModal');
     const loading = document.getElementById('studentDetailLoading');
     const content = document.getElementById('studentDetailContent');
-    
+
     // 显示模态框和加载状态
     modal.classList.remove('hidden');
     loading.classList.remove('hidden');
     content.classList.add('hidden');
-    
+
     // 根据类型选择API端点
     const endpoint = isCustomer ? `/customers/${studentId}/api` : `/leads/${studentId}/api`;
-    
+
     // 获取学员详情数据
     fetch(endpoint)
         .then(response => response.json())
         .then(data => {
             if (data.success) {
                 currentStudentData = data;
-                populateStudentDetail(data, isCustomer);
+                populateStudentDetail(data, isCustomer, hideContactInfo);
                 loading.classList.add('hidden');
                 content.classList.remove('hidden');
             } else {
@@ -146,16 +146,24 @@ function showStudentDetailModal(studentId, isCustomer = false) {
 }
 
 // 填充学员详情数据
-function populateStudentDetail(data, isCustomer) {
+function populateStudentDetail(data, isCustomer, hideContactInfo = false) {
     const studentData = isCustomer ? data.customer : data.lead;
 
     // 基本信息
     document.getElementById('studentName').textContent = studentData.student_name || '-';
     document.getElementById('parentWechatDisplayName').textContent = studentData.parent_wechat_display_name || '-';
-    document.getElementById('contactInfo').textContent = studentData.contact_info || '-';
     document.getElementById('grade').textContent = studentData.grade || '-';
     document.getElementById('school').textContent = studentData.school || '-';
     document.getElementById('district').textContent = studentData.district || '-';
+
+    // 根据参数决定是否显示联系方式
+    const contactInfoRow = document.getElementById('contactInfoRow');
+    if (hideContactInfo) {
+        contactInfoRow.classList.add('hidden');
+    } else {
+        contactInfoRow.classList.remove('hidden');
+        document.getElementById('contactInfo').textContent = studentData.contact_info || '-';
+    }
 
     // 服务内容（线索和客户都显示）
     const serviceContent = document.getElementById('serviceContent');

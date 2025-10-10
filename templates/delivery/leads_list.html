@@ -79,7 +79,7 @@
                     <tr class="hover:bg-gray-50">
                         <td class="whitespace-nowrap px-3 py-3 text-sm font-medium text-gray-900">
                             <div class="flex items-center space-x-2">
-                                <button onclick="showStudentDetailModal({{ lead.id }}, false)" class="text-blue-600 hover:text-blue-800 cursor-pointer">
+                                <button onclick="showStudentDetailModal({{ lead.id }}, false, true)" class="text-blue-600 hover:text-blue-800 cursor-pointer">
                                     {{ lead.student_name or '-' }}
                                 </button>
                                 {% if lead.additional_requirements %}

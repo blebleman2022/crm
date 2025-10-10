@@ -97,13 +97,20 @@ def leads_list():
 
             # 查询首笔支付时间在指定范围内的线索
             # 首笔支付时间 = 第一笔付款的 payment_date
-            lead_ids_in_range = db.session.query(Payment.lead_id).filter(
+            # 使用子查询获取每个线索的首笔付款日期
+            subquery = db.session.query(
+                Payment.lead_id,
+                func.min(Payment.payment_date).label('first_payment_date')
+            ).filter(
+                Payment.payment_date.isnot(None)
+            ).group_by(Payment.lead_id).subquery()
+
+            # 筛选首笔付款日期在范围内的线索
+            lead_ids_in_range = db.session.query(subquery.c.lead_id).filter(
                 and_(
-                    func.date(Payment.payment_date) >= start_dt,
-                    func.date(Payment.payment_date) <= end_dt
+                    func.date(subquery.c.first_payment_date) >= start_dt,
+                    func.date(subquery.c.first_payment_date) <= end_dt
                 )
-            ).group_by(Payment.lead_id).having(
-                func.min(Payment.payment_date) >= start_dt
             ).all()
 
             lead_ids = [lid[0] for lid in lead_ids_in_range]
