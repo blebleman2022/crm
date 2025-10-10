@@ -39,6 +39,10 @@ def list_customers():
     start_date = request.args.get('start_date', '', type=str)
     end_date = request.args.get('end_date', '', type=str)
 
+    # 如果只填了开始日期，结束日期默认为当天
+    if start_date and not end_date:
+        end_date = datetime.now().strftime('%Y-%m-%d')
+
     query = Customer.query.join(Lead).options(
         db.joinedload(Customer.tutoring_delivery),
         db.joinedload(Customer.competition_delivery)
@@ -94,7 +98,7 @@ def list_customers():
         )
 
     # 时间段筛选（按客户新增时间）
-    if start_date and end_date:
+    if start_date:
         try:
             from sqlalchemy import func, and_
             start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()

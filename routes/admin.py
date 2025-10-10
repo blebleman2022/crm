@@ -374,6 +374,10 @@ def leads():
     start_date = request.args.get('start_date', '', type=str)
     end_date = request.args.get('end_date', '', type=str)
 
+    # 如果只填了开始日期，结束日期默认为当天
+    if date_type and start_date and not end_date:
+        end_date = datetime.now().strftime('%Y-%m-%d')
+
     query = Lead.query
 
     # 搜索过滤
@@ -394,7 +398,7 @@ def leads():
         query = query.filter_by(sales_user_id=sales_filter)
 
     # 时间段筛选
-    if date_type and start_date and end_date:
+    if date_type and start_date:
         try:
             start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
             end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()

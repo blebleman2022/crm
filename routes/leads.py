@@ -312,7 +312,7 @@ def list_leads():
         query = query.filter_by(lead_source=lead_source_filter)
 
     # 时间段筛选
-    if date_type and start_date and end_date:
+    if date_type and start_date:
         try:
             start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
             end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()
