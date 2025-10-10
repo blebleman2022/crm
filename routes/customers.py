@@ -109,33 +109,49 @@ def list_customers():
         except ValueError:
             pass
 
-    # 分页
-    customers = query.order_by(Customer.created_at.desc()).paginate(
-        page=page, per_page=20, error_out=False
+    # 先获取所有符合条件的客户（不分页）
+    all_customers = query.all()
+
+    # 为所有客户查询次笔付款时间
+    from models import Payment
+
+    # 批量查询所有客户的次笔付款时间
+    customer_payment_data = []
+    for customer in all_customers:
+        payments = Payment.query.filter_by(lead_id=customer.lead_id).order_by(Payment.payment_date.asc()).limit(2).all()
+        second_payment_date = payments[1].payment_date if len(payments) >= 2 else None
+        customer_payment_data.append({
+            'customer': customer,
+            'second_payment_date': second_payment_date
+        })
+
+    # 按次笔付款时间倒序排序（没有次笔付款的排在最后）
+    customer_payment_data.sort(
+        key=lambda x: (x['second_payment_date'] is None, x['second_payment_date'] if x['second_payment_date'] else datetime.min.date()),
+        reverse=True
     )
+
+    # 手动分页
+    total = len(customer_payment_data)
+    start = (page - 1) * 20
+    end = start + 20
+    page_data = customer_payment_data[start:end]
+
+    # 构建分页对象
+    from flask import Pagination
+    customers = Pagination(None, page, 20, total, [item['customer'] for item in page_data])
+
+    # 构建次笔付款时间字典（用于模板显示）
+    second_payments = {}
+    for item in page_data:
+        if item['second_payment_date']:
+            second_payments[item['customer'].lead_id] = item['second_payment_date']
 
     # 获取所有销售用户用于筛选
     sales_users = User.query.filter(
         User.role.in_(['sales_manager', 'salesperson']),
         User.status == True
     ).order_by(User.username).all()
-
-    # 为当前页的客户批量查询次笔付款时间（性能优化）
-    from models import Payment
-    from sqlalchemy import func
-
-    # 获取当前页所有客户的lead_id
-    lead_ids = [customer.lead_id for customer in customers.items]
-
-    # 批量查询每个线索的次笔付款时间
-    # 使用子查询找出每个线索的第二笔付款
-    second_payments = {}
-    if lead_ids:
-        # 为每个lead_id查询第二笔付款
-        for lead_id in lead_ids:
-            payments = Payment.query.filter_by(lead_id=lead_id).order_by(Payment.payment_date.asc()).limit(2).all()
-            if len(payments) >= 2:
-                second_payments[lead_id] = payments[1].payment_date
 
     return render_template('customers/list.html',
                          customers=customers,
