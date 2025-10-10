@@ -84,7 +84,7 @@
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">课程进度</th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">奖项完成</th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">升学陪跑</th>
-                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-20">新增时间</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-20">次笔付款</th>
                         <th class="relative px-6 py-3">
                             <span class="sr-only">操作</span>
                         </th>
@@ -173,8 +173,8 @@
                             {% endif %}
                         </td>
                         <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 w-20">
-                            {% if customer.converted_at %}
-                                {{ customer.converted_at.year }}/{{ customer.converted_at.month }}/{{ customer.converted_at.day }}
+                            {% if second_payments.get(customer.lead_id) %}
+                                {{ second_payments[customer.lead_id].year }}/{{ second_payments[customer.lead_id].month }}/{{ second_payments[customer.lead_id].day }}
                             {% else %}
                                 <span class="text-gray-400">-</span>
                             {% endif %}

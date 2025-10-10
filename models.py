@@ -170,6 +170,20 @@ class Customer(db.Model):
         """获取服务类型列表"""
         return self.lead.get_service_types_list() if self.lead else []
 
+    def get_second_payment_date(self):
+        """获取次笔付款时间"""
+        if not self.lead:
+            return None
+
+        # 获取该线索的所有付款记录，按付款日期升序排列
+        payments = Payment.query.filter_by(lead_id=self.lead_id).order_by(Payment.payment_date.asc()).all()
+
+        # 如果有至少2笔付款，返回第二笔的付款日期
+        if len(payments) >= 2:
+            return payments[1].payment_date
+
+        return None
+
     def get_expire_date(self):
         """获取服务到期时间"""
         if self.exam_year:

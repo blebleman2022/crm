@@ -120,6 +120,23 @@ def list_customers():
         User.status == True
     ).order_by(User.username).all()
 
+    # 为当前页的客户批量查询次笔付款时间（性能优化）
+    from models import Payment
+    from sqlalchemy import func
+
+    # 获取当前页所有客户的lead_id
+    lead_ids = [customer.lead_id for customer in customers.items]
+
+    # 批量查询每个线索的次笔付款时间
+    # 使用子查询找出每个线索的第二笔付款
+    second_payments = {}
+    if lead_ids:
+        # 为每个lead_id查询第二笔付款
+        for lead_id in lead_ids:
+            payments = Payment.query.filter_by(lead_id=lead_id).order_by(Payment.payment_date.asc()).limit(2).all()
+            if len(payments) >= 2:
+                second_payments[lead_id] = payments[1].payment_date
+
     return render_template('customers/list.html',
                          customers=customers,
                          search=search,
@@ -128,7 +145,8 @@ def list_customers():
                          completed=completed,
                          sales_users=sales_users,
                          start_date=start_date,
-                         end_date=end_date)
+                         end_date=end_date,
+                         second_payments=second_payments)
 
 @customers_bp.route('/<int:customer_id>/detail')
 @login_required
