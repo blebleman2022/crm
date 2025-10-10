@@ -128,7 +128,7 @@ def list_customers():
 
     # 按次笔付款时间倒序排序（没有次笔付款的排在最后）
     customer_payment_data.sort(
-        key=lambda x: (x['second_payment_date'] is None, x['second_payment_date'] if x['second_payment_date'] else datetime.min.date()),
+        key=lambda x: (x['second_payment_date'] is None, x['second_payment_date'] if x['second_payment_date'] else date.min),
         reverse=True
     )
 
