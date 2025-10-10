@@ -56,11 +56,10 @@ def list_customers():
         )
     elif current_user.is_sales_manager():
         # 销售管理可以看到所有销售和销售管理负责的客户（参照线索列表逻辑）
-        from sqlalchemy import select
-        allowed_ids = select(User.id).filter(
+        allowed_ids = db.session.query(User.id).filter(
             User.role.in_(['sales_manager', 'salesperson']),
             User.status == True
-        ).scalar_subquery()
+        ).subquery()
         query = query.filter(Lead.sales_user_id.in_(allowed_ids))
     # 管理员可以看到所有客户，不需要额外过滤
 
@@ -110,66 +109,33 @@ def list_customers():
         except ValueError:
             pass
 
-    # 先获取所有符合条件的客户（不分页）
-    all_customers = query.all()
-
-    # 为所有客户查询次笔付款时间
-    from models import Payment
-
-    # 批量查询所有客户的次笔付款时间
-    customer_payment_data = []
-    for customer in all_customers:
-        payments = Payment.query.filter_by(lead_id=customer.lead_id).order_by(Payment.payment_date.asc()).limit(2).all()
-        second_payment_date = payments[1].payment_date if len(payments) >= 2 else None
-        customer_payment_data.append({
-            'customer': customer,
-            'second_payment_date': second_payment_date
-        })
-
-    # 按次笔付款时间倒序排序（没有次笔付款的排在最后）
-    customer_payment_data.sort(
-        key=lambda x: (x['second_payment_date'] is None, x['second_payment_date'] if x['second_payment_date'] else date.min),
-        reverse=True
+    # 分页
+    customers = query.order_by(Customer.created_at.desc()).paginate(
+        page=page, per_page=20, error_out=False
     )
-
-    # 手动分页
-    total = len(customer_payment_data)
-    per_page = 20
-    start = (page - 1) * per_page
-    end = start + per_page
-    page_data = customer_payment_data[start:end]
-
-    # 构建简单的分页对象（兼容模板）
-    class SimplePagination:
-        def __init__(self, items, page, per_page, total):
-            self.items = items
-            self.page = page
-            self.per_page = per_page
-            self.total = total
-            self.pages = (total + per_page - 1) // per_page if per_page > 0 else 0
-            self.has_prev = page > 1
-            self.has_next = page < self.pages
-            self.prev_num = page - 1 if self.has_prev else None
-            self.next_num = page + 1 if self.has_next else None
-
-    customers = SimplePagination(
-        items=[item['customer'] for item in page_data],
-        page=page,
-        per_page=per_page,
-        total=total
-    )
-
-    # 构建次笔付款时间字典（用于模板显示）
-    second_payments = {}
-    for item in page_data:
-        if item['second_payment_date']:
-            second_payments[item['customer'].lead_id] = item['second_payment_date']
 
     # 获取所有销售用户用于筛选
     sales_users = User.query.filter(
         User.role.in_(['sales_manager', 'salesperson']),
         User.status == True
     ).order_by(User.username).all()
+
+    # 为当前页的客户批量查询次笔付款时间（性能优化）
+    from models import Payment
+    from sqlalchemy import func
+
+    # 获取当前页所有客户的lead_id
+    lead_ids = [customer.lead_id for customer in customers.items]
+
+    # 批量查询每个线索的次笔付款时间
+    # 使用子查询找出每个线索的第二笔付款
+    second_payments = {}
+    if lead_ids:
+        # 为每个lead_id查询第二笔付款
+        for lead_id in lead_ids:
+            payments = Payment.query.filter_by(lead_id=lead_id).order_by(Payment.payment_date.asc()).limit(2).all()
+            if len(payments) >= 2:
+                second_payments[lead_id] = payments[1].payment_date
 
     return render_template('customers/list.html',
                          customers=customers,
