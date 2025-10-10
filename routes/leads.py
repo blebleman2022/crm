@@ -1110,9 +1110,24 @@ def convert_to_customer(lead_id):
         if not lead_owner or not lead_owner.is_sales():
             return jsonify({'success': False, 'message': '您只能为销售角色负责的线索转客户'})
 
-    # 检查线索是否已经是次笔支付或全款支付阶段
-    if lead.stage not in ['次笔支付', '全款支付']:
-        return jsonify({'success': False, 'message': '只有次笔支付或全款支付阶段的线索才能转换为客户'})
+    # 检查线索阶段和支付金额
+    # 允许转客户的条件：
+    # 1. 次笔支付或全款支付阶段
+    # 2. 首笔支付阶段且首笔支付金额 > 3000
+    can_convert = False
+
+    if lead.stage in ['次笔支付', '全款支付']:
+        can_convert = True
+    elif lead.stage == '首笔支付':
+        # 检查首笔支付金额
+        payments_with_date = [p for p in lead.payments if p.payment_date is not None]
+        if payments_with_date:
+            first_payment = sorted(payments_with_date, key=lambda p: p.payment_date)[0]
+            if first_payment.amount > 3000:
+                can_convert = True
+
+    if not can_convert:
+        return jsonify({'success': False, 'message': '只有次笔支付、全款支付阶段，或首笔支付金额超过3000元的线索才能转换为客户'})
 
     # 检查是否已经转换过
     if lead.customer:

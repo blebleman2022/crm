@@ -196,8 +196,8 @@
                                         {% set can_convert = true %}
                                     {% elif lead.stage == '首笔支付' %}
                                         {# 计算首笔支付金额 #}
-                                        {% set first_payment_amount = lead.payments|selectattr('payment_date', 'ne', none)|sort(attribute='payment_date')|first %}
-                                        {% if first_payment_amount and first_payment_amount.amount > 3000 %}
+                                        {% set first_payment = lead.payments|selectattr('payment_date', 'ne', none)|sort(attribute='payment_date')|first %}
+                                        {% if first_payment and first_payment.amount > 3000 %}
                                             {% set can_convert = true %}
                                         {% endif %}
                                     {% endif %}
