@@ -158,16 +158,13 @@
                             客户信息
                         </th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            责任销售
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            线索来源
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             约见时间
                         </th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             约见地点
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            线索来源
                         </th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             操作
@@ -176,38 +173,40 @@
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     {% for lead in consultation_data %}
-                    {% set is_past = lead.meeting_at and lead.meeting_at < now() %}
                     <tr class="hover:bg-gray-50">
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <div>
-                                <div class="text-sm font-medium text-gray-900">
-                                    {{ lead.parent_wechat_display_name or '未知' }}
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 h-10 w-10">
+                                    <div class="h-10 w-10 rounded-full bg-primary-500 flex items-center justify-center">
+                                        <span class="text-sm font-medium text-white">
+                                            {{ lead.parent_wechat_display_name[0] if lead.parent_wechat_display_name else '客' }}
+                                        </span>
+                                    </div>
                                 </div>
-                                <div class="text-sm text-gray-500">
-                                    {{ lead.parent_wechat_name }}
+                                <div class="ml-4">
+                                    <div class="text-sm font-medium text-gray-900">
+                                        {{ lead.parent_wechat_display_name or '未知' }}
+                                    </div>
+                                    <div class="text-sm text-gray-500">
+                                        {{ lead.parent_wechat_name }}
+                                    </div>
+                                    {% if lead.contact_info %}
+                                    <div class="text-sm text-gray-500">
+                                        <i class="fas fa-phone text-xs mr-1"></i>{{ lead.contact_info }}
+                                    </div>
+                                    {% endif %}
                                 </div>
-                                {% if lead.contact_info %}
-                                <div class="text-sm text-gray-500">
-                                    <i class="fas fa-phone text-xs mr-1"></i>{{ lead.contact_info }}
-                                </div>
-                                {% endif %}
                             </div>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {{ lead.sales_user.username if lead.sales_user else '-' }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {{ lead.lead_source or '-' }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="text-sm text-gray-900">
                                 <button onclick="editMeetingTime({{ lead.id }}, '{{ lead.meeting_at.strftime('%Y-%m-%d') if lead.meeting_at else '' }}', '{{ lead.meeting_at.strftime('%H') if lead.meeting_at else '' }}', '{{ lead.meeting_at.strftime('%M') if lead.meeting_at else '' }}', '{{ lead.meeting_location or '' }}')"
-                                        class="inline-flex items-center px-3 py-2 text-sm font-medium {% if is_past %}text-gray-600 bg-gray-200 hover:bg-gray-300 border-gray-300 hover:border-gray-400{% else %}text-blue-600 bg-blue-50 hover:bg-blue-100 hover:text-blue-800 border-blue-200 hover:border-blue-300{% endif %} rounded-lg transition-all duration-200 cursor-pointer border">
+                                        class="inline-flex items-center px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 hover:text-blue-800 rounded-lg transition-all duration-200 cursor-pointer border border-blue-200 hover:border-blue-300">
                                     <i class="fas fa-clock mr-2"></i>
                                     <div class="flex flex-col items-start">
                                         {% if lead.meeting_at %}
                                             <span class="font-medium">{{ lead.meeting_at.strftime('%Y-%m-%d %H:%M') }}</span>
-                                            <span class="text-xs {% if is_past %}text-gray-500{% else %}text-blue-500{% endif %} mt-0.5">
+                                            <span class="text-xs text-blue-500 mt-0.5">
                                                 {% set weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'] %}
                                                 {{ weekdays[lead.meeting_at.weekday()] }}
                                             </span>
@@ -227,6 +226,9 @@
                                 <span>{{ lead.meeting_location or '点击设置约见地点' }}</span>
                                 <i class="fas fa-edit ml-2 text-xs opacity-70"></i>
                             </button>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ lead.lead_source or '未知' }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <button onclick="showConsultationDetails({{ lead.id }})"
@@ -587,33 +589,27 @@ function createTimeSlotRow(hour, minute, bgClass = 'normal-time-slot') {
         today.setHours(0, 0, 0, 0);
         const isToday = date.getTime() === today.getTime();
 
-        // 查找该时间段的约见记录
-        const appointments = findAppointmentsForTimeSlot(day, hour, minute);
-
         const daySlot = document.createElement('div');
-        // 如果有约见，不添加交互样式；如果没有约见，添加 hover 效果
-        if (appointments.length > 0) {
-            // 有约见：只保留边框和基础样式
-            // 如果有多个约见，使用 flex 布局垂直排列
-            daySlot.className = `border-r border-gray-200 last:border-r-0 relative ${
-                appointments.length > 1 ? 'flex flex-col gap-1 p-1' : ''
-            } ${isToday ? 'bg-blue-50' : ''}`;
-        } else {
-            // 无约见：添加 hover 交互效果
-            daySlot.className = `border-r border-gray-200 last:border-r-0 cursor-pointer transition-all duration-200 relative ${
-                isWeekend ? 'bg-orange-25 hover:bg-orange-50' : 'hover:bg-blue-50'
-            } ${isToday ? 'bg-blue-50' : ''}`;
-        }
-
+        daySlot.className = `border-r border-gray-200 last:border-r-0 p-0.5 cursor-pointer transition-all duration-200 relative ${
+            isWeekend ? 'bg-orange-25 hover:bg-orange-50' : 'hover:bg-blue-50'
+        } ${isToday ? 'bg-blue-50' : ''}`;
         daySlot.dataset.date = getDateString(day);
         daySlot.dataset.hour = hour;
         daySlot.dataset.minute = minute;
 
+        // 查找该时间段的约见记录
+        const appointments = findAppointmentsForTimeSlot(day, hour, minute);
         if (appointments.length > 0) {
             appointments.forEach((appointment, index) => {
-                const appointmentDiv = createAppointmentElement(appointment, appointments.length);
+                const appointmentDiv = createAppointmentElement(appointment);
                 daySlot.appendChild(appointmentDiv);
             });
+        } else {
+            // 空时间段的提示
+            const emptySlot = document.createElement('div');
+            emptySlot.className = 'h-full flex items-center justify-center text-gray-300 text-xs opacity-0 hover:opacity-100 transition-opacity duration-200';
+            emptySlot.innerHTML = '<span class="material-symbols-outlined text-lg">add_circle</span>';
+            daySlot.appendChild(emptySlot);
         }
 
         timeSlotDiv.appendChild(daySlot);
@@ -623,64 +619,42 @@ function createTimeSlotRow(hour, minute, bgClass = 'normal-time-slot') {
 }
 
 // 创建约见元素
-function createAppointmentElement(appointment, totalCount = 1) {
+function createAppointmentElement(appointment) {
     const appointmentDiv = document.createElement('div');
+    appointmentDiv.className = `appointment-item mb-0.5 px-1.5 py-0.5 rounded shadow-sm cursor-pointer transform transition-all duration-200 ${
+        appointment.location === '浦东' ?
+        'bg-green-500 text-white hover:bg-green-600' :
+        'bg-blue-500 text-white hover:bg-blue-600'
+    }`;
 
-    // 判断约见时间是否已过去
-    const appointmentTime = new Date(appointment.time);
-    const now = new Date();
-    const isPast = appointmentTime < now;
-
-    // 根据时间状态和地点设置颜色（移除 hover 颜色变化）
-    let colorClass;
-    if (isPast) {
-        // 过去的约见使用灰色
-        colorClass = 'bg-gray-400 text-white';
-    } else {
-        // 未来的约见根据地点使用不同颜色
-        colorClass = appointment.location === '浦东' ?
-            'bg-green-500 text-white' :
-            'bg-blue-500 text-white';
-    }
-
-    // 根据约见数量调整样式
-    if (totalCount > 1) {
-        // 多个约见：使用 flex-1 平分空间，不使用 absolute
-        appointmentDiv.className = `appointment-item flex-1 flex items-center justify-center cursor-pointer transition-shadow duration-200 rounded-md ${colorClass}`;
-    } else {
-        // 单个约见：使用 absolute 填充整个单元格
-        appointmentDiv.className = `appointment-item absolute inset-0 flex items-center justify-center cursor-pointer transition-shadow duration-200 rounded-md ${colorClass}`;
-    }
-
-    // 显示：地点-线索来源-责任销售（一行显示），增大文字到text-xs
-    // 使用 pointer-events-none 防止内部元素阻止点击事件
+    // 仅显示地点（浦东/浦西）
     appointmentDiv.innerHTML = `
-        <div class="text-xs font-semibold text-center leading-tight px-1 pointer-events-none">
-            ${appointment.location || '未知'} - ${appointment.leadSource || '-'} - ${appointment.salesUser || '-'}
+        <div class="text-xs font-semibold text-center">
+            ${appointment.location || '未知'}
         </div>
     `;
 
-    appointmentDiv.title = `${appointment.time} - ${appointment.client}\n地点: ${appointment.location || '未知'}\n来源: ${appointment.leadSource || '未知'}\n销售: ${appointment.salesUser || '未知'}`;
+    appointmentDiv.title = `${appointment.time} - ${appointment.client} (${appointment.location || '未知地点'})`;
 
-    // 悬浮效果 - 只改变阴影，不改变大小和颜色
+    // 悬浮效果
     appointmentDiv.addEventListener('mouseenter', function() {
+        this.style.transform = 'scale(1.05)';
         this.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
         this.style.zIndex = '10';
     });
 
     appointmentDiv.addEventListener('mouseleave', function() {
-        this.style.boxShadow = 'none';
+        this.style.transform = 'scale(1)';
+        this.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
         this.style.zIndex = '1';
     });
 
-    // 点击效果 - 阻止事件冒泡，确保只触发约见详情
+    // 点击效果
     appointmentDiv.addEventListener('click', function(e) {
         e.preventDefault();
-        e.stopPropagation(); // 阻止事件冒泡
-        // 点击时稍微降低透明度作为反馈
-        this.style.opacity = '0.8';
+        this.style.transform = 'scale(0.95)';
         setTimeout(() => {
-            this.style.opacity = '1';
+            this.style.transform = 'scale(1.05)';
             showConsultationDetails(appointment.leadId);
         }, 100);
     });
@@ -785,9 +759,7 @@ function findAppointmentsForTimeSlot(dayOffset, hour, minute) {
             leadId: {{ lead.id }},
             time: '{{ lead.meeting_at.strftime('%Y-%m-%d %H:%M') }}',
             client: '{{ lead.parent_wechat_display_name or '未知客户' }}',
-            location: '{{ lead.meeting_location or '' }}',
-            leadSource: '{{ lead.lead_source or '' }}',
-            salesUser: '{{ lead.sales_user.username if lead.sales_user else '' }}'
+            location: '{{ lead.meeting_location or '' }}'
         },
         {% endif %}
         {% endfor %}
@@ -826,9 +798,7 @@ function findAppointmentsForSlot(dayOffset, hour) {
             leadId: {{ lead.id }},
             time: '{{ lead.meeting_at.strftime('%Y-%m-%d %H:%M') }}',
             client: '{{ lead.parent_wechat_display_name or '未知客户' }}',
-            location: '{{ lead.meeting_location or '' }}',
-            leadSource: '{{ lead.lead_source or '' }}',
-            salesUser: '{{ lead.sales_user.username if lead.sales_user else '' }}'
+            location: '{{ lead.meeting_location or '' }}'
         },
         {% endif %}
         {% endfor %}
@@ -944,16 +914,10 @@ function renderConsultationDetails(data) {
         communicationRecordsHtml = communication_records.map(record => `
             <div class="bg-white border border-gray-200 rounded-lg p-4 mb-3 shadow-sm">
                 <div class="flex items-center justify-between mb-3">
-                    <div class="flex items-center space-x-2">
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${record.stage === '线索阶段' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}">
-                            <i class="fas ${record.stage === '线索阶段' ? 'fa-user-plus' : 'fa-user-check'} mr-1"></i>
-                            ${record.stage}
-                        </span>
-                        <span class="text-xs text-gray-600 flex items-center">
-                            <i class="fas fa-user mr-1"></i>
-                            ${record.user_name ? record.user_name + '老师' : '<span class="text-gray-400">未知</span>'}
-                        </span>
-                    </div>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${record.stage === '线索阶段' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}">
+                        <i class="fas ${record.stage === '线索阶段' ? 'fa-user-plus' : 'fa-user-check'} mr-1"></i>
+                        ${record.stage}
+                    </span>
                     <span class="text-xs text-gray-500 flex items-center">
                         <i class="fas fa-clock mr-1"></i>
                         ${new Date(record.created_at).toLocaleString('zh-CN')}
