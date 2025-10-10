@@ -91,8 +91,8 @@ def create_app(config_name=None):
         try:
             # 转换为浮点数
             num = float(value)
-            # 格式化为带千位分隔符的字符串，保留2位小数
-            return '{:,.2f}'.format(num)
+            # 格式化为带千位分隔符的字符串，不显示小数
+            return '{:,.0f}'.format(num)
         except (ValueError, TypeError):
             return value
 
