@@ -764,7 +764,7 @@ function findAppointmentsForTimeSlot(dayOffset, hour, minute) {
             client: '{{ lead.parent_wechat_display_name or '未知客户' }}',
             location: '{{ lead.meeting_location or '' }}',
             sales: '{{ lead.sales_user.username if lead.sales_user else '未知' }}',
-            source: '{{ lead.source or '未知' }}'
+            source: '{{ lead.lead_source or '未知' }}'
         },
         {% endif %}
         {% endfor %}
@@ -805,7 +805,7 @@ function findAppointmentsForSlot(dayOffset, hour) {
             client: '{{ lead.parent_wechat_display_name or '未知客户' }}',
             location: '{{ lead.meeting_location or '' }}',
             sales: '{{ lead.sales_user.username if lead.sales_user else '未知' }}',
-            source: '{{ lead.source or '未知' }}'
+            source: '{{ lead.lead_source or '未知' }}'
         },
         {% endif %}
         {% endfor %}
