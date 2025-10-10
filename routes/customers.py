@@ -133,13 +133,30 @@ def list_customers():
 
     # 手动分页
     total = len(customer_payment_data)
-    start = (page - 1) * 20
-    end = start + 20
+    per_page = 20
+    start = (page - 1) * per_page
+    end = start + per_page
     page_data = customer_payment_data[start:end]
 
-    # 构建分页对象
-    from flask import Pagination
-    customers = Pagination(None, page, 20, total, [item['customer'] for item in page_data])
+    # 构建简单的分页对象（兼容模板）
+    class SimplePagination:
+        def __init__(self, items, page, per_page, total):
+            self.items = items
+            self.page = page
+            self.per_page = per_page
+            self.total = total
+            self.pages = (total + per_page - 1) // per_page if per_page > 0 else 0
+            self.has_prev = page > 1
+            self.has_next = page < self.pages
+            self.prev_num = page - 1 if self.has_prev else None
+            self.next_num = page + 1 if self.has_next else None
+
+    customers = SimplePagination(
+        items=[item['customer'] for item in page_data],
+        page=page,
+        per_page=per_page,
+        total=total
+    )
 
     # 构建次笔付款时间字典（用于模板显示）
     second_payments = {}
