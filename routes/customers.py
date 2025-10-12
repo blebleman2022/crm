@@ -67,10 +67,11 @@ def list_customers():
         query = query.filter(Lead.sales_user_id.in_(allowed_ids))
     # 管理员可以看到所有客户，不需要额外过滤
 
-    # 搜索过滤
+    # 搜索过滤（支持学员姓名、家长微信名、联系方式）
     if search:
         query = query.filter(
             (Lead.student_name.contains(search)) |
+            (Lead.parent_wechat_display_name.contains(search)) |
             (Lead.contact_info.contains(search))
         )
 
