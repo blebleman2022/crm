@@ -270,6 +270,28 @@
 <script>
 let currentLeadId = null;
 
+// Tab切换功能（全局函数，供动态加载的表单使用）
+function switchTab(tabName) {
+    // 隐藏所有tab内容
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.add('hidden');
+    });
+
+    // 移除所有tab按钮的激活状态
+    document.querySelectorAll('.tab-button').forEach(button => {
+        button.classList.remove('border-blue-500', 'text-blue-600');
+        button.classList.add('border-transparent', 'text-gray-500');
+    });
+
+    // 显示选中的tab内容
+    document.getElementById('content-' + tabName).classList.remove('hidden');
+
+    // 激活选中的tab按钮
+    const activeButton = document.getElementById('tab-' + tabName);
+    activeButton.classList.remove('border-transparent', 'text-gray-500');
+    activeButton.classList.add('border-blue-500', 'text-blue-600');
+}
+
 // 显示编辑模态框
 function showEditModal(leadId) {
     currentLeadId = leadId;
@@ -282,11 +304,31 @@ function showEditModal(leadId) {
         .then(html => {
             content.innerHTML = html;
             modal.classList.remove('hidden');
+
+            // 初始化表单中的事件监听器
+            initializeFormListeners();
         })
         .catch(error => {
             console.error('Error:', error);
             alert('加载编辑表单失败');
         });
+}
+
+// 初始化表单监听器
+function initializeFormListeners() {
+    // 监听竞赛辅导复选框
+    const competitionCheckbox = document.getElementById('service_competition');
+    const awardLevelSection = document.getElementById('competition_award_level_section');
+
+    if (competitionCheckbox && awardLevelSection) {
+        competitionCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                awardLevelSection.style.display = 'block';
+            } else {
+                awardLevelSection.style.display = 'none';
+            }
+        });
+    }
 }
 
 // 关闭编辑模态框

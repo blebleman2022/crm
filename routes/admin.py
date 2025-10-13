@@ -496,6 +496,8 @@ def search_leads():
 @admin_required
 def edit_lead_form(lead_id):
     """获取编辑线索表单（AJAX）"""
+    from models import Payment
+
     lead = Lead.query.get_or_404(lead_id)
     # 列出所有销售与销售管理角色
     sales_users = User.query.filter(
@@ -503,18 +505,23 @@ def edit_lead_form(lead_id):
         User.status == True
     ).order_by(User.role.desc(), User.username.asc()).all()
 
+    # 获取付款记录
+    payments = Payment.query.filter_by(lead_id=lead.id).order_by(Payment.payment_date.desc()).all()
+
     # 返回编辑表单HTML片段
-    return render_template('admin/edit_lead_form.html', lead=lead, sales_users=sales_users)
+    return render_template('admin/edit_lead_form.html', lead=lead, sales_users=sales_users, payments=payments)
 
 @admin_bp.route('/leads/<int:lead_id>/update', methods=['POST'])
 @login_required
 @admin_required
 def update_lead(lead_id):
-    """更新线索基本信息（AJAX）"""
+    """更新线索信息（AJAX）"""
+    from decimal import Decimal
+
     lead = Lead.query.get_or_404(lead_id)
 
     try:
-        # 仅更新基本信息字段
+        # 更新基本信息字段
         lead.parent_wechat_display_name = request.form.get('parent_wechat_display_name', '').strip()
         lead.parent_wechat_name = request.form.get('parent_wechat_name', '').strip()
         lead.student_name = request.form.get('student_name', '').strip()
@@ -539,11 +546,35 @@ def update_lead(lead_id):
         if sales_user_id:
             lead.sales_user_id = int(sales_user_id)
 
+        # 更新服务内容
+        service_types = request.form.getlist('service_types')
+        if service_types:
+            lead.service_types = ','.join(service_types)
+        else:
+            lead.service_types = None
+
+        # 更新竞赛奖项等级
+        competition_award_level = request.form.get('competition_award_level', '').strip()
+        if 'competition' in service_types and not competition_award_level:
+            return jsonify({'success': False, 'message': '选择了竞赛辅导服务，必须设置目标奖项等级'})
+        lead.competition_award_level = competition_award_level if competition_award_level else None
+
+        # 更新额外要求
+        lead.additional_requirements = request.form.get('additional_requirements', '').strip()
+
+        # 更新合同金额
+        contract_amount = request.form.get('contract_amount', '').strip()
+        if contract_amount:
+            try:
+                lead.contract_amount = Decimal(contract_amount)
+            except:
+                return jsonify({'success': False, 'message': '合同金额格式不正确'})
+
         # 更新时间戳
         lead.updated_at = datetime.now()
 
         db.session.commit()
-        return jsonify({'success': True, 'message': '线索基本信息更新成功！'})
+        return jsonify({'success': True, 'message': '线索信息更新成功！'})
 
     except Exception as e:
         db.session.rollback()
