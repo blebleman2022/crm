@@ -115,7 +115,7 @@
                     <div>
                         <label for="contact_info" class="block text-sm font-medium text-gray-700 mb-2">
                             联系电话
-                            {% if lead.contact_info and lead.contact_locked %}
+                            {% if is_field_locked(lead.contact_info) %}
                             <span class="text-sm text-gray-500">(已锁定，无法修改)</span>
                             {% endif %}
                         </label>
@@ -123,10 +123,10 @@
                                id="contact_info"
                                name="contact_info"
                                value="{{ lead.contact_info or '' }}"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm {% if lead.contact_info and lead.contact_locked %}bg-gray-100 cursor-not-allowed{% else %}focus:outline-none focus:ring-primary-500 focus:border-primary-500{% endif %}"
-                               {% if lead.contact_info and lead.contact_locked %}readonly{% endif %}
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm {% if is_field_locked(lead.contact_info) %}bg-gray-100 cursor-not-allowed{% else %}focus:outline-none focus:ring-primary-500 focus:border-primary-500{% endif %}"
+                               {% if is_field_locked(lead.contact_info) %}readonly{% endif %}
                                placeholder="请输入联系电话（可选）">
-                        {% if lead.contact_info and lead.contact_locked %}
+                        {% if is_field_locked(lead.contact_info) %}
                         <p class="mt-1 text-sm text-gray-500">联系方式已锁定，如需修改请联系管理员</p>
                         {% endif %}
                     </div>
