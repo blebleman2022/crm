@@ -320,14 +320,8 @@ function editLead(leadId, leadSalesUserId) {
         return;
     }
 
-    // 销售管理可以编辑所有销售角色负责的线索
-    if (currentUserRole === 'sales_manager') {
-        window.location.href = `/leads/${leadId}/edit`;
-        return;
-    }
-
-    // 销售角色只能编辑自己负责的线索
-    if (currentUserRole === 'salesperson' && leadSalesUserId !== currentUserId) {
+    // 销售相关角色只能编辑自己负责的线索
+    if ((currentUserRole === 'sales_manager' || currentUserRole === 'salesperson') && leadSalesUserId !== currentUserId) {
         alert('不能更改其他销售负责的线索信息');
         return;
     }

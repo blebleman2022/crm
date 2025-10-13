@@ -684,9 +684,21 @@ def get_available_sales_users_for_assignment(current_user):
     else:
         return []
 
-def is_field_locked(value):
-    """判断单个字段是否应该被锁定"""
-    # 如果字段有值且不为空字符串，则锁定
+def is_field_locked(value, user=None):
+    """判断单个字段是否应该被锁定
+
+    Args:
+        value: 字段值
+        user: 当前用户对象，如果是管理员则不锁定
+
+    Returns:
+        bool: 是否锁定
+    """
+    # 管理员可以编辑所有字段
+    if user and user.is_admin():
+        return False
+
+    # 其他角色：如果字段有值且不为空字符串，则锁定
     return bool(value and str(value).strip())
 
 def is_basic_info_locked(lead):
@@ -726,13 +738,13 @@ def edit_lead(lead_id):
 
         # 基本信息字段处理（考虑字段级别的锁定）
         # 学员姓名
-        if is_field_locked(lead.student_name):
+        if is_field_locked(lead.student_name, current_user):
             student_name = lead.student_name
         else:
             student_name = request.form.get('student_name', '').strip()
 
         # 线索来源
-        if is_field_locked(lead.lead_source):
+        if is_field_locked(lead.lead_source, current_user):
             lead_source = lead.lead_source
         else:
             lead_source = request.form.get('lead_source', '').strip()
@@ -742,18 +754,28 @@ def edit_lead(lead_id):
             if lead_source == '其他':
                 if not custom_source:
                     flash('选择"其他"时必须填写自定义线索来源', 'error')
-                    return render_template('leads/edit.html', lead=lead, sales_users=get_sales_users(), is_basic_info_locked=is_basic_info_locked, is_field_locked=is_field_locked)
+                    # 创建绑定了当前用户的函数用于模板
+                    def is_field_locked_for_template(value):
+                        return is_field_locked(value, current_user)
+                    return render_template('leads/edit.html', lead=lead, sales_users=get_sales_users(), is_basic_info_locked=is_basic_info_locked, is_field_locked=is_field_locked_for_template)
                 lead_source = custom_source
 
         # 责任销售
-        if is_field_locked(lead.sales_user_id):
+        if is_field_locked(lead.sales_user_id, current_user):
             sales_user_id = lead.sales_user_id
         else:
             sales_user_id = request.form.get('sales_user_id', type=int)
 
-        # 家长微信名和微信号不可修改，保持原有值
-        parent_wechat_display_name = lead.parent_wechat_display_name
-        parent_wechat_name = lead.parent_wechat_name
+        # 家长微信名和微信号：管理员可以修改，其他角色不可修改
+        if is_field_locked(lead.parent_wechat_display_name, current_user):
+            parent_wechat_display_name = lead.parent_wechat_display_name
+        else:
+            parent_wechat_display_name = request.form.get('parent_wechat_display_name', '').strip()
+
+        if is_field_locked(lead.parent_wechat_name, current_user):
+            parent_wechat_name = lead.parent_wechat_name
+        else:
+            parent_wechat_name = request.form.get('parent_wechat_name', '').strip()
 
         # 其他字段正常处理
         contact_info = request.form.get('contact_info', '').strip()
@@ -761,17 +783,17 @@ def edit_lead(lead_id):
         contract_amount = request.form.get('contract_amount', '').strip()
 
         # 年级、行政区、学校：如果字段被锁定，保持原值；否则从表单获取
-        if is_field_locked(lead.grade):
+        if is_field_locked(lead.grade, current_user):
             grade = lead.grade
         else:
             grade = request.form.get('grade', '').strip()
 
-        if is_field_locked(lead.district):
+        if is_field_locked(lead.district, current_user):
             district = lead.district
         else:
             district = request.form.get('district', '').strip()
 
-        if is_field_locked(lead.school):
+        if is_field_locked(lead.school, current_user):
             school = lead.school
         else:
             school = request.form.get('school', '').strip()
@@ -793,15 +815,19 @@ def edit_lead(lead_id):
         deposit_paid_at = request.form.get('deposit_paid_at')
         full_payment_at = request.form.get('full_payment_at')
 
+        # 创建绑定了当前用户的函数用于模板（用于错误返回）
+        def is_field_locked_for_template(value):
+            return is_field_locked(value, current_user)
+
         # 验证必填字段（只验证未锁定的字段）
         missing_fields = []
 
         # 家长微信号：如果未锁定且为空，则为必填
-        if not is_field_locked(lead.parent_wechat_name) and not parent_wechat_name:
+        if not is_field_locked(lead.parent_wechat_name, current_user) and not parent_wechat_name:
             missing_fields.append('家长微信号')
 
         # 责任销售：如果未锁定且为空，则为必填
-        if not is_field_locked(lead.sales_user_id) and not sales_user_id:
+        if not is_field_locked(lead.sales_user_id, current_user) and not sales_user_id:
             missing_fields.append('责任销售')
 
         # 年级为必填（无论是否锁定，都必须有值）
@@ -810,32 +836,32 @@ def edit_lead(lead_id):
 
         if missing_fields:
             flash(f'{", ".join(missing_fields)}为必填项', 'error')
-            return render_template('leads/edit.html', lead=lead, sales_users=get_sales_users(), is_basic_info_locked=is_basic_info_locked, is_field_locked=is_field_locked)
+            return render_template('leads/edit.html', lead=lead, sales_users=get_sales_users(), is_basic_info_locked=is_basic_info_locked, is_field_locked=is_field_locked_for_template)
 
         # 验证竞赛辅导和奖项等级的联动（仅当选择了竞赛辅导时）
         if service_types and 'competition' in service_types:
             if not competition_award_level:
                 flash('选择了竞赛辅导服务，必须设置目标奖项等级', 'error')
-                return render_template('leads/edit.html', lead=lead, sales_users=get_sales_users(), is_basic_info_locked=is_basic_info_locked, is_field_locked=is_field_locked)
+                return render_template('leads/edit.html', lead=lead, sales_users=get_sales_users(), is_basic_info_locked=is_basic_info_locked, is_field_locked=is_field_locked_for_template)
 
         # 验证家长微信号是否重复（只在未锁定且有值时验证）
-        if not is_field_locked(lead.parent_wechat_name) and parent_wechat_name:
+        if not is_field_locked(lead.parent_wechat_name, current_user) and parent_wechat_name:
             existing_wechat = Lead.query.filter(
                 Lead.parent_wechat_name == parent_wechat_name,
                 Lead.id != lead.id
             ).first()
             if existing_wechat:
                 flash('家长微信号不能重复', 'error')
-                return render_template('leads/edit.html', lead=lead, sales_users=get_sales_users(), is_basic_info_locked=is_basic_info_locked, is_field_locked=is_field_locked)
+                return render_template('leads/edit.html', lead=lead, sales_users=get_sales_users(), is_basic_info_locked=is_basic_info_locked, is_field_locked=is_field_locked_for_template)
 
         # 验证销售人员（只在未锁定且有值时验证）
-        if not is_field_locked(lead.sales_user_id) and sales_user_id:
+        if not is_field_locked(lead.sales_user_id, current_user) and sales_user_id:
             sales_user = User.query.filter(User.id == sales_user_id,
                                          User.role.in_(['sales_manager', 'salesperson']),
                                          User.status == True).first()
             if not sales_user:
                 flash('选择的销售人员无效', 'error')
-                return render_template('leads/edit.html', lead=lead, sales_users=get_sales_users(), is_basic_info_locked=is_basic_info_locked, is_field_locked=is_field_locked)
+                return render_template('leads/edit.html', lead=lead, sales_users=get_sales_users(), is_basic_info_locked=is_basic_info_locked, is_field_locked=is_field_locked_for_template)
 
         # 阶段将通过自动更新逻辑设置，不再从表单获取
 
@@ -844,29 +870,32 @@ def edit_lead(lead_id):
         try:
             # 记录责任销售变更（只在未锁定时）
             sales_change_note = None
-            if not is_field_locked(lead.sales_user_id) and lead.sales_user_id != sales_user_id:
+            if not is_field_locked(lead.sales_user_id, current_user) and lead.sales_user_id != sales_user_id:
                 old_sales = User.query.get(lead.sales_user_id)
                 new_sales = User.query.get(sales_user_id)
                 sales_change_note = f"责任销售从 {old_sales.username} 变更为 {new_sales.username}"
 
             # 更新线索信息（只更新未锁定的字段）
-            if not is_field_locked(lead.student_name):
+            if not is_field_locked(lead.student_name, current_user):
                 lead.student_name = student_name if student_name else None
-            if not is_field_locked(lead.parent_wechat_display_name):
+            if not is_field_locked(lead.parent_wechat_display_name, current_user):
                 lead.parent_wechat_display_name = parent_wechat_display_name
-            if not is_field_locked(lead.parent_wechat_name):
+            if not is_field_locked(lead.parent_wechat_name, current_user):
                 lead.parent_wechat_name = parent_wechat_name
-            if not is_field_locked(lead.contact_info):
+            if not is_field_locked(lead.contact_info, current_user):
                 lead.contact_info = contact_info if contact_info else None
-            if not is_field_locked(lead.lead_source):
+            if not is_field_locked(lead.lead_source, current_user):
                 lead.lead_source = lead_source if lead_source else None
-            if not is_field_locked(lead.sales_user_id):
+            if not is_field_locked(lead.sales_user_id, current_user):
                 lead.sales_user_id = sales_user_id
 
-            # 更新线索基本信息
-            lead.grade = grade
-            lead.district = district if district else None
-            lead.school = school if school else None
+            # 更新线索基本信息（年级、行政区、学校）
+            if not is_field_locked(lead.grade, current_user):
+                lead.grade = grade
+            if not is_field_locked(lead.district, current_user):
+                lead.district = district if district else None
+            if not is_field_locked(lead.school, current_user):
+                lead.school = school if school else None
             lead.updated_at = datetime.utcnow()
 
             # 设置多选服务类型
@@ -996,6 +1025,10 @@ def edit_lead(lead_id):
     # 计算已付款总额
     paid_amount = sum(payment.amount for payment in payments) if payments else Decimal('0')
 
+    # 创建一个绑定了当前用户的is_field_locked函数
+    def is_field_locked_for_current_user(value):
+        return is_field_locked(value, current_user)
+
     return render_template('leads/edit.html',
                          lead=lead,
                          sales_users=get_sales_users(),
@@ -1003,7 +1036,7 @@ def edit_lead(lead_id):
                          payments=payments,
                          paid_amount=paid_amount,
                          is_basic_info_locked=is_basic_info_locked,
-                         is_field_locked=is_field_locked)
+                         is_field_locked=is_field_locked_for_current_user)
 
 @leads_bp.route('/<int:lead_id>/detail')
 @login_required
