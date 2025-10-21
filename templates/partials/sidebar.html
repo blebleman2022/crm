@@ -43,14 +43,30 @@
                     客户管理
                 </div>
                 <div class="ml-8 space-y-1">
-                    <a href="{{ url_for('customers.list_customers') }}" 
+                    <a href="{{ url_for('customers.list_customers') }}"
                        class="flex items-center px-4 py-2 text-sm text-gray-400 rounded-md hover:bg-gray-700 hover:text-white">
                         客户列表
                     </a>
                 </div>
             </div>
             {% endif %}
-            
+
+            <!-- 老师管理 -->
+            {% if current_user.is_teacher() %}
+            <div class="space-y-1">
+                <div class="flex items-center px-4 py-2 text-sm font-medium text-gray-300">
+                    <span class="material-symbols-outlined mr-3">school</span>
+                    老师管理
+                </div>
+                <div class="ml-8 space-y-1">
+                    <a href="{{ url_for('teachers.list_teachers') }}"
+                       class="flex items-center px-4 py-2 text-sm text-gray-400 rounded-md hover:bg-gray-700 hover:text-white">
+                        老师列表
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
             <!-- 交付管理 -->
             {% if current_user.is_teacher() or current_user.is_admin() %}
             <div class="space-y-1">

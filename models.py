@@ -21,7 +21,7 @@ class User(UserMixin, db.Model):
     
     # 关联关系
     leads_as_sales = db.relationship('Lead', foreign_keys='Lead.sales_user_id', backref='sales_user', lazy='dynamic')
-    customers_as_teacher = db.relationship('Customer', foreign_keys='Customer.teacher_user_id', backref='teacher_user', lazy='dynamic')
+    customers_as_teacher_user = db.relationship('Customer', foreign_keys='Customer.teacher_user_id', backref='teacher_user', lazy='dynamic')
     
     def __repr__(self):
         return f'<User {self.username}>'
@@ -129,7 +129,8 @@ class Customer(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     lead_id = db.Column(db.Integer, db.ForeignKey('leads.id'), nullable=False, comment='关联线索ID')
-    teacher_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), comment='责任班主任ID')
+    teacher_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), comment='[已废弃] 责任班主任ID（User表）')
+    teacher_id = db.Column(db.Integer, db.ForeignKey('teachers.id'), comment='责任班主任ID（Teacher表）')
 
     payment_amount = db.Column(Numeric(10, 2), nullable=False, comment='支付金额')
 
@@ -271,6 +272,48 @@ class Payment(db.Model):
 
     def __repr__(self):
         return f'<Payment {self.lead.student_name} ¥{self.amount}>'
+
+class Teacher(db.Model):
+    """老师信息表"""
+    __tablename__ = 'teachers'
+
+    id = db.Column(db.Integer, primary_key=True)
+    chinese_name = db.Column(db.String(50), nullable=False, comment='中文名')
+    english_name = db.Column(db.String(100), comment='英文名')
+    current_institution = db.Column(db.String(200), comment='现单位')
+    major_direction = db.Column(db.String(200), comment='专业方向')
+    highest_degree = db.Column(db.String(50), comment='最高学历')
+    degree_description = db.Column(db.Text, comment='学历说明')
+    research_achievements = db.Column(db.Text, comment='科研成果')
+    innovation_coaching_achievements = db.Column(db.Text, comment='科创辅导成果')
+    social_roles = db.Column(db.Text, comment='社会角色')
+    status = db.Column(db.Boolean, default=True, comment='状态：True启用/False禁用')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # 关联关系
+    customers = db.relationship('Customer', foreign_keys='Customer.teacher_id', backref='teacher', lazy='dynamic')
+
+    def __repr__(self):
+        return f'<Teacher {self.chinese_name}>'
+
+    def to_dict(self):
+        """转换为字典格式"""
+        return {
+            'id': self.id,
+            'chinese_name': self.chinese_name,
+            'english_name': self.english_name,
+            'current_institution': self.current_institution,
+            'major_direction': self.major_direction,
+            'highest_degree': self.highest_degree,
+            'degree_description': self.degree_description,
+            'research_achievements': self.research_achievements,
+            'innovation_coaching_achievements': self.innovation_coaching_achievements,
+            'social_roles': self.social_roles,
+            'status': self.status,
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else None,
+            'updated_at': self.updated_at.strftime('%Y-%m-%d %H:%M:%S') if self.updated_at else None
+        }
 
 class LoginLog(db.Model):
     """登录日志表"""

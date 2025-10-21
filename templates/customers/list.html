@@ -108,11 +108,18 @@
                         </td>
                         <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ customer.lead.sales_user.username }}</td>
                         <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                            {% if customer.teacher_user %}
-                                {{ customer.teacher_user.username }}
+                            {% if customer.teacher %}
+                                <button onclick="showChangeTeacherModal({{ customer.id }}, '{{ customer.lead.student_name }}', {{ customer.teacher.id }}, '{{ customer.teacher.chinese_name }}')"
+                                        class="text-blue-600 hover:text-blue-800 cursor-pointer underline">
+                                    {{ customer.teacher.chinese_name }}
+                                </button>
                             {% else %}
-                                <button onclick="showAssignTeacherModal({{ customer.id }}, '{{ customer.lead.student_name }}')"
-                                        class="text-red-600 hover:text-red-800 cursor-pointer underline">待分配</button>
+                                {% if current_user.role == 'teacher' %}
+                                    <button onclick="showAssignTeacherModal({{ customer.id }}, '{{ customer.lead.student_name }}')"
+                                            class="text-red-600 hover:text-red-800 cursor-pointer underline">待分配</button>
+                                {% else %}
+                                    <span class="text-gray-400">待分配</span>
+                                {% endif %}
                             {% endif %}
                         </td>
 
@@ -257,21 +264,61 @@
             <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                 <h3 class="text-lg font-medium leading-6 text-gray-900 mb-4">分配班主任</h3>
                 <div class="mb-4">
+                    <p class="text-sm text-gray-600 mb-3">学员：<span id="assignStudentName" class="font-medium"></span></p>
                     <label class="block text-sm font-medium text-gray-700 mb-2">选择班主任</label>
                     <select id="teacherSelect" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                         <option value="">请选择班主任</option>
-                        {% for teacher in teachers %}
-                            <option value="{{ teacher.id }}">{{ teacher.username }}</option>
-                        {% endfor %}
                     </select>
                 </div>
             </div>
             <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
-                <button type="button" onclick="assignTeacher()" 
+                <button type="button" onclick="assignTeacher()"
                         class="inline-flex w-full justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm">
                     确定
                 </button>
-                <button type="button" onclick="hideAssignTeacherModal()" 
+                <button type="button" onclick="hideAssignTeacherModal()"
+                        class="mt-3 inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:mt-0 sm:w-auto sm:text-sm">
+                    取消
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 更换班主任模态框 -->
+<div id="changeTeacherModal" class="fixed inset-0 z-50 hidden overflow-y-auto">
+    <div class="flex min-h-screen items-center justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+        <div class="inline-block transform overflow-hidden rounded-lg bg-white text-left align-bottom shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:align-middle">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <h3 class="text-lg font-medium leading-6 text-gray-900 mb-4">更换班主任</h3>
+                <div class="mb-4">
+                    <p class="text-sm text-gray-600 mb-3">学员：<span id="changeStudentName" class="font-medium"></span></p>
+                    <p class="text-sm text-gray-600 mb-3">当前班主任：<span id="currentTeacherName" class="font-medium text-blue-600"></span></p>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">选择新班主任</label>
+                    <select id="newTeacherSelect" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <option value="">请选择班主任</option>
+                    </select>
+                </div>
+                <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <span class="material-symbols-outlined text-yellow-400">warning</span>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm text-yellow-700">
+                                更换班主任需要二次确认，请谨慎操作
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+                <button type="button" onclick="changeTeacher()"
+                        class="inline-flex w-full justify-center rounded-md border border-transparent bg-red-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm">
+                    确认更换
+                </button>
+                <button type="button" onclick="hideChangeTeacherModal()"
                         class="mt-3 inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:mt-0 sm:w-auto sm:text-sm">
                     取消
                 </button>
@@ -290,11 +337,43 @@ document.querySelectorAll('select[name="service_type"], select[name="sales"]').f
 
 let currentCustomerId = null;
 let currentStudentName = null;
+let currentTeacherId = null;
+let currentTeacherName = null;
+let allTeachers = [];
+
+// 加载所有启用的老师
+function loadTeachers() {
+    fetch('/teachers/get_active_teachers')
+        .then(response => response.json())
+        .then(data => {
+            allTeachers = data;
+        })
+        .catch(error => {
+            console.error('加载老师列表失败:', error);
+        });
+}
+
+// 页面加载时获取老师列表
+loadTeachers();
 
 // 显示分配班主任模态框
 function showAssignTeacherModal(customerId, studentName) {
     currentCustomerId = customerId;
     currentStudentName = studentName;
+
+    // 设置学员名称
+    document.getElementById('assignStudentName').textContent = studentName;
+
+    // 填充老师下拉列表
+    const teacherSelect = document.getElementById('teacherSelect');
+    teacherSelect.innerHTML = '<option value="">请选择班主任</option>';
+    allTeachers.forEach(teacher => {
+        const option = document.createElement('option');
+        option.value = teacher.id;
+        option.textContent = `${teacher.chinese_name}${teacher.english_name ? ' (' + teacher.english_name + ')' : ''}${teacher.major_direction ? ' - ' + teacher.major_direction : ''}`;
+        teacherSelect.appendChild(option);
+    });
+
     document.getElementById('assignTeacherModal').classList.remove('hidden');
 }
 
@@ -313,15 +392,13 @@ function assignTeacher() {
         alert('请选择班主任');
         return;
     }
-    
-    fetch(`/customers/${currentCustomerId}/assign_teacher`, {
+
+    const formData = new FormData();
+    formData.append('teacher_id', teacherId);
+
+    fetch(`/teachers/assign/${currentCustomerId}`, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            teacher_id: parseInt(teacherId)
-        })
+        body: formData
     })
     .then(response => response.json())
     .then(data => {
@@ -335,6 +412,93 @@ function assignTeacher() {
     })
     .catch(error => {
         alert('操作失败，请重试');
+    });
+}
+
+// 显示更换班主任模态框
+function showChangeTeacherModal(customerId, studentName, teacherId, teacherName) {
+    currentCustomerId = customerId;
+    currentStudentName = studentName;
+    currentTeacherId = teacherId;
+    currentTeacherName = teacherName;
+
+    // 设置学员名称和当前班主任
+    document.getElementById('changeStudentName').textContent = studentName;
+    document.getElementById('currentTeacherName').textContent = teacherName;
+
+    // 填充老师下拉列表（排除当前老师）
+    const newTeacherSelect = document.getElementById('newTeacherSelect');
+    newTeacherSelect.innerHTML = '<option value="">请选择班主任</option>';
+    allTeachers.forEach(teacher => {
+        if (teacher.id !== teacherId) {
+            const option = document.createElement('option');
+            option.value = teacher.id;
+            option.textContent = `${teacher.chinese_name}${teacher.english_name ? ' (' + teacher.english_name + ')' : ''}${teacher.major_direction ? ' - ' + teacher.major_direction : ''}`;
+            newTeacherSelect.appendChild(option);
+        }
+    });
+
+    document.getElementById('changeTeacherModal').classList.remove('hidden');
+}
+
+// 隐藏更换班主任模态框
+function hideChangeTeacherModal() {
+    currentCustomerId = null;
+    currentStudentName = null;
+    currentTeacherId = null;
+    currentTeacherName = null;
+    document.getElementById('changeTeacherModal').classList.add('hidden');
+    document.getElementById('newTeacherSelect').value = '';
+}
+
+// 更换班主任（需要二次确认）
+let changeTeacherConfirmed = false;
+
+function changeTeacher() {
+    const newTeacherId = document.getElementById('newTeacherSelect').value;
+    if (!newTeacherId) {
+        alert('请选择新班主任');
+        return;
+    }
+
+    // 第一次点击，显示确认提示
+    if (!changeTeacherConfirmed) {
+        const newTeacher = allTeachers.find(t => t.id == newTeacherId);
+        if (confirm(`确定要将班主任从 ${currentTeacherName} 更换为 ${newTeacher.chinese_name} 吗？\n\n此操作需要二次确认，请再次点击"确认更换"按钮。`)) {
+            changeTeacherConfirmed = true;
+            // 改变按钮文字提示用户需要再次点击
+            event.target.textContent = '再次点击确认';
+            event.target.classList.add('animate-pulse');
+        }
+        return;
+    }
+
+    // 第二次点击，执行更换
+    fetch(`/teachers/change/${currentCustomerId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            teacher_id: parseInt(newTeacherId),
+            confirmed: true
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            changeTeacherConfirmed = false;
+            hideChangeTeacherModal();
+            location.reload();
+        } else {
+            alert(data.message);
+            changeTeacherConfirmed = false;
+        }
+    })
+    .catch(error => {
+        alert('操作失败，请重试');
+        changeTeacherConfirmed = false;
     });
 }
 

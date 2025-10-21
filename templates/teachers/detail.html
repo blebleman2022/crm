@@ -1,0 +1,158 @@
+{% extends "leads/base.html" %}
+
+{% block title %}老师详情 - EduConnect CRM{% endblock %}
+{% block page_title %}老师详情{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <div class="bg-white p-6 rounded-lg shadow-sm mb-6">
+        <!-- 顶部操作栏 -->
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-semibold text-gray-900">{{ teacher.chinese_name }}</h2>
+            <div class="flex space-x-3">
+                <a href="{{ url_for('teachers.list_teachers') }}" 
+                   class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                    <span class="material-symbols-outlined mr-1 text-sm">arrow_back</span>
+                    返回列表
+                </a>
+                <a href="{{ url_for('teachers.edit_teacher', teacher_id=teacher.id) }}" 
+                   class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                    <span class="material-symbols-outlined mr-1 text-sm">edit</span>
+                    编辑
+                </a>
+            </div>
+        </div>
+
+        <!-- 基本信息 -->
+        <div class="border-b border-gray-200 pb-6 mb-6">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">基本信息</h3>
+            <dl class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">中文名</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ teacher.chinese_name }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">英文名</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ teacher.english_name or '-' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">现单位</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ teacher.current_institution or '-' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">专业方向</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ teacher.major_direction or '-' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">最高学历</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ teacher.highest_degree or '-' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">状态</dt>
+                    <dd class="mt-1 text-sm">
+                        {% if teacher.status %}
+                            <span class="inline-flex rounded-full bg-green-100 px-2 text-xs font-semibold leading-5 text-green-800">启用</span>
+                        {% else %}
+                            <span class="inline-flex rounded-full bg-gray-100 px-2 text-xs font-semibold leading-5 text-gray-800">禁用</span>
+                        {% endif %}
+                    </dd>
+                </div>
+            </dl>
+        </div>
+
+        <!-- 详细信息 -->
+        <div class="border-b border-gray-200 pb-6 mb-6">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">详细信息</h3>
+            <dl class="space-y-4">
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">学历说明</dt>
+                    <dd class="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{{ teacher.degree_description or '-' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">科研成果</dt>
+                    <dd class="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{{ teacher.research_achievements or '-' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">科创辅导成果</dt>
+                    <dd class="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{{ teacher.innovation_coaching_achievements or '-' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">社会角色</dt>
+                    <dd class="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{{ teacher.social_roles or '-' }}</dd>
+                </div>
+            </dl>
+        </div>
+
+        <!-- 系统信息 -->
+        <div>
+            <h3 class="text-lg font-medium text-gray-900 mb-4">系统信息</h3>
+            <dl class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">创建时间</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ teacher.created_at.strftime('%Y-%m-%d %H:%M:%S') if teacher.created_at else '-' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">更新时间</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ teacher.updated_at.strftime('%Y-%m-%d %H:%M:%S') if teacher.updated_at else '-' }}</dd>
+                </div>
+            </dl>
+        </div>
+    </div>
+
+    <!-- 负责的客户列表 -->
+    <div class="bg-white p-6 rounded-lg shadow-sm">
+        <h3 class="text-lg font-medium text-gray-900 mb-4">负责的客户 ({{ customers|length }})</h3>
+        
+        {% if customers %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">学员姓名</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">责任销售</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">服务内容</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">中高考时间</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">转客户时间</th>
+                        <th class="relative px-6 py-3">
+                            <span class="sr-only">操作</span>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 bg-white">
+                    {% for customer in customers %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
+                            {{ customer.lead.student_name }}
+                        </td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                            {{ customer.lead.sales_user.username if customer.lead.sales_user else '-' }}
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-500">
+                            {% if customer.lead.service_types %}
+                                {{ customer.lead.service_types.replace(',', '、') }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                            {{ customer.exam_year or '-' }}
+                        </td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                            {{ customer.converted_at.strftime('%Y-%m-%d') if customer.converted_at else '-' }}
+                        </td>
+                        <td class="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
+                            <a href="{{ url_for('customers.edit_customer', customer_id=customer.id) }}" 
+                               class="text-blue-600 hover:text-blue-900">查看</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-sm text-gray-500 text-center py-8">暂无负责的客户</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

@@ -1,0 +1,145 @@
+{% extends "leads/base.html" %}
+
+{% block title %}编辑老师 - EduConnect CRM{% endblock %}
+{% block page_title %}编辑老师{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="bg-white p-6 rounded-lg shadow-sm">
+        <div class="mb-6">
+            <h2 class="text-xl font-semibold text-gray-900">编辑老师信息</h2>
+            <p class="mt-1 text-sm text-gray-600">{{ teacher.chinese_name }}</p>
+        </div>
+
+        <form method="POST" action="{{ url_for('teachers.edit_teacher', teacher_id=teacher.id) }}">
+            <div class="space-y-6">
+                <!-- 基本信息 -->
+                <div class="border-b border-gray-200 pb-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">基本信息</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="chinese_name" class="block text-sm font-medium text-gray-700">
+                                中文名 <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text" 
+                                   name="chinese_name" 
+                                   id="chinese_name" 
+                                   required
+                                   value="{{ teacher.chinese_name }}"
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        </div>
+
+                        <div>
+                            <label for="english_name" class="block text-sm font-medium text-gray-700">
+                                英文名
+                            </label>
+                            <input type="text" 
+                                   name="english_name" 
+                                   id="english_name" 
+                                   value="{{ teacher.english_name or '' }}"
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        </div>
+
+                        <div>
+                            <label for="current_institution" class="block text-sm font-medium text-gray-700">
+                                现单位
+                            </label>
+                            <input type="text" 
+                                   name="current_institution" 
+                                   id="current_institution" 
+                                   value="{{ teacher.current_institution or '' }}"
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        </div>
+
+                        <div>
+                            <label for="major_direction" class="block text-sm font-medium text-gray-700">
+                                专业方向
+                            </label>
+                            <input type="text" 
+                                   name="major_direction" 
+                                   id="major_direction" 
+                                   value="{{ teacher.major_direction or '' }}"
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        </div>
+
+                        <div>
+                            <label for="highest_degree" class="block text-sm font-medium text-gray-700">
+                                最高学历
+                            </label>
+                            <select name="highest_degree" 
+                                    id="highest_degree" 
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                                <option value="">请选择</option>
+                                <option value="博士" {% if teacher.highest_degree == '博士' %}selected{% endif %}>博士</option>
+                                <option value="硕士" {% if teacher.highest_degree == '硕士' %}selected{% endif %}>硕士</option>
+                                <option value="本科" {% if teacher.highest_degree == '本科' %}selected{% endif %}>本科</option>
+                                <option value="其他" {% if teacher.highest_degree == '其他' %}selected{% endif %}>其他</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 详细信息 -->
+                <div class="border-b border-gray-200 pb-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">详细信息</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="degree_description" class="block text-sm font-medium text-gray-700">
+                                学历说明
+                            </label>
+                            <textarea name="degree_description" 
+                                      id="degree_description" 
+                                      rows="3"
+                                      class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">{{ teacher.degree_description or '' }}</textarea>
+                        </div>
+
+                        <div>
+                            <label for="research_achievements" class="block text-sm font-medium text-gray-700">
+                                科研成果
+                            </label>
+                            <textarea name="research_achievements" 
+                                      id="research_achievements" 
+                                      rows="4"
+                                      class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">{{ teacher.research_achievements or '' }}</textarea>
+                        </div>
+
+                        <div>
+                            <label for="innovation_coaching_achievements" class="block text-sm font-medium text-gray-700">
+                                科创辅导成果
+                            </label>
+                            <textarea name="innovation_coaching_achievements" 
+                                      id="innovation_coaching_achievements" 
+                                      rows="4"
+                                      class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">{{ teacher.innovation_coaching_achievements or '' }}</textarea>
+                        </div>
+
+                        <div>
+                            <label for="social_roles" class="block text-sm font-medium text-gray-700">
+                                社会角色
+                            </label>
+                            <textarea name="social_roles" 
+                                      id="social_roles" 
+                                      rows="3"
+                                      class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">{{ teacher.social_roles or '' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 操作按钮 -->
+                <div class="flex justify-end space-x-3">
+                    <a href="{{ url_for('teachers.list_teachers') }}" 
+                       class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                        取消
+                    </a>
+                    <button type="submit" 
+                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                        <span class="material-symbols-outlined mr-1 text-sm">save</span>
+                        保存
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
