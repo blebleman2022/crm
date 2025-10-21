@@ -47,11 +47,11 @@ def list_consultations():
             query = query.filter(Lead.sales_user_id == current_user.id)
         elif current_user.role == 'sales_manager':
             # 销售管理可以看到所有销售和销售管理负责的线索
-            sales_users = User.query.filter(
-                User.role.in_(['sales_manager', 'salesperson'])
-            ).all()
-            sales_user_ids = [u.id for u in sales_users]
-            query = query.filter(Lead.sales_user_id.in_(sales_user_ids))
+            allowed_ids = db.session.query(User.id).filter(
+                User.role.in_(['sales_manager', 'salesperson']),
+                User.status == True
+            ).subquery()
+            query = query.filter(Lead.sales_user_id.in_(allowed_ids))
         # admin角色可以看到所有
 
         leads_with_meetings = query.order_by(Lead.meeting_at.desc()).all()
