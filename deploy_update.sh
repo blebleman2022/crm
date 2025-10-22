@@ -58,57 +58,17 @@ source venv/bin/activate
 pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn
 echo -e "${GREEN}✓ 依赖已安装${NC}"
 
-# 6. 数据库迁移（添加新表）
+# 6. 数据库迁移（使用 Python 脚本）
 echo -e "${YELLOW}步骤 5/7: 执行数据库迁移...${NC}"
 
-# 检查是否需要添加 teachers 表
-NEED_MIGRATION=$(sqlite3 instance/edu_crm_1022.db "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='teachers'")
+# 使用 Python 迁移脚本（更安全、更完整）
+python migrate_database.py
 
-if [ "$NEED_MIGRATION" -eq "0" ]; then
-    echo -e "${YELLOW}检测到需要添加 teachers 表...${NC}"
-    
-    # 创建迁移脚本
-    cat > /tmp/migrate_teachers.sql << 'EOF'
--- 创建 teachers 表
-CREATE TABLE IF NOT EXISTS teachers (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name VARCHAR(100) NOT NULL,
-    phone VARCHAR(20) UNIQUE NOT NULL,
-    email VARCHAR(120),
-    specialization TEXT,
-    education_background TEXT,
-    work_experience TEXT,
-    teaching_subjects TEXT,
-    hourly_rate FLOAT,
-    status VARCHAR(20) DEFAULT 'active',
-    notes TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- 创建 teacher_images 表
-CREATE TABLE IF NOT EXISTS teacher_images (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    teacher_id INTEGER NOT NULL,
-    image_path VARCHAR(500) NOT NULL,
-    image_type VARCHAR(50),
-    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (teacher_id) REFERENCES teachers (id) ON DELETE CASCADE
-);
-
--- 创建索引
-CREATE INDEX IF NOT EXISTS idx_teachers_phone ON teachers(phone);
-CREATE INDEX IF NOT EXISTS idx_teachers_status ON teachers(status);
-CREATE INDEX IF NOT EXISTS idx_teacher_images_teacher_id ON teacher_images(teacher_id);
-EOF
-
-    # 执行迁移
-    sqlite3 instance/edu_crm_1022.db < /tmp/migrate_teachers.sql
-    rm /tmp/migrate_teachers.sql
-    
-    echo -e "${GREEN}✓ 数据库迁移完成（已添加 teachers 和 teacher_images 表）${NC}"
+if [ $? -eq 0 ]; then
+    echo -e "${GREEN}✓ 数据库迁移完成${NC}"
 else
-    echo -e "${GREEN}✓ 数据库结构已是最新，无需迁移${NC}"
+    echo -e "${RED}错误：数据库迁移失败${NC}"
+    exit 1
 fi
 
 # 7. 验证数据库完整性

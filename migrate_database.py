@@ -54,35 +54,54 @@ def get_table_columns(conn, table_name):
     return {row[1]: row[2] for row in cursor.fetchall()}
 
 def migrate_add_teachers_table(conn):
-    """添加 teachers 和 teacher_images 表"""
+    """添加或更新 teachers 和 teacher_images 表"""
     cursor = conn.cursor()
-    
+
     # 检查是否已存在
     if check_table_exists(conn, 'teachers'):
-        print_warning("teachers 表已存在，跳过创建")
-        return False
-    
-    print_warning("创建 teachers 表...")
-    
-    # 创建 teachers 表
+        # 检查表结构是否正确
+        columns = get_table_columns(conn, 'teachers')
+
+        # 如果是旧结构（有 name 字段而不是 chinese_name），需要重建
+        if 'name' in columns and 'chinese_name' not in columns:
+            print_warning("检测到旧版 teachers 表结构，需要重建...")
+
+            # 备份旧数据（如果有）
+            cursor.execute("SELECT COUNT(*) FROM teachers")
+            old_count = cursor.fetchone()[0]
+
+            if old_count > 0:
+                print_warning(f"发现 {old_count} 条旧数据，将被清除（旧表结构不兼容）")
+
+            # 删除旧表
+            cursor.execute("DROP TABLE IF EXISTS teachers")
+            cursor.execute("DROP TABLE IF EXISTS teacher_images")
+            print_success("已删除旧版 teachers 表")
+        else:
+            print_warning("teachers 表已存在且结构正确，跳过创建")
+            return False
+
+    print_warning("创建新版 teachers 表...")
+
+    # 创建新版 teachers 表（与 models.py 中的 Teacher 模型一致）
     cursor.execute("""
         CREATE TABLE teachers (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name VARCHAR(100) NOT NULL,
-            phone VARCHAR(20) UNIQUE NOT NULL,
-            email VARCHAR(120),
-            specialization TEXT,
-            education_background TEXT,
-            work_experience TEXT,
-            teaching_subjects TEXT,
-            hourly_rate FLOAT,
-            status VARCHAR(20) DEFAULT 'active',
-            notes TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            chinese_name VARCHAR(50) NOT NULL,
+            english_name VARCHAR(100),
+            current_institution VARCHAR(200),
+            major_direction VARCHAR(200),
+            highest_degree VARCHAR(50),
+            degree_description TEXT,
+            research_achievements TEXT,
+            innovation_coaching_achievements TEXT,
+            social_roles TEXT,
+            status BOOLEAN DEFAULT 1,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     """)
-    
+
     # 创建 teacher_images 表
     cursor.execute("""
         CREATE TABLE teacher_images (
@@ -94,15 +113,69 @@ def migrate_add_teachers_table(conn):
             FOREIGN KEY (teacher_id) REFERENCES teachers (id) ON DELETE CASCADE
         )
     """)
-    
+
     # 创建索引
-    cursor.execute("CREATE INDEX idx_teachers_phone ON teachers(phone)")
-    cursor.execute("CREATE INDEX idx_teachers_status ON teachers(status)")
-    cursor.execute("CREATE INDEX idx_teacher_images_teacher_id ON teacher_images(teacher_id)")
-    
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_teacher_images_teacher_id ON teacher_images(teacher_id)")
+
     conn.commit()
     print_success("teachers 和 teacher_images 表创建成功")
     return True
+
+def migrate_add_teacher_id_to_customers(conn):
+    """为 customers 表添加 teacher_id 字段"""
+    cursor = conn.cursor()
+
+    # 检查字段是否已存在
+    columns = get_table_columns(conn, 'customers')
+
+    if 'teacher_id' in columns:
+        print_warning("customers 表已有 teacher_id 字段，跳过添加")
+        return False
+
+    print_warning("为 customers 表添加 teacher_id 字段...")
+
+    try:
+        cursor.execute("""
+            ALTER TABLE customers
+            ADD COLUMN teacher_id INTEGER
+        """)
+
+        conn.commit()
+        print_success("成功为 customers 表添加 teacher_id 字段")
+        return True
+    except Exception as e:
+        print_error(f"添加字段失败: {str(e)}")
+        return False
+
+def migrate_update_user_roles(conn):
+    """更新用户角色：teacher -> teacher_supervisor"""
+    cursor = conn.cursor()
+
+    # 检查是否有旧角色
+    cursor.execute("SELECT COUNT(*) FROM users WHERE role='teacher'")
+    old_count = cursor.fetchone()[0]
+
+    if old_count == 0:
+        print_warning("没有需要更新的用户角色")
+        return False
+
+    print_warning(f"发现 {old_count} 个用户使用旧角色 'teacher'，更新为 'teacher_supervisor'...")
+
+    try:
+        cursor.execute("""
+            UPDATE users
+            SET role = 'teacher_supervisor',
+                updated_at = CURRENT_TIMESTAMP
+            WHERE role = 'teacher'
+        """)
+
+        affected_rows = cursor.rowcount
+        conn.commit()
+        print_success(f"成功更新 {affected_rows} 个用户的角色")
+        return True
+    except Exception as e:
+        print_error(f"更新角色失败: {str(e)}")
+        return False
 
 def verify_database_integrity(conn):
     """验证数据库完整性"""
@@ -161,13 +234,21 @@ def main():
     
     # 3. 执行迁移
     print(f"\n{Colors.YELLOW}步骤 3/5: 执行数据库迁移...{Colors.NC}")
-    
+
     migrations_applied = []
-    
-    # 迁移1: 添加 teachers 表
+
+    # 迁移1: 添加/更新 teachers 表
     if migrate_add_teachers_table(conn):
-        migrations_applied.append("添加 teachers 和 teacher_images 表")
-    
+        migrations_applied.append("添加/更新 teachers 和 teacher_images 表")
+
+    # 迁移2: 为 customers 表添加 teacher_id 字段
+    if migrate_add_teacher_id_to_customers(conn):
+        migrations_applied.append("为 customers 表添加 teacher_id 字段")
+
+    # 迁移3: 更新用户角色
+    if migrate_update_user_roles(conn):
+        migrations_applied.append("更新用户角色 teacher -> teacher_supervisor")
+
     if migrations_applied:
         print_success(f"应用了 {len(migrations_applied)} 个迁移")
         for migration in migrations_applied:
