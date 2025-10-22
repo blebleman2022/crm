@@ -22,7 +22,7 @@ def get_teachers():
     """获取所有启用的班主任"""
     return User.query.filter(
         User.status == True,
-        User.role == 'teacher'
+        User.role == 'teacher_supervisor'
     ).all()
 
 @customers_bp.route('/list')
@@ -49,7 +49,7 @@ def list_customers():
     )
 
     # 权限控制
-    if current_user.role == 'teacher':
+    if current_user.role == 'teacher_supervisor':
         # 班主任只能看到自己负责的客户
         query = query.filter(Customer.teacher_user_id == current_user.id)
     elif current_user.is_salesperson():
@@ -160,7 +160,7 @@ def customer_detail(customer_id):
     customer = Customer.query.get_or_404(customer_id)
 
     # 如果是班主任，只能查看自己负责的客户
-    if current_user.role == 'teacher' and customer.teacher_user_id != current_user.id:
+    if current_user.role == 'teacher_supervisor' and customer.teacher_user_id != current_user.id:
         flash('您没有权限查看此客户', 'error')
         return redirect(url_for('customers.list_customers'))
 
@@ -347,7 +347,7 @@ def customer_api(customer_id):
     customer = Customer.query.get_or_404(customer_id)
 
     # 权限检查：班主任只能查看自己负责的客户
-    if current_user.role == 'teacher' and customer.teacher_user_id != current_user.id:
+    if current_user.role == 'teacher_supervisor' and customer.teacher_user_id != current_user.id:
         return jsonify({
             'success': False,
             'message': '您没有权限查看此客户'

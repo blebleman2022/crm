@@ -1174,10 +1174,10 @@ def convert_to_customer(lead_id):
         if not teacher_id:
             return jsonify({'success': False, 'message': '转客户时必须分配班主任'})
 
-        # 验证班主任有效性（允许选择班主任或销售管理）
+        # 验证班主任有效性（只允许选择teacher_supervisor角色）
         teacher = User.query.filter(
             User.id == teacher_id,
-            User.role.in_(['teacher', 'sales_manager']),
+            User.role == 'teacher_supervisor',
             User.status == True
         ).first()
         if not teacher:

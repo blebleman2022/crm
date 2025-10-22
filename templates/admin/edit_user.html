@@ -42,7 +42,7 @@
                         <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>管理员</option>
                         <option value="sales_manager" {% if user.role == 'sales_manager' %}selected{% endif %}>销售管理</option>
                         <option value="salesperson" {% if user.role == 'salesperson' %}selected{% endif %}>销售</option>
-                        <option value="teacher" {% if user.role == 'teacher' %}selected{% endif %}>班主任</option>
+                        <option value="teacher_supervisor" {% if user.role == 'teacher_supervisor' %}selected{% endif %}>班主任</option>
                     </select>
                 </div>
                 <p class="mt-2 text-sm text-gray-500">用户角色创建后不可修改，如需更改请联系系统管理员。</p>

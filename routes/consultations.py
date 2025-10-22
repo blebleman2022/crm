@@ -104,7 +104,7 @@ def consultation_details_data(lead_id):
         customer = Customer.query.filter_by(lead_id=lead_id).first()
 
         # 权限检查：班主任只能查看自己负责的客户
-        if current_user.role == 'teacher':
+        if current_user.role == 'teacher_supervisor':
             if not customer or customer.teacher_user_id != current_user.id:
                 return jsonify({
                     'success': False,
@@ -194,7 +194,7 @@ def add_communication_record(lead_id):
         customer = Customer.query.filter_by(lead_id=lead_id).first()
 
         # 权限检查：班主任只能为自己负责的客户添加沟通记录
-        if current_user.role == 'teacher':
+        if current_user.role == 'teacher_supervisor':
             if not customer or customer.teacher_user_id != current_user.id:
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or 'application/json' in request.headers.get('Accept', ''):
                     return jsonify({

@@ -36,7 +36,7 @@ def login():
             return redirect(url_for('admin.dashboard'))
         elif current_user.role in ['sales_manager', 'salesperson']:
             return redirect(url_for('leads.dashboard'))
-        elif current_user.role == 'teacher':
+        elif current_user.role == 'teacher_supervisor':
             return redirect(url_for('delivery.dashboard'))
     
     if request.method == 'POST':
@@ -78,7 +78,7 @@ def login():
             return redirect(url_for('admin.dashboard'))
         elif user.role in ['sales_manager', 'salesperson']:
             return redirect(url_for('leads.dashboard'))
-        elif user.role == 'teacher':
+        elif user.role == 'teacher_supervisor':
             return redirect(url_for('delivery.dashboard'))
         else:
             flash('用户角色异常，请联系管理员', 'error')

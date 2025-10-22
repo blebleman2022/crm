@@ -52,7 +52,7 @@
             {% endif %}
 
             <!-- 老师管理 -->
-            {% if current_user.is_teacher() %}
+            {% if current_user.role == 'teacher_supervisor' %}
             <div class="space-y-1">
                 <div class="flex items-center px-4 py-2 text-sm font-medium text-gray-300">
                     <span class="material-symbols-outlined mr-3">school</span>
@@ -68,7 +68,7 @@
             {% endif %}
 
             <!-- 交付管理 -->
-            {% if current_user.is_teacher() or current_user.is_admin() %}
+            {% if current_user.role == 'teacher_supervisor' or current_user.is_admin() %}
             <div class="space-y-1">
                 <div class="flex items-center px-4 py-2 text-sm font-medium text-gray-300">
                     <span class="material-symbols-outlined mr-3">assignment</span>

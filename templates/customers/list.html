@@ -78,7 +78,7 @@
                     <tr>
                         <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-24">学员姓名</th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">责任销售</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">班主任</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">辅导老师</th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">奖项要求</th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">中高考时间</th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">课程进度</th>
@@ -98,7 +98,7 @@
                                 {% if customer.is_priority %}
                                     <span class="material-symbols-outlined text-yellow-500 text-lg" title="重点关注客户">star</span>
                                 {% endif %}
-                                <button onclick="showStudentDetailModal({{ customer.id }}, true, {% if current_user.is_teacher() %}true{% else %}false{% endif %})" class="text-blue-600 hover:text-blue-800 cursor-pointer">
+                                <button onclick="showStudentDetailModal({{ customer.id }}, true, {% if current_user.role == 'teacher_supervisor' %}true{% else %}false{% endif %})" class="text-blue-600 hover:text-blue-800 cursor-pointer">
                                     {{ customer.lead.student_name }}
                                 </button>
                                 {% if customer.lead.additional_requirements %}
@@ -114,7 +114,7 @@
                                     {{ customer.teacher.chinese_name }}
                                 </button>
                             {% else %}
-                                {% if current_user.role == 'teacher' %}
+                                {% if current_user.is_sales_manager() %}
                                     <button onclick="showAssignTeacherModal({{ customer.id }}, '{{ customer.lead.student_name }}')"
                                             class="text-red-600 hover:text-red-800 cursor-pointer underline">待分配</button>
                                 {% else %}
@@ -187,7 +187,7 @@
                             {% endif %}
                         </td>
                         <td class="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
-                            {% if current_user.is_admin() or current_user.is_sales_manager() or current_user.is_teacher() %}
+                            {% if current_user.is_admin() or current_user.is_sales_manager() or current_user.role == 'teacher_supervisor' %}
                             <button onclick="openProgressModal({{ customer.id }}, {{ customer.lead.sales_user_id }})" class="text-blue-600 hover:text-blue-800">进度更新</button>
                             {% else %}
                             <span class="text-gray-400">-</span>
@@ -256,18 +256,18 @@
     </div>
 </div>
 
-<!-- 分配班主任模态框 -->
+<!-- 分配辅导老师模态框 -->
 <div id="assignTeacherModal" class="fixed inset-0 z-50 hidden overflow-y-auto">
     <div class="flex min-h-screen items-center justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
         <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
         <div class="inline-block transform overflow-hidden rounded-lg bg-white text-left align-bottom shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:align-middle">
             <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <h3 class="text-lg font-medium leading-6 text-gray-900 mb-4">分配班主任</h3>
+                <h3 class="text-lg font-medium leading-6 text-gray-900 mb-4">分配辅导老师</h3>
                 <div class="mb-4">
                     <p class="text-sm text-gray-600 mb-3">学员：<span id="assignStudentName" class="font-medium"></span></p>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">选择班主任</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">选择辅导老师</label>
                     <select id="teacherSelect" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        <option value="">请选择班主任</option>
+                        <option value="">请选择辅导老师</option>
                     </select>
                 </div>
             </div>
@@ -285,19 +285,19 @@
     </div>
 </div>
 
-<!-- 更换班主任模态框 -->
+<!-- 更换辅导老师模态框 -->
 <div id="changeTeacherModal" class="fixed inset-0 z-50 hidden overflow-y-auto">
     <div class="flex min-h-screen items-center justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
         <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
         <div class="inline-block transform overflow-hidden rounded-lg bg-white text-left align-bottom shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:align-middle">
             <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <h3 class="text-lg font-medium leading-6 text-gray-900 mb-4">更换班主任</h3>
+                <h3 class="text-lg font-medium leading-6 text-gray-900 mb-4">更换辅导老师</h3>
                 <div class="mb-4">
                     <p class="text-sm text-gray-600 mb-3">学员：<span id="changeStudentName" class="font-medium"></span></p>
-                    <p class="text-sm text-gray-600 mb-3">当前班主任：<span id="currentTeacherName" class="font-medium text-blue-600"></span></p>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">选择新班主任</label>
+                    <p class="text-sm text-gray-600 mb-3">当前辅导老师：<span id="currentTeacherName" class="font-medium text-blue-600"></span></p>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">选择新辅导老师</label>
                     <select id="newTeacherSelect" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        <option value="">请选择班主任</option>
+                        <option value="">请选择辅导老师</option>
                     </select>
                 </div>
                 <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4">
@@ -307,7 +307,7 @@
                         </div>
                         <div class="ml-3">
                             <p class="text-sm text-yellow-700">
-                                更换班主任需要二次确认，请谨慎操作
+                                更换辅导老师需要二次确认，请谨慎操作
                             </p>
                         </div>
                     </div>
@@ -356,7 +356,7 @@ function loadTeachers() {
 // 页面加载时获取老师列表
 loadTeachers();
 
-// 显示分配班主任模态框
+// 显示分配辅导老师模态框
 function showAssignTeacherModal(customerId, studentName) {
     currentCustomerId = customerId;
     currentStudentName = studentName;
@@ -366,7 +366,7 @@ function showAssignTeacherModal(customerId, studentName) {
 
     // 填充老师下拉列表
     const teacherSelect = document.getElementById('teacherSelect');
-    teacherSelect.innerHTML = '<option value="">请选择班主任</option>';
+    teacherSelect.innerHTML = '<option value="">请选择辅导老师</option>';
     allTeachers.forEach(teacher => {
         const option = document.createElement('option');
         option.value = teacher.id;
@@ -377,7 +377,7 @@ function showAssignTeacherModal(customerId, studentName) {
     document.getElementById('assignTeacherModal').classList.remove('hidden');
 }
 
-// 隐藏分配班主任模态框
+// 隐藏分配辅导老师模态框
 function hideAssignTeacherModal() {
     currentCustomerId = null;
     currentStudentName = null;
@@ -385,11 +385,11 @@ function hideAssignTeacherModal() {
     document.getElementById('teacherSelect').value = '';
 }
 
-// 分配班主任
+// 分配辅导老师
 function assignTeacher() {
     const teacherId = document.getElementById('teacherSelect').value;
     if (!teacherId) {
-        alert('请选择班主任');
+        alert('请选择辅导老师');
         return;
     }
 
@@ -415,20 +415,20 @@ function assignTeacher() {
     });
 }
 
-// 显示更换班主任模态框
+// 显示更换辅导老师模态框
 function showChangeTeacherModal(customerId, studentName, teacherId, teacherName) {
     currentCustomerId = customerId;
     currentStudentName = studentName;
     currentTeacherId = teacherId;
     currentTeacherName = teacherName;
 
-    // 设置学员名称和当前班主任
+    // 设置学员名称和当前辅导老师
     document.getElementById('changeStudentName').textContent = studentName;
     document.getElementById('currentTeacherName').textContent = teacherName;
 
     // 填充老师下拉列表（排除当前老师）
     const newTeacherSelect = document.getElementById('newTeacherSelect');
-    newTeacherSelect.innerHTML = '<option value="">请选择班主任</option>';
+    newTeacherSelect.innerHTML = '<option value="">请选择辅导老师</option>';
     allTeachers.forEach(teacher => {
         if (teacher.id !== teacherId) {
             const option = document.createElement('option');
@@ -441,7 +441,7 @@ function showChangeTeacherModal(customerId, studentName, teacherId, teacherName)
     document.getElementById('changeTeacherModal').classList.remove('hidden');
 }
 
-// 隐藏更换班主任模态框
+// 隐藏更换辅导老师模态框
 function hideChangeTeacherModal() {
     currentCustomerId = null;
     currentStudentName = null;
@@ -451,20 +451,20 @@ function hideChangeTeacherModal() {
     document.getElementById('newTeacherSelect').value = '';
 }
 
-// 更换班主任（需要二次确认）
+// 更换辅导老师（需要二次确认）
 let changeTeacherConfirmed = false;
 
 function changeTeacher() {
     const newTeacherId = document.getElementById('newTeacherSelect').value;
     if (!newTeacherId) {
-        alert('请选择新班主任');
+        alert('请选择新辅导老师');
         return;
     }
 
     // 第一次点击，显示确认提示
     if (!changeTeacherConfirmed) {
         const newTeacher = allTeachers.find(t => t.id == newTeacherId);
-        if (confirm(`确定要将班主任从 ${currentTeacherName} 更换为 ${newTeacher.chinese_name} 吗？\n\n此操作需要二次确认，请再次点击"确认更换"按钮。`)) {
+        if (confirm(`确定要将辅导老师从 ${currentTeacherName} 更换为 ${newTeacher.chinese_name} 吗？\n\n此操作需要二次确认，请再次点击"确认更换"按钮。`)) {
             changeTeacherConfirmed = true;
             // 改变按钮文字提示用户需要再次点击
             event.target.textContent = '再次点击确认';
@@ -502,7 +502,7 @@ function changeTeacher() {
     });
 }
 
-{% if current_user.is_admin() or current_user.is_sales_manager() or current_user.is_teacher() %}
+{% if current_user.is_admin() or current_user.is_sales_manager() or current_user.role == 'teacher_supervisor' %}
 // 进度更新模态窗口功能
 function openProgressModal(customerId, salesUserId) {
     // 获取当前用户信息
@@ -898,7 +898,7 @@ function togglePriorityCustomer() {
 </script>
 
 <!-- 进度更新模态窗口 - 仅管理员、销售管理和班主任可见 -->
-{% if current_user.is_admin() or current_user.is_sales_manager() or current_user.is_teacher() %}
+{% if current_user.is_admin() or current_user.is_sales_manager() or current_user.role == 'teacher_supervisor' %}
 <div id="progressModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden">
     <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
         <div class="mt-3">

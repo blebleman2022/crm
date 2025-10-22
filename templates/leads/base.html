@@ -54,12 +54,12 @@
                 <ul class="space-y-1 p-4">
                     <li>
                         <a class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium {% if request.endpoint in ['leads.dashboard', 'delivery.dashboard'] %}text-white bg-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}"
-                           href="{% if current_user.role == 'teacher' %}{{ url_for('delivery.dashboard') }}{% else %}{{ url_for('leads.dashboard') }}{% endif %}">
+                           href="{% if current_user.role == 'teacher_supervisor' %}{{ url_for('delivery.dashboard') }}{% else %}{{ url_for('leads.dashboard') }}{% endif %}">
                             <span class="material-symbols-outlined text-lg {% if request.endpoint in ['leads.dashboard', 'delivery.dashboard'] %}text-white{% else %}text-gray-500{% endif %}">dashboard</span>
                             仪表板
                         </a>
                     </li>
-                    {% if current_user.role == 'teacher' %}
+                    {% if current_user.role == 'teacher_supervisor' %}
                     <li>
                         <a class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium {% if request.endpoint == 'delivery.leads_list' %}text-white bg-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}"
                            href="{{ url_for('delivery.leads_list') }}">
@@ -101,8 +101,8 @@
                 <div class="flex items-center gap-4 lg:gap-8">
                     <!-- 移动端标题简化 -->
                     <h1 class="text-lg lg:text-2xl font-bold text-gray-900">
-                        <span class="hidden sm:inline">{% block page_title %}{% if current_user.role == 'teacher' %}服务交付{% else %}线索管理{% endif %}{% endblock %}</span>
-                        <span class="sm:hidden">{% if current_user.role == 'teacher' %}交付{% else %}线索{% endif %}</span>
+                        <span class="hidden sm:inline">{% block page_title %}{% if current_user.role == 'teacher_supervisor' %}服务交付{% else %}线索管理{% endif %}{% endblock %}</span>
+                        <span class="sm:hidden">{% if current_user.role == 'teacher_supervisor' %}交付{% else %}线索{% endif %}</span>
                     </h1>
                 </div>
                 <div class="flex items-center gap-2 lg:gap-4">

@@ -43,8 +43,10 @@
                                     系统管理员
                                 {% elif current_user.is_sales() %}
                                     销售人员
-                                {% elif current_user.is_teacher() %}
+                                {% elif current_user.role == 'teacher_supervisor' %}
                                     班主任
+                                {% elif current_user.role == 'teacher' %}
+                                    辅导老师
                                 {% endif %}
                             </div>
                         </div>

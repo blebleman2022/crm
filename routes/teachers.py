@@ -6,11 +6,11 @@ from datetime import datetime
 
 teachers_bp = Blueprint('teachers', __name__)
 
-def teacher_role_required(f):
-    """班主任角色权限装饰器（只有teacher角色的用户可以访问）"""
+def teacher_supervisor_required(f):
+    """班主任角色权限装饰器（只有teacher_supervisor角色的用户可以访问）"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or current_user.role != 'teacher':
+        if not current_user.is_authenticated or current_user.role != 'teacher_supervisor':
             flash('您没有权限访问此页面，仅班主任可访问', 'error')
             return redirect(url_for('leads.dashboard'))
         return f(*args, **kwargs)
@@ -18,7 +18,7 @@ def teacher_role_required(f):
 
 @teachers_bp.route('/list')
 @login_required
-@teacher_role_required
+@teacher_supervisor_required
 def list_teachers():
     """老师列表页"""
     page = request.args.get('page', 1, type=int)
@@ -65,7 +65,7 @@ def list_teachers():
 
 @teachers_bp.route('/add', methods=['GET', 'POST'])
 @login_required
-@teacher_role_required
+@teacher_supervisor_required
 def add_teacher():
     """添加老师"""
     if request.method == 'POST':
@@ -103,7 +103,7 @@ def add_teacher():
 
 @teachers_bp.route('/edit/<int:teacher_id>', methods=['GET', 'POST'])
 @login_required
-@teacher_role_required
+@teacher_supervisor_required
 def edit_teacher(teacher_id):
     """编辑老师"""
     teacher = Teacher.query.get_or_404(teacher_id)
@@ -139,7 +139,7 @@ def edit_teacher(teacher_id):
 
 @teachers_bp.route('/detail/<int:teacher_id>')
 @login_required
-@teacher_role_required
+@teacher_supervisor_required
 def detail_teacher(teacher_id):
     """老师详情页"""
     teacher = Teacher.query.get_or_404(teacher_id)
@@ -153,7 +153,7 @@ def detail_teacher(teacher_id):
 
 @teachers_bp.route('/delete/<int:teacher_id>', methods=['POST'])
 @login_required
-@teacher_role_required
+@teacher_supervisor_required
 def delete_teacher(teacher_id):
     """删除老师（软删除，设置status=False）"""
     try:
@@ -180,7 +180,7 @@ def delete_teacher(teacher_id):
 
 @teachers_bp.route('/activate/<int:teacher_id>', methods=['POST'])
 @login_required
-@teacher_role_required
+@teacher_supervisor_required
 def activate_teacher(teacher_id):
     """启用老师"""
     try:
@@ -226,7 +226,7 @@ def assign_teacher(customer_id):
             return jsonify({'success': False, 'message': '该老师已被禁用'}), 400
         
         # 检查权限：只有班主任角色可以分配老师
-        if current_user.role != 'teacher':
+        if current_user.role != 'teacher_supervisor':
             return jsonify({'success': False, 'message': '只有班主任可以分配老师'}), 403
         
         old_teacher_name = customer.teacher.chinese_name if customer.teacher else '未分配'
@@ -262,7 +262,7 @@ def change_teacher(customer_id):
             return jsonify({'success': False, 'message': '该老师已被禁用'}), 400
         
         # 检查权限：只有班主任角色可以更换老师
-        if current_user.role != 'teacher':
+        if current_user.role != 'teacher_supervisor':
             return jsonify({'success': False, 'message': '只有班主任可以更换老师'}), 403
         
         # 如果未确认，返回需要确认的信息

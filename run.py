@@ -134,7 +134,7 @@ def create_app(config_name=None):
             return redirect(url_for('admin.dashboard'))
         elif current_user.role == 'sales':
             return redirect(url_for('leads.dashboard'))
-        elif current_user.role == 'teacher':
+        elif current_user.role == 'teacher_supervisor':
             return redirect(url_for('delivery.dashboard'))
 
         return redirect(url_for('auth.login'))

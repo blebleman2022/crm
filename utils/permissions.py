@@ -96,7 +96,7 @@ def check_data_access_permission(user, target_user_id=None, customer_id=None, le
             return customer.sales_user_id == user.id
         
         # 班主任可以访问分配给自己的客户
-        if user.role == 'teacher':
+        if user.role == 'teacher_supervisor':
             return customer.teacher_user_id == user.id
     
     # 检查线索数据访问权限
@@ -111,7 +111,7 @@ def check_data_access_permission(user, target_user_id=None, customer_id=None, le
             return lead.sales_user_id == user.id
         
         # 班主任不能直接访问线索数据
-        if user.role == 'teacher':
+        if user.role == 'teacher_supervisor':
             return False
     
     return True
@@ -178,7 +178,7 @@ def get_accessible_data_filter(user, model_class):
                 return model_class.sales_user_id == user.id
     
     # 班主任只能访问分配给自己的客户数据
-    if user.role == 'teacher':
+    if user.role == 'teacher_supervisor':
         if model_class.__name__ == 'Customer':
             return model_class.teacher_user_id == user.id
         elif model_class.__name__ == 'TutoringDelivery':

@@ -7,11 +7,11 @@ from sqlalchemy import and_, func
 
 delivery_bp = Blueprint('delivery', __name__)
 
-def teacher_required(f):
+def teacher_supervisor_required(f):
     """班主任权限装饰器"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or not current_user.is_teacher():
+        if not current_user.is_authenticated or current_user.role != 'teacher_supervisor':
             flash('您没有权限访问此页面', 'error')
             return redirect(url_for('auth.login'))
         return f(*args, **kwargs)
@@ -19,7 +19,7 @@ def teacher_required(f):
 
 @delivery_bp.route('/dashboard')
 @login_required
-@teacher_required
+@teacher_supervisor_required
 def dashboard():
     """交付管理仪表板"""
     # 我负责的客户统计
@@ -69,7 +69,7 @@ def dashboard():
 
 @delivery_bp.route('/leads')
 @login_required
-@teacher_required
+@teacher_supervisor_required
 def leads_list():
     """班主任线索管理 - 只显示首笔支付阶段的线索"""
     page = request.args.get('page', 1, type=int)
@@ -156,7 +156,7 @@ def leads_list():
 
 @delivery_bp.route('/tutoring')
 @login_required
-@teacher_required
+@teacher_supervisor_required
 def tutoring_list():
     """课题辅导交付列表"""
     page = request.args.get('page', 1, type=int)
@@ -188,7 +188,7 @@ def tutoring_list():
 
 @delivery_bp.route('/tutoring/<int:delivery_id>/edit', methods=['GET', 'POST'])
 @login_required
-@teacher_required
+@teacher_supervisor_required
 def edit_tutoring(delivery_id):
     """编辑课题辅导交付"""
     delivery = TutoringDelivery.query.get_or_404(delivery_id)
@@ -251,7 +251,7 @@ def edit_tutoring(delivery_id):
 
 @delivery_bp.route('/competition')
 @login_required
-@teacher_required
+@teacher_supervisor_required
 def competition_list():
     """竞赛奖项交付列表"""
     page = request.args.get('page', 1, type=int)
@@ -283,7 +283,7 @@ def competition_list():
 
 @delivery_bp.route('/competition/<int:delivery_id>/edit', methods=['GET', 'POST'])
 @login_required
-@teacher_required
+@teacher_supervisor_required
 def edit_competition(delivery_id):
     """编辑竞赛奖项交付"""
     delivery = CompetitionDelivery.query.get_or_404(delivery_id)

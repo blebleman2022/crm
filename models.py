@@ -13,7 +13,7 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), nullable=False, comment='用户名')
     phone = db.Column(db.String(11), unique=True, nullable=False, comment='手机号')
-    role = db.Column(db.String(20), nullable=False, comment='角色：admin/sales_manager/salesperson/teacher')
+    role = db.Column(db.String(20), nullable=False, comment='角色：admin/sales_manager/salesperson/teacher_supervisor/teacher')
     group_name = db.Column(db.String(50), comment='所属组别')
     status = db.Column(db.Boolean, default=True, comment='账号状态：True启用/False禁用')
     created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
@@ -41,7 +41,12 @@ class User(UserMixin, db.Model):
         """是否为销售相关角色（包括销售管理和销售）"""
         return self.role in ['sales_manager', 'salesperson']
 
+    def is_teacher_supervisor(self):
+        """是否为班主任角色（管理客户交付和辅导老师）"""
+        return self.role == 'teacher_supervisor'
+
     def is_teacher(self):
+        """是否为辅导老师角色（实际授课，未来可能废弃此User角色）"""
         return self.role == 'teacher'
 
 class Lead(db.Model):
@@ -129,8 +134,8 @@ class Customer(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     lead_id = db.Column(db.Integer, db.ForeignKey('leads.id'), nullable=False, comment='关联线索ID')
-    teacher_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), comment='[已废弃] 责任班主任ID（User表）')
-    teacher_id = db.Column(db.Integer, db.ForeignKey('teachers.id'), comment='责任班主任ID（Teacher表）')
+    teacher_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), comment='责任班主任ID（User表，role=teacher_supervisor）')
+    teacher_id = db.Column(db.Integer, db.ForeignKey('teachers.id'), comment='辅导老师ID（Teacher表）')
 
     payment_amount = db.Column(Numeric(10, 2), nullable=False, comment='支付金额')
 

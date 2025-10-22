@@ -82,8 +82,10 @@
                                 <span class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">销售管理</span>
                             {% elif user.role == 'salesperson' %}
                                 <span class="inline-flex items-center rounded-full bg-cyan-100 px-2.5 py-0.5 text-xs font-medium text-cyan-800">销售</span>
-                            {% elif user.role == 'teacher' %}
+                            {% elif user.role == 'teacher_supervisor' %}
                                 <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">班主任</span>
+                            {% elif user.role == 'teacher' %}
+                                <span class="inline-flex items-center rounded-full bg-pink-100 px-2.5 py-0.5 text-xs font-medium text-pink-800">辅导老师</span>
                             {% else %}
                                 <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">{{ user.role }}</span>
                             {% endif %}
