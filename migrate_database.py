@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 数据库迁移脚本
-用途：安全地将 edu_crm_1022.db 迁移到最新版本
+用途：安全地将 edu_crm.db 迁移到最新版本
 支持：添加新表、修改表结构、数据迁移
 """
 
@@ -30,10 +30,10 @@ def backup_database(db_path):
     """备份数据库"""
     backup_dir = "backups"
     os.makedirs(backup_dir, exist_ok=True)
-    
+
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup_path = os.path.join(backup_dir, f"edu_crm_1022_backup_{timestamp}.db")
-    
+    backup_path = os.path.join(backup_dir, f"edu_crm_backup_{timestamp}.db")
+
     shutil.copy2(db_path, backup_path)
     print_success(f"数据库已备份到: {backup_path}")
     return backup_path
@@ -214,10 +214,10 @@ def main():
     print(f"{Colors.GREEN}{'='*50}{Colors.NC}")
     print(f"{Colors.GREEN}EduConnect CRM 数据库迁移工具{Colors.NC}")
     print(f"{Colors.GREEN}{'='*50}{Colors.NC}\n")
-    
+
     # 数据库路径
-    db_path = "instance/edu_crm_1022.db"
-    
+    db_path = "instance/edu_crm.db"
+
     # 检查数据库文件是否存在
     if not os.path.exists(db_path):
         print_error(f"数据库文件不存在: {db_path}")

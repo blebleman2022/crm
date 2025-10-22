@@ -28,11 +28,11 @@ BACKUP_DIR="backups"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 mkdir -p $BACKUP_DIR
 
-if [ -f "instance/edu_crm_1022.db" ]; then
-    cp instance/edu_crm_1022.db "$BACKUP_DIR/edu_crm_1022_backup_$TIMESTAMP.db"
-    echo -e "${GREEN}✓ 数据库已备份到: $BACKUP_DIR/edu_crm_1022_backup_$TIMESTAMP.db${NC}"
+if [ -f "instance/edu_crm.db" ]; then
+    cp instance/edu_crm.db "$BACKUP_DIR/edu_crm_backup_$TIMESTAMP.db"
+    echo -e "${GREEN}✓ 数据库已备份到: $BACKUP_DIR/edu_crm_backup_$TIMESTAMP.db${NC}"
 else
-    echo -e "${RED}错误：找不到数据库文件 instance/edu_crm_1022.db${NC}"
+    echo -e "${RED}错误：找不到数据库文件 instance/edu_crm.db${NC}"
     exit 1
 fi
 
@@ -73,7 +73,7 @@ fi
 
 # 7. 验证数据库完整性
 echo -e "${YELLOW}步骤 6/7: 验证数据库完整性...${NC}"
-sqlite3 instance/edu_crm_1022.db "PRAGMA integrity_check;" > /tmp/db_check.txt
+sqlite3 instance/edu_crm.db "PRAGMA integrity_check;" > /tmp/db_check.txt
 if grep -q "ok" /tmp/db_check.txt; then
     echo -e "${GREEN}✓ 数据库完整性检查通过${NC}"
 else
@@ -88,7 +88,7 @@ echo -e "${YELLOW}步骤 7/7: 启动服务...${NC}"
 
 # 设置环境变量
 export FLASK_ENV=production
-export DATABASE_URL="sqlite:///$(pwd)/instance/edu_crm_1022.db"
+export DATABASE_URL="sqlite:///$(pwd)/instance/edu_crm.db"
 
 # 后台启动服务
 nohup python run.py > logs/app.log 2>&1 &
@@ -110,8 +110,8 @@ echo -e "${GREEN}========================================${NC}"
 echo -e "${GREEN}部署完成！${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
-echo -e "数据库备份: ${GREEN}$BACKUP_DIR/edu_crm_1022_backup_$TIMESTAMP.db${NC}"
-echo -e "数据库文件: ${GREEN}instance/edu_crm_1022.db${NC}"
+echo -e "数据库备份: ${GREEN}$BACKUP_DIR/edu_crm_backup_$TIMESTAMP.db${NC}"
+echo -e "数据库文件: ${GREEN}instance/edu_crm.db${NC}"
 echo -e "日志文件: ${GREEN}logs/app.log${NC}"
 echo ""
 echo -e "查看日志: ${YELLOW}tail -f logs/app.log${NC}"
