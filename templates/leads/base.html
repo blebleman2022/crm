@@ -99,15 +99,7 @@
                             客户管理
                         </a>
                     </li>
-                    {% if current_user.role == 'sales_manager' %}
-                    <li>
-                        <a class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium {% if request.endpoint == 'data_export.export_page' %}text-white bg-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}"
-                           href="{{ url_for('data_export.export_page') }}">
-                            <span class="material-symbols-outlined text-lg {% if request.endpoint == 'data_export.export_page' %}text-white{% else %}text-gray-500{% endif %}">download</span>
-                            数据下载
-                        </a>
-                    </li>
-                    {% endif %}
+
 
                 </ul>
             </nav>

@@ -1,6 +1,6 @@
 """
 数据导出路由
-仅销售管理角色可访问
+仅管理员角色可访问
 """
 
 from flask import Blueprint, render_template, request, jsonify, send_file
@@ -14,13 +14,13 @@ import os
 
 data_export_bp = Blueprint('data_export', __name__)
 
-def sales_manager_required(f):
-    """销售管理权限装饰器"""
+def admin_required(f):
+    """管理员权限装饰器"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or current_user.role != 'sales_manager':
+        if not current_user.is_authenticated or current_user.role != 'admin':
             from flask import flash, redirect, url_for
-            flash('您没有权限访问此页面，仅销售管理可访问', 'error')
+            flash('您没有权限访问此页面，仅管理员可访问', 'error')
             return redirect(url_for('leads.dashboard'))
         return f(*args, **kwargs)
     return decorated_function
@@ -109,14 +109,14 @@ EXPORTABLE_TABLES = {
 
 @data_export_bp.route('/export')
 @login_required
-@sales_manager_required
+@admin_required
 def export_page():
     """数据导出页面"""
     return render_template('data_export/index.html', tables=EXPORTABLE_TABLES)
 
 @data_export_bp.route('/export/download', methods=['POST'])
 @login_required
-@sales_manager_required
+@admin_required
 def download_data():
     """下载选中的表数据为Excel文件"""
     try:
@@ -214,7 +214,7 @@ def download_data():
 
 @data_export_bp.route('/export/preview/<table_key>')
 @login_required
-@sales_manager_required
+@admin_required
 def preview_table(table_key):
     """预览表数据（前10条）"""
     try:
