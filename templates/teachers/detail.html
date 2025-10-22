@@ -1,147 +1,351 @@
 {% extends "leads/base.html" %}
 
-{% block title %}老师详情 - EduConnect CRM{% endblock %}
-{% block page_title %}老师详情{% endblock %}
+{% block title %}{{ teacher.chinese_name }} - 导师简历{% endblock %}
+{% block page_title %}导师简历{% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto">
-    <div class="bg-white p-6 rounded-lg shadow-sm mb-6">
-        <!-- 顶部操作栏 -->
-        <div class="flex justify-between items-center mb-6">
-            <h2 class="text-2xl font-semibold text-gray-900">{{ teacher.chinese_name }}</h2>
-            <div class="flex space-x-3">
-                <a href="{{ url_for('teachers.list_teachers') }}" 
-                   class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-                    <span class="material-symbols-outlined mr-1 text-sm">arrow_back</span>
-                    返回列表
-                </a>
-                <a href="{{ url_for('teachers.edit_teacher', teacher_id=teacher.id) }}" 
-                   class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-                    <span class="material-symbols-outlined mr-1 text-sm">edit</span>
-                    编辑
-                </a>
-            </div>
+<style>
+    /* 自定义样式 */
+    .profile-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    .section-title {
+        position: relative;
+        padding-left: 16px;
+    }
+    .section-title::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 4px;
+        height: 24px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 2px;
+    }
+    .info-card {
+        transition: all 0.3s ease;
+    }
+    .info-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    }
+    .achievement-item {
+        position: relative;
+        padding-left: 24px;
+    }
+    .achievement-item::before {
+        content: '✓';
+        position: absolute;
+        left: 0;
+        top: 2px;
+        width: 18px;
+        height: 18px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: bold;
+    }
+</style>
+
+<div class="max-w-7xl mx-auto">
+    <!-- 顶部操作栏 -->
+    <div class="mb-6 flex justify-between items-center">
+        <a href="{{ url_for('teachers.list_teachers') }}"
+           class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 shadow-sm">
+            <span class="material-symbols-outlined mr-1 text-sm">arrow_back</span>
+            返回列表
+        </a>
+        <a href="{{ url_for('teachers.edit_teacher', teacher_id=teacher.id) }}"
+           class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-sm">
+            <span class="material-symbols-outlined mr-1 text-sm">edit</span>
+            编辑资料
+        </a>
+    </div>
+
+    <!-- 个人简介卡片 -->
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden mb-6">
+        <!-- 头部背景 -->
+        <div class="profile-header h-32 relative">
+            <div class="absolute inset-0 bg-black opacity-10"></div>
         </div>
 
-        <!-- 基本信息 -->
-        <div class="border-b border-gray-200 pb-6 mb-6">
-            <h3 class="text-lg font-medium text-gray-900 mb-4">基本信息</h3>
-            <dl class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                <div>
-                    <dt class="text-sm font-medium text-gray-500">中文名</dt>
-                    <dd class="mt-1 text-sm text-gray-900">{{ teacher.chinese_name }}</dd>
+        <!-- 个人信息 -->
+        <div class="px-8 pb-8">
+            <div class="flex flex-col md:flex-row md:items-end -mt-16 relative z-10">
+                <!-- 头像占位 -->
+                <div class="flex-shrink-0 mb-4 md:mb-0">
+                    <div class="w-32 h-32 rounded-full bg-white shadow-xl flex items-center justify-center border-4 border-white">
+                        <span class="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
+                            {{ teacher.chinese_name[0] if teacher.chinese_name else 'T' }}
+                        </span>
+                    </div>
                 </div>
-                <div>
-                    <dt class="text-sm font-medium text-gray-500">英文名</dt>
-                    <dd class="mt-1 text-sm text-gray-900">{{ teacher.english_name or '-' }}</dd>
-                </div>
-                <div>
-                    <dt class="text-sm font-medium text-gray-500">现单位</dt>
-                    <dd class="mt-1 text-sm text-gray-900">{{ teacher.current_institution or '-' }}</dd>
-                </div>
-                <div>
-                    <dt class="text-sm font-medium text-gray-500">专业方向</dt>
-                    <dd class="mt-1 text-sm text-gray-900">{{ teacher.major_direction or '-' }}</dd>
-                </div>
-                <div>
-                    <dt class="text-sm font-medium text-gray-500">最高学历</dt>
-                    <dd class="mt-1 text-sm text-gray-900">{{ teacher.highest_degree or '-' }}</dd>
-                </div>
-                <div>
-                    <dt class="text-sm font-medium text-gray-500">状态</dt>
-                    <dd class="mt-1 text-sm">
-                        {% if teacher.status %}
-                            <span class="inline-flex rounded-full bg-green-100 px-2 text-xs font-semibold leading-5 text-green-800">启用</span>
-                        {% else %}
-                            <span class="inline-flex rounded-full bg-gray-100 px-2 text-xs font-semibold leading-5 text-gray-800">禁用</span>
-                        {% endif %}
-                    </dd>
-                </div>
-            </dl>
-        </div>
 
-        <!-- 详细信息 -->
-        <div class="border-b border-gray-200 pb-6 mb-6">
-            <h3 class="text-lg font-medium text-gray-900 mb-4">详细信息</h3>
-            <dl class="space-y-4">
-                <div>
-                    <dt class="text-sm font-medium text-gray-500">学历说明</dt>
-                    <dd class="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{{ teacher.degree_description or '-' }}</dd>
-                </div>
-                <div>
-                    <dt class="text-sm font-medium text-gray-500">科研成果</dt>
-                    <dd class="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{{ teacher.research_achievements or '-' }}</dd>
-                </div>
-                <div>
-                    <dt class="text-sm font-medium text-gray-500">科创辅导成果</dt>
-                    <dd class="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{{ teacher.innovation_coaching_achievements or '-' }}</dd>
-                </div>
-                <div>
-                    <dt class="text-sm font-medium text-gray-500">社会角色</dt>
-                    <dd class="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{{ teacher.social_roles or '-' }}</dd>
-                </div>
-            </dl>
-        </div>
-
-        <!-- 相关图片 -->
-        {% if teacher.images.count() > 0 %}
-        <div class="border-b border-gray-200 pb-6 mb-6">
-            <h3 class="text-lg font-medium text-gray-900 mb-4">相关图片 ({{ teacher.images.count() }})</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {% for image in teacher.images %}
-                <div class="border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
-                    <a href="{{ url_for('static', filename=image.image_path) }}"
-                       target="_blank"
-                       class="block">
-                        <img src="{{ url_for('static', filename=image.image_path) }}"
-                             alt="{{ image.description or '老师图片' }}"
-                             class="w-full h-48 object-cover">
-                    </a>
-                    <div class="p-3 bg-gray-50">
-                        {% if image.description %}
-                        <p class="text-sm text-gray-900 font-medium">{{ image.description }}</p>
-                        {% endif %}
-                        <div class="mt-2 flex items-center justify-between text-xs text-gray-500">
-                            <span>{{ image.get_file_size_display() }}</span>
-                            <span>{{ image.created_at.strftime('%Y-%m-%d') if image.created_at else '-' }}</span>
+                <!-- 基本信息 -->
+                <div class="md:ml-6 flex-1">
+                    <div class="flex flex-col md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <h1 class="text-3xl font-bold text-gray-900 mb-1">
+                                {{ teacher.chinese_name }}
+                                {% if teacher.english_name %}
+                                <span class="text-xl text-gray-500 font-normal ml-2">{{ teacher.english_name }}</span>
+                                {% endif %}
+                            </h1>
+                            <div class="flex flex-wrap items-center gap-3 mt-2">
+                                {% if teacher.current_institution %}
+                                <span class="inline-flex items-center text-sm text-gray-600">
+                                    <span class="material-symbols-outlined text-base mr-1">school</span>
+                                    {{ teacher.current_institution }}
+                                </span>
+                                {% endif %}
+                                {% if teacher.major_direction %}
+                                <span class="inline-flex items-center text-sm text-gray-600">
+                                    <span class="material-symbols-outlined text-base mr-1">science</span>
+                                    {{ teacher.major_direction }}
+                                </span>
+                                {% endif %}
+                                {% if teacher.highest_degree %}
+                                <span class="inline-flex items-center text-sm text-gray-600">
+                                    <span class="material-symbols-outlined text-base mr-1">workspace_premium</span>
+                                    {{ teacher.highest_degree }}
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="mt-4 md:mt-0">
+                            {% if teacher.status %}
+                                <span class="inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold bg-green-100 text-green-800">
+                                    <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                                    在职
+                                </span>
+                            {% else %}
+                                <span class="inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold bg-gray-100 text-gray-800">
+                                    <span class="w-2 h-2 bg-gray-500 rounded-full mr-2"></span>
+                                    离职
+                                </span>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
-                {% endfor %}
             </div>
-        </div>
-        {% endif %}
-
-        <!-- 系统信息 -->
-        <div>
-            <h3 class="text-lg font-medium text-gray-900 mb-4">系统信息</h3>
-            <dl class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                <div>
-                    <dt class="text-sm font-medium text-gray-500">创建时间</dt>
-                    <dd class="mt-1 text-sm text-gray-900">{{ teacher.created_at.strftime('%Y-%m-%d %H:%M:%S') if teacher.created_at else '-' }}</dd>
-                </div>
-                <div>
-                    <dt class="text-sm font-medium text-gray-500">更新时间</dt>
-                    <dd class="mt-1 text-sm text-gray-900">{{ teacher.updated_at.strftime('%Y-%m-%d %H:%M:%S') if teacher.updated_at else '-' }}</dd>
-                </div>
-            </dl>
         </div>
     </div>
 
-    <!-- 负责的客户列表 -->
-    <div class="bg-white p-6 rounded-lg shadow-sm">
-        <h3 class="text-lg font-medium text-gray-900 mb-4">负责的客户 ({{ customers|length }})</h3>
-        
-        {% if customers %}
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- 左侧主要内容 -->
+        <div class="lg:col-span-2 space-y-6">
+
+            <!-- 教育背景 -->
+            {% if teacher.degree_description and teacher.degree_description != '-' %}
+            <div class="bg-white rounded-xl shadow-sm p-6 info-card">
+                <h3 class="section-title text-xl font-bold text-gray-900 mb-4">
+                    <span class="material-symbols-outlined align-middle mr-2 text-purple-600">school</span>
+                    教育背景
+                </h3>
+                <div class="prose prose-sm max-w-none">
+                    <p class="text-gray-700 leading-relaxed whitespace-pre-wrap">{{ teacher.degree_description }}</p>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- 科研成果 -->
+            {% if teacher.research_achievements and teacher.research_achievements != '-' %}
+            <div class="bg-white rounded-xl shadow-sm p-6 info-card">
+                <h3 class="section-title text-xl font-bold text-gray-900 mb-4">
+                    <span class="material-symbols-outlined align-middle mr-2 text-purple-600">biotech</span>
+                    科研成果
+                </h3>
+                <div class="space-y-3">
+                    {% for achievement in teacher.research_achievements.split('\n') %}
+                        {% if achievement.strip() %}
+                        <div class="achievement-item text-gray-700 leading-relaxed">
+                            {{ achievement.strip() }}
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- 科创辅导成果 -->
+            {% if teacher.innovation_coaching_achievements and teacher.innovation_coaching_achievements != '-' %}
+            <div class="bg-white rounded-xl shadow-sm p-6 info-card">
+                <h3 class="section-title text-xl font-bold text-gray-900 mb-4">
+                    <span class="material-symbols-outlined align-middle mr-2 text-purple-600">emoji_events</span>
+                    科创辅导成果
+                </h3>
+                <div class="space-y-3">
+                    {% for achievement in teacher.innovation_coaching_achievements.split('\n') %}
+                        {% if achievement.strip() %}
+                        <div class="achievement-item text-gray-700 leading-relaxed">
+                            {{ achievement.strip() }}
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- 社会角色 -->
+            {% if teacher.social_roles and teacher.social_roles != '-' %}
+            <div class="bg-white rounded-xl shadow-sm p-6 info-card">
+                <h3 class="section-title text-xl font-bold text-gray-900 mb-4">
+                    <span class="material-symbols-outlined align-middle mr-2 text-purple-600">groups</span>
+                    社会角色
+                </h3>
+                <div class="space-y-3">
+                    {% for role in teacher.social_roles.split('\n') %}
+                        {% if role.strip() %}
+                        <div class="achievement-item text-gray-700 leading-relaxed">
+                            {{ role.strip() }}
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- 相关图片 -->
+            {% if teacher.images.count() > 0 %}
+            <div class="bg-white rounded-xl shadow-sm p-6 info-card">
+                <h3 class="section-title text-xl font-bold text-gray-900 mb-4">
+                    <span class="material-symbols-outlined align-middle mr-2 text-purple-600">photo_library</span>
+                    相关图片
+                    <span class="text-sm font-normal text-gray-500 ml-2">({{ teacher.images.count() }})</span>
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {% for image in teacher.images %}
+                    <div class="group relative rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-all duration-300">
+                        <a href="{{ url_for('static', filename=image.image_path) }}"
+                           target="_blank"
+                           class="block aspect-video relative overflow-hidden">
+                            <img src="{{ url_for('static', filename=image.image_path) }}"
+                                 alt="{{ image.description or '老师图片' }}"
+                                 class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300">
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                <div class="absolute bottom-0 left-0 right-0 p-4">
+                                    <p class="text-white text-sm font-medium">点击查看大图</p>
+                                </div>
+                            </div>
+                        </a>
+                        {% if image.description %}
+                        <div class="p-3 bg-gradient-to-r from-gray-50 to-white">
+                            <p class="text-sm text-gray-900 font-medium line-clamp-2">{{ image.description }}</p>
+                            <p class="text-xs text-gray-500 mt-1">{{ image.created_at.strftime('%Y年%m月') if image.created_at else '-' }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- 右侧信息栏 -->
+        <div class="space-y-6">
+
+            <!-- 快速统计 -->
+            <div class="bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl shadow-lg p-6 text-white">
+                <h3 class="text-lg font-semibold mb-4 flex items-center">
+                    <span class="material-symbols-outlined mr-2">analytics</span>
+                    辅导统计
+                </h3>
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center">
+                        <span class="text-blue-100">负责学员</span>
+                        <span class="text-2xl font-bold">{{ customers|length }}</span>
+                    </div>
+                    {% if teacher.images.count() > 0 %}
+                    <div class="flex justify-between items-center">
+                        <span class="text-blue-100">相关图片</span>
+                        <span class="text-2xl font-bold">{{ teacher.images.count() }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- 联系信息 -->
+            <div class="bg-white rounded-xl shadow-sm p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <span class="material-symbols-outlined mr-2 text-purple-600">contact_mail</span>
+                    基本信息
+                </h3>
+                <dl class="space-y-3">
+                    <div class="flex items-start">
+                        <dt class="text-sm text-gray-500 w-20 flex-shrink-0">中文名</dt>
+                        <dd class="text-sm text-gray-900 font-medium">{{ teacher.chinese_name }}</dd>
+                    </div>
+                    {% if teacher.english_name %}
+                    <div class="flex items-start">
+                        <dt class="text-sm text-gray-500 w-20 flex-shrink-0">英文名</dt>
+                        <dd class="text-sm text-gray-900">{{ teacher.english_name }}</dd>
+                    </div>
+                    {% endif %}
+                    {% if teacher.current_institution %}
+                    <div class="flex items-start">
+                        <dt class="text-sm text-gray-500 w-20 flex-shrink-0">现单位</dt>
+                        <dd class="text-sm text-gray-900">{{ teacher.current_institution }}</dd>
+                    </div>
+                    {% endif %}
+                    {% if teacher.major_direction %}
+                    <div class="flex items-start">
+                        <dt class="text-sm text-gray-500 w-20 flex-shrink-0">专业方向</dt>
+                        <dd class="text-sm text-gray-900">{{ teacher.major_direction }}</dd>
+                    </div>
+                    {% endif %}
+                    {% if teacher.highest_degree %}
+                    <div class="flex items-start">
+                        <dt class="text-sm text-gray-500 w-20 flex-shrink-0">最高学历</dt>
+                        <dd class="text-sm text-gray-900">{{ teacher.highest_degree }}</dd>
+                    </div>
+                    {% endif %}
+                </dl>
+            </div>
+
+            <!-- 系统信息 -->
+            <div class="bg-white rounded-xl shadow-sm p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <span class="material-symbols-outlined mr-2 text-purple-600">info</span>
+                    系统信息
+                </h3>
+                <dl class="space-y-3">
+                    <div class="flex items-start">
+                        <dt class="text-sm text-gray-500 w-20 flex-shrink-0">创建时间</dt>
+                        <dd class="text-sm text-gray-900">{{ teacher.created_at.strftime('%Y-%m-%d') if teacher.created_at else '-' }}</dd>
+                    </div>
+                    <div class="flex items-start">
+                        <dt class="text-sm text-gray-500 w-20 flex-shrink-0">更新时间</dt>
+                        <dd class="text-sm text-gray-900">{{ teacher.updated_at.strftime('%Y-%m-%d') if teacher.updated_at else '-' }}</dd>
+                    </div>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <!-- 负责的学员列表 -->
+    {% if customers %}
+    <div class="bg-white rounded-xl shadow-sm p-6 mt-6">
+        <h3 class="section-title text-xl font-bold text-gray-900 mb-6">
+            <span class="material-symbols-outlined align-middle mr-2 text-purple-600">group</span>
+            负责的学员
+            <span class="text-sm font-normal text-gray-500 ml-2">({{ customers|length }})</span>
+        </h3>
+
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
+                <thead class="bg-gradient-to-r from-gray-50 to-gray-100">
                     <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">学员姓名</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">责任销售</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">服务内容</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">中高考时间</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">转客户时间</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">学员姓名</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">责任销售</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">服务内容</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">中高考时间</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">转客户时间</th>
                         <th class="relative px-6 py-3">
                             <span class="sr-only">操作</span>
                         </th>
@@ -149,39 +353,39 @@
                 </thead>
                 <tbody class="divide-y divide-gray-200 bg-white">
                     {% for customer in customers %}
-                    <tr class="hover:bg-gray-50">
+                    <tr class="hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 transition-colors duration-150">
                         <td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
                             {{ customer.lead.student_name }}
                         </td>
-                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-600">
                             {{ customer.lead.sales_user.username if customer.lead.sales_user else '-' }}
                         </td>
-                        <td class="px-6 py-4 text-sm text-gray-500">
+                        <td class="px-6 py-4 text-sm text-gray-600">
                             {% if customer.lead.service_types %}
-                                {{ customer.lead.service_types.replace(',', '、') }}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                    {{ customer.lead.service_types.replace(',', '、') }}
+                                </span>
                             {% else %}
                                 -
                             {% endif %}
                         </td>
-                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-600">
                             {{ customer.exam_year or '-' }}
                         </td>
-                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-600">
                             {{ customer.converted_at.strftime('%Y-%m-%d') if customer.converted_at else '-' }}
                         </td>
                         <td class="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
-                            <a href="{{ url_for('customers.edit_customer', customer_id=customer.id) }}" 
-                               class="text-blue-600 hover:text-blue-900">查看</a>
+                            <a href="{{ url_for('customers.edit_customer', customer_id=customer.id) }}"
+                               class="text-purple-600 hover:text-purple-900 font-medium">查看详情</a>
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-        {% else %}
-        <p class="text-sm text-gray-500 text-center py-8">暂无负责的客户</p>
-        {% endif %}
     </div>
+    {% endif %}
 </div>
 {% endblock %}
 
