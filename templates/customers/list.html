@@ -78,6 +78,7 @@
                     <tr>
                         <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-24">学员姓名</th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">责任销售</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">班主任</th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">辅导老师</th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">奖项要求</th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">中高考时间</th>
@@ -107,6 +108,13 @@
                             </div>
                         </td>
                         <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ customer.lead.sales_user.username }}</td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                            {% if customer.teacher_user %}
+                                {{ customer.teacher_user.username }}
+                            {% else %}
+                                <span class="text-gray-400">未分配</span>
+                            {% endif %}
+                        </td>
                         <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                             {% if customer.teacher %}
                                 <button onclick="showChangeTeacherModal({{ customer.id }}, '{{ customer.lead.student_name }}', {{ customer.teacher.id }}, '{{ customer.teacher.chinese_name }}')"
