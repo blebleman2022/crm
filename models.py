@@ -363,4 +363,33 @@ class CommunicationRecord(db.Model):
         stage = 'customer' if self.customer_id else 'lead'
         return f'<CommunicationRecord {stage} at {self.created_at}>'
 
+class TeacherImage(db.Model):
+    """老师相关图片表"""
+    __tablename__ = 'teacher_images'
+
+    id = db.Column(db.Integer, primary_key=True)
+    teacher_id = db.Column(db.Integer, db.ForeignKey('teachers.id'), nullable=False, comment='老师ID')
+    image_path = db.Column(db.String(500), nullable=False, comment='图片路径')
+    description = db.Column(db.String(200), comment='图片描述')
+    file_size = db.Column(db.Integer, comment='文件大小(字节)')
+    file_name = db.Column(db.String(200), comment='原始文件名')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='上传时间')
+
+    # 关联关系
+    teacher = db.relationship('Teacher', backref=db.backref('images', lazy='dynamic', cascade='all, delete-orphan'))
+
+    def __repr__(self):
+        return f'<TeacherImage {self.teacher_id} - {self.file_name}>'
+
+    def get_file_size_display(self):
+        """返回格式化的文件大小"""
+        if not self.file_size:
+            return '-'
+        size_kb = self.file_size / 1024
+        if size_kb < 1024:
+            return f'{size_kb:.1f} KB'
+        else:
+            size_mb = size_kb / 1024
+            return f'{size_mb:.1f} MB'
+
 # ConsultationDetail表已删除，现在统一使用CommunicationRecord表

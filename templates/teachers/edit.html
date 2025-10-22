@@ -125,6 +125,113 @@
                     </div>
                 </div>
 
+                <!-- 相关图片 -->
+                <div class="border-b border-gray-200 pb-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">相关图片</h3>
+
+                    <!-- 已上传的图片 -->
+                    <div id="existingImages" class="mb-6">
+                        {% if teacher.images.count() > 0 %}
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {% for image in teacher.images %}
+                                <div class="border border-gray-200 rounded-lg p-4" data-image-id="{{ image.id }}">
+                                    <div class="flex items-start space-x-4">
+                                        <img src="{{ url_for('static', filename=image.image_path) }}"
+                                             alt="{{ image.description or '老师图片' }}"
+                                             class="w-24 h-24 object-cover rounded">
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-sm font-medium text-gray-900 truncate">{{ image.file_name }}</p>
+                                            <p class="text-xs text-gray-500 mt-1">{{ image.get_file_size_display() }}</p>
+                                            <div class="mt-2">
+                                                <input type="text"
+                                                       value="{{ image.description or '' }}"
+                                                       placeholder="图片描述"
+                                                       class="image-description w-full text-sm border-gray-300 rounded-md"
+                                                       data-image-id="{{ image.id }}">
+                                            </div>
+                                            <button type="button"
+                                                    onclick="deleteImage({{ image.id }})"
+                                                    class="mt-2 text-xs text-red-600 hover:text-red-800">
+                                                删除图片
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="text-sm text-gray-500">暂无图片</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- 上传新图片 -->
+                    {% if teacher.images.count() < 5 %}
+                    <div class="mt-6">
+                        <h4 class="text-sm font-medium text-gray-900 mb-3">上传新图片</h4>
+                        <div class="space-y-4" id="imageUploadContainer">
+                            <div class="image-upload-item border-2 border-dashed border-gray-300 rounded-lg p-4">
+                                <div class="flex items-center space-x-4">
+                                    <div class="flex-shrink-0">
+                                        <label class="cursor-pointer inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                                            <span class="material-symbols-outlined mr-1 text-sm">upload</span>
+                                            选择图片
+                                            <input type="file"
+                                                   class="hidden image-file-input"
+                                                   accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
+                                                   onchange="handleImageSelect(this)">
+                                        </label>
+                                    </div>
+                                    <div class="flex-1">
+                                        <input type="text"
+                                               placeholder="图片描述（必填）"
+                                               class="image-description-input w-full text-sm border-gray-300 rounded-md"
+                                               disabled>
+                                        <p class="mt-1 text-xs text-gray-500 file-info"></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 flex items-center justify-between">
+                            <button type="button"
+                                    onclick="addImageUploadSlot()"
+                                    class="text-sm text-blue-600 hover:text-blue-800"
+                                    id="addMoreBtn">
+                                <span class="material-symbols-outlined text-sm align-middle">add</span>
+                                添加更多图片
+                            </button>
+                            <button type="button"
+                                    onclick="uploadImages()"
+                                    class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
+                                    id="uploadBtn"
+                                    disabled>
+                                <span class="material-symbols-outlined mr-1 text-sm">cloud_upload</span>
+                                上传图片
+                            </button>
+                        </div>
+
+                        <div class="mt-4 bg-blue-50 border border-blue-200 rounded-md p-3">
+                            <div class="flex">
+                                <span class="material-symbols-outlined text-blue-400 text-sm mr-2">info</span>
+                                <div class="text-xs text-blue-700">
+                                    <p class="font-medium">上传说明：</p>
+                                    <ul class="mt-1 list-disc list-inside space-y-0.5">
+                                        <li>每张图片不超过5MB</li>
+                                        <li>最多上传5张图片（当前已有{{ teacher.images.count() }}张）</li>
+                                        <li>支持PNG、JPG、JPEG、GIF、WEBP格式</li>
+                                        <li>每张图片必须填写描述</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="mt-4 bg-yellow-50 border border-yellow-200 rounded-md p-3">
+                        <p class="text-sm text-yellow-700">已达到最大图片数量限制（5张），如需上传新图片，请先删除现有图片。</p>
+                    </div>
+                    {% endif %}
+                </div>
+
                 <!-- 操作按钮 -->
                 <div class="flex justify-end space-x-3">
                     <a href="{{ url_for('teachers.list_teachers') }}" 
@@ -141,5 +248,246 @@
         </form>
     </div>
 </div>
+
+<script>
+// 图片上传相关变量
+let selectedFiles = [];
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_IMAGES = 5;
+const currentImageCount = {{ teacher.images.count() }};
+
+// 处理图片选择
+function handleImageSelect(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    // 检查文件大小
+    if (file.size > MAX_FILE_SIZE) {
+        alert('图片大小不能超过5MB');
+        input.value = '';
+        return;
+    }
+
+    // 检查文件类型
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+        alert('不支持的文件格式，请选择PNG、JPG、JPEG、GIF或WEBP格式');
+        input.value = '';
+        return;
+    }
+
+    // 显示文件信息
+    const container = input.closest('.image-upload-item');
+    const fileInfo = container.querySelector('.file-info');
+    const descInput = container.querySelector('.image-description-input');
+
+    fileInfo.textContent = `${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+    descInput.disabled = false;
+
+    // 启用上传按钮
+    updateUploadButton();
+}
+
+// 添加更多图片上传槽
+function addImageUploadSlot() {
+    const container = document.getElementById('imageUploadContainer');
+    const currentSlots = container.querySelectorAll('.image-upload-item').length;
+    const totalImages = currentImageCount + currentSlots;
+
+    if (totalImages >= MAX_IMAGES) {
+        alert(`最多只能上传${MAX_IMAGES}张图片`);
+        return;
+    }
+
+    const newSlot = document.createElement('div');
+    newSlot.className = 'image-upload-item border-2 border-dashed border-gray-300 rounded-lg p-4';
+    newSlot.innerHTML = `
+        <div class="flex items-center space-x-4">
+            <div class="flex-shrink-0">
+                <label class="cursor-pointer inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                    <span class="material-symbols-outlined mr-1 text-sm">upload</span>
+                    选择图片
+                    <input type="file"
+                           class="hidden image-file-input"
+                           accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
+                           onchange="handleImageSelect(this)">
+                </label>
+            </div>
+            <div class="flex-1">
+                <input type="text"
+                       placeholder="图片描述（必填）"
+                       class="image-description-input w-full text-sm border-gray-300 rounded-md"
+                       disabled>
+                <p class="mt-1 text-xs text-gray-500 file-info"></p>
+            </div>
+            <button type="button"
+                    onclick="removeImageSlot(this)"
+                    class="text-red-600 hover:text-red-800">
+                <span class="material-symbols-outlined text-sm">close</span>
+            </button>
+        </div>
+    `;
+
+    container.appendChild(newSlot);
+
+    // 更新添加按钮状态
+    if (totalImages + 1 >= MAX_IMAGES) {
+        document.getElementById('addMoreBtn').disabled = true;
+        document.getElementById('addMoreBtn').classList.add('opacity-50', 'cursor-not-allowed');
+    }
+}
+
+// 移除图片上传槽
+function removeImageSlot(btn) {
+    const slot = btn.closest('.image-upload-item');
+    slot.remove();
+
+    // 更新按钮状态
+    const container = document.getElementById('imageUploadContainer');
+    const currentSlots = container.querySelectorAll('.image-upload-item').length;
+    const totalImages = currentImageCount + currentSlots;
+
+    if (totalImages < MAX_IMAGES) {
+        const addBtn = document.getElementById('addMoreBtn');
+        addBtn.disabled = false;
+        addBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
+
+    updateUploadButton();
+}
+
+// 更新上传按钮状态
+function updateUploadButton() {
+    const uploadBtn = document.getElementById('uploadBtn');
+    const slots = document.querySelectorAll('.image-upload-item');
+    let hasValidFile = false;
+
+    slots.forEach(slot => {
+        const fileInput = slot.querySelector('.image-file-input');
+        if (fileInput && fileInput.files.length > 0) {
+            hasValidFile = true;
+        }
+    });
+
+    uploadBtn.disabled = !hasValidFile;
+}
+
+// 上传图片
+async function uploadImages() {
+    const slots = document.querySelectorAll('.image-upload-item');
+    const formData = new FormData();
+    let fileCount = 0;
+    let hasError = false;
+
+    slots.forEach(slot => {
+        const fileInput = slot.querySelector('.image-file-input');
+        const descInput = slot.querySelector('.image-description-input');
+
+        if (fileInput && fileInput.files.length > 0) {
+            const description = descInput.value.trim();
+            if (!description) {
+                alert('请为所有图片填写描述');
+                hasError = true;
+                return;
+            }
+
+            formData.append('images', fileInput.files[0]);
+            formData.append('descriptions', description);
+            fileCount++;
+        }
+    });
+
+    if (hasError) return;
+
+    if (fileCount === 0) {
+        alert('请先选择要上传的图片');
+        return;
+    }
+
+    // 禁用上传按钮
+    const uploadBtn = document.getElementById('uploadBtn');
+    uploadBtn.disabled = true;
+    uploadBtn.innerHTML = '<span class="material-symbols-outlined mr-1 text-sm animate-spin">refresh</span>上传中...';
+
+    try {
+        const response = await fetch(`/teachers/upload-image/{{ teacher.id }}`, {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert(data.message);
+            uploadBtn.disabled = false;
+            uploadBtn.innerHTML = '<span class="material-symbols-outlined mr-1 text-sm">cloud_upload</span>上传图片';
+        }
+    } catch (error) {
+        alert('上传失败，请重试');
+        uploadBtn.disabled = false;
+        uploadBtn.innerHTML = '<span class="material-symbols-outlined mr-1 text-sm">cloud_upload</span>上传图片';
+    }
+}
+
+// 删除图片
+async function deleteImage(imageId) {
+    if (!confirm('确定要删除这张图片吗？')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/teachers/delete-image/${imageId}`, {
+            method: 'POST'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert(data.message);
+        }
+    } catch (error) {
+        alert('删除失败，请重试');
+    }
+}
+
+// 更新图片描述（防抖）
+let descriptionUpdateTimeout;
+document.addEventListener('DOMContentLoaded', function() {
+    const descInputs = document.querySelectorAll('.image-description');
+
+    descInputs.forEach(input => {
+        input.addEventListener('input', function() {
+            clearTimeout(descriptionUpdateTimeout);
+            const imageId = this.dataset.imageId;
+            const description = this.value;
+
+            descriptionUpdateTimeout = setTimeout(async () => {
+                try {
+                    const response = await fetch(`/teachers/update-image-description/${imageId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ description })
+                    });
+
+                    const data = await response.json();
+                    if (!data.success) {
+                        console.error('更新描述失败:', data.message);
+                    }
+                } catch (error) {
+                    console.error('更新描述失败:', error);
+                }
+            }, 1000);
+        });
+    });
+});
+</script>
 {% endblock %}
 

@@ -83,6 +83,35 @@
             </dl>
         </div>
 
+        <!-- 相关图片 -->
+        {% if teacher.images.count() > 0 %}
+        <div class="border-b border-gray-200 pb-6 mb-6">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">相关图片 ({{ teacher.images.count() }})</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {% for image in teacher.images %}
+                <div class="border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
+                    <a href="{{ url_for('static', filename=image.image_path) }}"
+                       target="_blank"
+                       class="block">
+                        <img src="{{ url_for('static', filename=image.image_path) }}"
+                             alt="{{ image.description or '老师图片' }}"
+                             class="w-full h-48 object-cover">
+                    </a>
+                    <div class="p-3 bg-gray-50">
+                        {% if image.description %}
+                        <p class="text-sm text-gray-900 font-medium">{{ image.description }}</p>
+                        {% endif %}
+                        <div class="mt-2 flex items-center justify-between text-xs text-gray-500">
+                            <span>{{ image.get_file_size_display() }}</span>
+                            <span>{{ image.created_at.strftime('%Y-%m-%d') if image.created_at else '-' }}</span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
         <!-- 系统信息 -->
         <div>
             <h3 class="text-lg font-medium text-gray-900 mb-4">系统信息</h3>

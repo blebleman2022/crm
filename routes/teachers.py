@@ -1,8 +1,10 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from functools import wraps
-from models import Teacher, Customer, Lead, db
+from models import Teacher, Customer, Lead, TeacherImage, db
 from datetime import datetime
+import os
+from werkzeug.utils import secure_filename
 
 teachers_bp = Blueprint('teachers', __name__)
 
@@ -301,4 +303,146 @@ def change_teacher(customer_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'更换老师失败：{str(e)}'}), 500
+
+
+# 图片上传相关配置
+ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5MB
+MAX_IMAGES_PER_TEACHER = 5
+UPLOAD_FOLDER = 'static/uploads/teacher_images'
+
+def allowed_image_file(filename):
+    """检查文件扩展名是否允许"""
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
+
+@teachers_bp.route('/upload-image/<int:teacher_id>', methods=['POST'])
+@login_required
+@teacher_supervisor_required
+def upload_teacher_image(teacher_id):
+    """上传老师图片"""
+    teacher = Teacher.query.get_or_404(teacher_id)
+
+    # 检查当前图片数量
+    current_image_count = TeacherImage.query.filter_by(teacher_id=teacher_id).count()
+    if current_image_count >= MAX_IMAGES_PER_TEACHER:
+        return jsonify({'success': False, 'message': f'最多只能上传{MAX_IMAGES_PER_TEACHER}张图片'}), 400
+
+    # 检查是否有文件
+    if 'images' not in request.files:
+        return jsonify({'success': False, 'message': '请选择要上传的图片'}), 400
+
+    files = request.files.getlist('images')
+    descriptions = request.form.getlist('descriptions')
+
+    if not files or files[0].filename == '':
+        return jsonify({'success': False, 'message': '请选择要上传的图片'}), 400
+
+    # 检查上传数量
+    if len(files) + current_image_count > MAX_IMAGES_PER_TEACHER:
+        return jsonify({'success': False, 'message': f'最多只能上传{MAX_IMAGES_PER_TEACHER}张图片，当前已有{current_image_count}张'}), 400
+
+    try:
+        # 确保上传目录存在
+        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+        uploaded_images = []
+
+        for idx, file in enumerate(files):
+            # 检查文件类型
+            if not allowed_image_file(file.filename):
+                continue
+
+            # 检查文件大小
+            file.seek(0, os.SEEK_END)
+            file_size = file.tell()
+            file.seek(0)
+
+            if file_size > MAX_IMAGE_SIZE:
+                return jsonify({'success': False, 'message': f'图片 {file.filename} 超过5MB限制'}), 400
+
+            # 生成安全的文件名
+            original_filename = secure_filename(file.filename)
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f"teacher_{teacher_id}_{timestamp}_{idx}_{original_filename}"
+            filepath = os.path.join(UPLOAD_FOLDER, filename)
+
+            # 保存文件
+            file.save(filepath)
+
+            # 获取对应的描述
+            description = descriptions[idx] if idx < len(descriptions) else ''
+
+            # 保存到数据库
+            teacher_image = TeacherImage(
+                teacher_id=teacher_id,
+                image_path=f'uploads/teacher_images/{filename}',
+                description=description.strip(),
+                file_size=file_size,
+                file_name=original_filename
+            )
+            db.session.add(teacher_image)
+            uploaded_images.append({
+                'id': teacher_image.id,
+                'filename': original_filename,
+                'description': description
+            })
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'成功上传{len(uploaded_images)}张图片',
+            'images': uploaded_images
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'上传失败：{str(e)}'}), 500
+
+@teachers_bp.route('/delete-image/<int:image_id>', methods=['POST'])
+@login_required
+@teacher_supervisor_required
+def delete_teacher_image(image_id):
+    """删除老师图片"""
+    try:
+        image = TeacherImage.query.get_or_404(image_id)
+
+        # 删除文件
+        filepath = os.path.join('static', image.image_path)
+        if os.path.exists(filepath):
+            os.remove(filepath)
+
+        # 删除数据库记录
+        db.session.delete(image)
+        db.session.commit()
+
+        return jsonify({'success': True, 'message': '图片删除成功'})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'删除失败：{str(e)}'}), 500
+
+@teachers_bp.route('/update-image-description/<int:image_id>', methods=['POST'])
+@login_required
+@teacher_supervisor_required
+def update_image_description(image_id):
+    """更新图片描述"""
+    try:
+        image = TeacherImage.query.get_or_404(image_id)
+
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'message': '无效的请求数据'}), 400
+
+        description = data.get('description', '').strip()
+        image.description = description
+
+        db.session.commit()
+
+        return jsonify({'success': True, 'message': '描述更新成功'})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'更新失败：{str(e)}'}), 500
 
