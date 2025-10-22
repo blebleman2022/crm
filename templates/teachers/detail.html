@@ -18,7 +18,7 @@
         transform: translateY(-50%);
         width: 4px;
         height: 24px;
-        background: #5B21B6;
+        background: #1E40AF;
         border-radius: 2px;
     }
     .info-card {
@@ -27,26 +27,6 @@
     .info-card:hover {
         transform: translateY(-2px);
         box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-    }
-    .achievement-item {
-        position: relative;
-        padding-left: 24px;
-    }
-    .achievement-item::before {
-        content: '✓';
-        position: absolute;
-        left: 0;
-        top: 2px;
-        width: 18px;
-        height: 18px;
-        background: #5B21B6;
-        color: white;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 12px;
-        font-weight: bold;
     }
 </style>
 
@@ -59,7 +39,7 @@
             返回列表
         </a>
         <a href="{{ url_for('teachers.edit_teacher', teacher_id=teacher.id) }}"
-           class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-700 hover:bg-purple-800 shadow-sm">
+           class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-800 hover:bg-blue-900 shadow-sm">
             <span class="material-symbols-outlined mr-1 text-sm">edit</span>
             编辑资料
         </a>
@@ -67,22 +47,22 @@
 
     <!-- 个人简介卡片 -->
     <div class="bg-white rounded-xl shadow-lg overflow-hidden mb-6">
-        <!-- 头部深色区域 - 显示名字 -->
-        <div class="bg-purple-700 px-8 py-8">
+        <!-- 头部深蓝色区域 - 显示名字 -->
+        <div class="bg-blue-800 px-8 py-8">
             <h1 class="text-4xl font-bold text-white mb-2">
                 {{ teacher.chinese_name }}
                 {% if teacher.english_name %}
-                <span class="text-2xl text-purple-200 font-normal ml-3">{{ teacher.english_name }}</span>
+                <span class="text-2xl text-blue-200 font-normal ml-3">{{ teacher.english_name }}</span>
                 {% endif %}
             </h1>
         </div>
 
-        <!-- 基本信息白色区域 -->
+        <!-- 基本信息白色区域 - 三个信息同一排 -->
         <div class="px-8 py-8">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {% if teacher.current_institution %}
                 <div class="flex items-start">
-                    <span class="material-symbols-outlined text-2xl mr-3 text-purple-600">school</span>
+                    <span class="material-symbols-outlined text-2xl mr-3 text-blue-800">school</span>
                     <div>
                         <dt class="text-sm text-gray-500 mb-1">现单位</dt>
                         <dd class="text-lg font-medium text-gray-900">{{ teacher.current_institution }}</dd>
@@ -91,7 +71,7 @@
                 {% endif %}
                 {% if teacher.major_direction %}
                 <div class="flex items-start">
-                    <span class="material-symbols-outlined text-2xl mr-3 text-purple-600">science</span>
+                    <span class="material-symbols-outlined text-2xl mr-3 text-blue-800">science</span>
                     <div>
                         <dt class="text-sm text-gray-500 mb-1">专业方向</dt>
                         <dd class="text-lg font-medium text-gray-900">{{ teacher.major_direction }}</dd>
@@ -100,7 +80,7 @@
                 {% endif %}
                 {% if teacher.highest_degree %}
                 <div class="flex items-start">
-                    <span class="material-symbols-outlined text-2xl mr-3 text-purple-600">workspace_premium</span>
+                    <span class="material-symbols-outlined text-2xl mr-3 text-blue-800">workspace_premium</span>
                     <div>
                         <dt class="text-sm text-gray-500 mb-1">最高学历</dt>
                         <dd class="text-lg font-medium text-gray-900">{{ teacher.highest_degree }}</dd>
@@ -116,9 +96,9 @@
 
         <!-- 教育背景 -->
         {% if teacher.degree_description and teacher.degree_description != '-' %}
-        <div class="bg-white rounded-xl shadow-sm p-6 info-card">
+        <div class="bg-gray-50 rounded-xl shadow-sm p-6 info-card">
             <h3 class="section-title text-xl font-bold text-gray-900 mb-4">
-                <span class="material-symbols-outlined align-middle mr-2 text-purple-600">school</span>
+                <span class="material-symbols-outlined align-middle mr-2 text-blue-800">school</span>
                 教育背景
             </h3>
             <div class="prose max-w-none">
@@ -129,15 +109,15 @@
 
         <!-- 科研成果 -->
         {% if teacher.research_achievements and teacher.research_achievements != '-' %}
-        <div class="bg-white rounded-xl shadow-sm p-6 info-card">
+        <div class="bg-gray-50 rounded-xl shadow-sm p-6 info-card">
             <h3 class="section-title text-xl font-bold text-gray-900 mb-4">
-                <span class="material-symbols-outlined align-middle mr-2 text-purple-600">biotech</span>
+                <span class="material-symbols-outlined align-middle mr-2 text-blue-800">biotech</span>
                 科研成果
             </h3>
             <div class="space-y-3">
                 {% for achievement in teacher.research_achievements.split('\n') %}
                     {% if achievement.strip() %}
-                    <div class="achievement-item text-gray-700 leading-relaxed text-lg">
+                    <div class="text-gray-700 leading-relaxed text-lg">
                         {{ achievement.strip() }}
                     </div>
                     {% endif %}
@@ -148,15 +128,15 @@
 
         <!-- 科创辅导成果 -->
         {% if teacher.innovation_coaching_achievements and teacher.innovation_coaching_achievements != '-' %}
-        <div class="bg-white rounded-xl shadow-sm p-6 info-card">
+        <div class="bg-gray-50 rounded-xl shadow-sm p-6 info-card">
             <h3 class="section-title text-xl font-bold text-gray-900 mb-4">
-                <span class="material-symbols-outlined align-middle mr-2 text-purple-600">emoji_events</span>
+                <span class="material-symbols-outlined align-middle mr-2 text-blue-800">emoji_events</span>
                 科创辅导成果
             </h3>
             <div class="space-y-3">
                 {% for achievement in teacher.innovation_coaching_achievements.split('\n') %}
                     {% if achievement.strip() %}
-                    <div class="achievement-item text-gray-700 leading-relaxed text-lg">
+                    <div class="text-gray-700 leading-relaxed text-lg">
                         {{ achievement.strip() }}
                     </div>
                     {% endif %}
@@ -167,15 +147,15 @@
 
         <!-- 社会角色 -->
         {% if teacher.social_roles and teacher.social_roles != '-' %}
-        <div class="bg-white rounded-xl shadow-sm p-6 info-card">
+        <div class="bg-gray-50 rounded-xl shadow-sm p-6 info-card">
             <h3 class="section-title text-xl font-bold text-gray-900 mb-4">
-                <span class="material-symbols-outlined align-middle mr-2 text-purple-600">groups</span>
+                <span class="material-symbols-outlined align-middle mr-2 text-blue-800">groups</span>
                 社会角色
             </h3>
             <div class="space-y-3">
                 {% for role in teacher.social_roles.split('\n') %}
                     {% if role.strip() %}
-                    <div class="achievement-item text-gray-700 leading-relaxed text-lg">
+                    <div class="text-gray-700 leading-relaxed text-lg">
                         {{ role.strip() }}
                     </div>
                     {% endif %}
@@ -187,9 +167,9 @@
 
     <!-- 相关图片 - 放在最下方 -->
     {% if teacher.images.count() > 0 %}
-    <div class="bg-white rounded-xl shadow-sm p-6 mt-6">
+    <div class="bg-gray-50 rounded-xl shadow-sm p-6 mt-6">
         <h3 class="section-title text-xl font-bold text-gray-900 mb-4">
-            <span class="material-symbols-outlined align-middle mr-2 text-purple-600">photo_library</span>
+            <span class="material-symbols-outlined align-middle mr-2 text-blue-800">photo_library</span>
             相关图片
             <span class="text-sm font-normal text-gray-500 ml-2">({{ teacher.images.count() }})</span>
         </h3>
@@ -209,7 +189,7 @@
                     </div>
                 </a>
                 {% if image.description %}
-                <div class="p-3 bg-gray-50">
+                <div class="p-3 bg-white">
                     <p class="text-sm text-gray-900 font-medium line-clamp-2">{{ image.description }}</p>
                     <p class="text-xs text-gray-500 mt-1">{{ image.created_at.strftime('%Y年%m月') if image.created_at else '-' }}</p>
                 </div>
