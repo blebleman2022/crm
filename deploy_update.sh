@@ -38,7 +38,11 @@ fi
 
 # 3. 停止当前运行的服务
 echo -e "${YELLOW}步骤 2/7: 停止当前服务...${NC}"
-pkill -f "python.*run.py" 2>/dev/null && echo -e "${GREEN}✓ 服务已停止${NC}" || echo -e "${YELLOW}! 没有运行中的服务${NC}"
+pkill -f "gunicorn.*run:app" 2>/dev/null && echo -e "${GREEN}✓ Gunicorn服务已停止${NC}"
+pkill -f "python.*run.py" 2>/dev/null && echo -e "${GREEN}✓ Python服务已停止${NC}"
+if ! pgrep -f "gunicorn.*run:app\|python.*run.py" > /dev/null; then
+    echo -e "${YELLOW}! 没有运行中的服务${NC}"
+fi
 sleep 2
 
 # 4. 拉取最新代码
@@ -90,14 +94,18 @@ echo -e "${YELLOW}步骤 7/7: 启动服务...${NC}"
 export FLASK_ENV=production
 export DATABASE_URL="sqlite:///$(pwd)/instance/edu_crm.db"
 
-# 后台启动服务
-nohup python run.py > logs/app.log 2>&1 &
+# 创建日志目录
+mkdir -p logs
+
+# 使用 Gunicorn 启动服务（生产环境推荐）
+nohup gunicorn -w 4 -b 0.0.0.0:5000 --timeout 120 --access-logfile logs/access.log --error-logfile logs/error.log run:app > logs/app.log 2>&1 &
 sleep 3
 
 # 检查服务是否启动成功
-if pgrep -f "python.*run.py" > /dev/null; then
+if pgrep -f "gunicorn.*run:app" > /dev/null; then
     echo -e "${GREEN}✓ 服务启动成功${NC}"
-    echo -e "${GREEN}  进程ID: $(pgrep -f 'python.*run.py')${NC}"
+    echo -e "${GREEN}  进程ID: $(pgrep -f 'gunicorn.*run:app' | head -1)${NC}"
+    echo -e "${GREEN}  工作进程数: $(pgrep -f 'gunicorn.*run:app' | wc -l)${NC}"
 else
     echo -e "${RED}错误：服务启动失败，请检查日志${NC}"
     tail -20 logs/app.log
@@ -114,9 +122,11 @@ echo -e "数据库备份: ${GREEN}$BACKUP_DIR/edu_crm_backup_$TIMESTAMP.db${NC}"
 echo -e "数据库文件: ${GREEN}instance/edu_crm.db${NC}"
 echo -e "日志文件: ${GREEN}logs/app.log${NC}"
 echo ""
-echo -e "查看日志: ${YELLOW}tail -f logs/app.log${NC}"
-echo -e "停止服务: ${YELLOW}pkill -f 'python.*run.py'${NC}"
-echo -e "查看进程: ${YELLOW}ps aux | grep 'python.*run.py'${NC}"
+echo -e "查看应用日志: ${YELLOW}tail -f logs/app.log${NC}"
+echo -e "查看访问日志: ${YELLOW}tail -f logs/access.log${NC}"
+echo -e "查看错误日志: ${YELLOW}tail -f logs/error.log${NC}"
+echo -e "停止服务: ${YELLOW}pkill -f 'gunicorn.*run:app'${NC}"
+echo -e "查看进程: ${YELLOW}ps aux | grep gunicorn${NC}"
 echo ""
 echo -e "${GREEN}✓ 所有步骤完成！${NC}"
 
