@@ -479,23 +479,30 @@ def init_database(app):
             }
         ]
 
-        print("正在初始化测试账号...")
+        # 只在开发环境或数据库为空时初始化测试账号
+        config_name = os.environ.get('FLASK_ENV', 'development')
+        user_count = User.query.count()
 
-        for user_data in test_users:
-            # 检查用户是否已存在
-            existing_user = User.query.filter_by(phone=user_data['phone']).first()
-            if not existing_user:
-                user = User(
-                    username=user_data['username'],
-                    phone=user_data['phone'],
-                    role=user_data['role'],
-                    status=True
-                )
-                db.session.add(user)
-                print(f"创建用户: {user_data['username']} ({user_data['description']}) - {user_data['phone']}")
+        if config_name == 'development' or user_count == 0:
+            print("正在初始化测试账号...")
 
-        db.session.commit()
-        print("测试账号初始化完成!")
+            for user_data in test_users:
+                # 检查用户是否已存在
+                existing_user = User.query.filter_by(phone=user_data['phone']).first()
+                if not existing_user:
+                    user = User(
+                        username=user_data['username'],
+                        phone=user_data['phone'],
+                        role=user_data['role'],
+                        status=True
+                    )
+                    db.session.add(user)
+                    print(f"创建用户: {user_data['username']} ({user_data['description']}) - {user_data['phone']}")
+
+            db.session.commit()
+            print("测试账号初始化完成!")
+        else:
+            print(f"生产环境跳过测试账号初始化 (当前用户数: {user_count})")
 
 def main():
     """主函数"""
