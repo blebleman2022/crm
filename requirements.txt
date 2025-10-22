@@ -24,6 +24,10 @@ python-dotenv==1.0.0
 # Production Server
 gunicorn==21.2.0
 
+# Data Export
+pandas==2.1.4
+openpyxl==3.1.2
+
 # Core dependencies (automatically installed with Flask but pinned for stability)
 click==8.1.7
 itsdangerous==2.1.2

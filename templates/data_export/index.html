@@ -1,0 +1,341 @@
+{% extends "leads/base.html" %}
+
+{% block title %}数据下载 - EduConnect CRM{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- 页面标题 -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">数据下载</h1>
+        <p class="text-gray-600">选择需要导出的数据表，系统将生成包含所有数据的Excel文件</p>
+    </div>
+
+    <!-- 操作按钮区 -->
+    <div class="mb-6 flex items-center justify-between">
+        <div class="flex items-center space-x-4">
+            <button id="selectAllBtn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition">
+                <span class="material-symbols-outlined text-sm align-middle mr-1">check_box</span>
+                全选
+            </button>
+            <button id="deselectAllBtn" class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition">
+                <span class="material-symbols-outlined text-sm align-middle mr-1">check_box_outline_blank</span>
+                取消全选
+            </button>
+        </div>
+        <button id="downloadBtn" class="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed">
+            <span class="material-symbols-outlined text-sm align-middle mr-1">download</span>
+            下载选中的表
+        </button>
+    </div>
+
+    <!-- 表格列表 -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for table_key, table_info in tables.items() %}
+        <div class="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition cursor-pointer table-card" data-table="{{ table_key }}">
+            <div class="flex items-start justify-between mb-4">
+                <div class="flex items-center">
+                    <input type="checkbox" 
+                           class="table-checkbox w-5 h-5 text-blue-600 rounded focus:ring-blue-500 cursor-pointer" 
+                           data-table="{{ table_key }}"
+                           id="checkbox-{{ table_key }}">
+                    <label for="checkbox-{{ table_key }}" class="ml-3 text-lg font-semibold text-gray-900 cursor-pointer">
+                        {{ table_info.name }}
+                    </label>
+                </div>
+                <button class="preview-btn text-blue-600 hover:text-blue-800" data-table="{{ table_key }}" title="预览数据">
+                    <span class="material-symbols-outlined">visibility</span>
+                </button>
+            </div>
+            
+            <div class="text-sm text-gray-600 space-y-1">
+                <div class="flex items-center">
+                    <span class="material-symbols-outlined text-sm mr-2">table_chart</span>
+                    <span>表名: <code class="bg-gray-100 px-2 py-0.5 rounded">{{ table_key }}</code></span>
+                </div>
+                <div class="flex items-center">
+                    <span class="material-symbols-outlined text-sm mr-2">view_column</span>
+                    <span>字段数: {{ table_info.columns|length }}</span>
+                </div>
+                <div class="flex items-center table-count" data-table="{{ table_key }}">
+                    <span class="material-symbols-outlined text-sm mr-2">numbers</span>
+                    <span>记录数: <span class="count-value">加载中...</span></span>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- 已选择提示 -->
+    <div id="selectedInfo" class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-md hidden">
+        <div class="flex items-center">
+            <span class="material-symbols-outlined text-blue-600 mr-2">info</span>
+            <span class="text-blue-800">已选择 <strong id="selectedCount">0</strong> 个表</span>
+        </div>
+    </div>
+</div>
+
+<!-- 预览模态框 -->
+<div id="previewModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] flex flex-col">
+        <!-- 模态框头部 -->
+        <div class="flex items-center justify-between p-6 border-b">
+            <h3 class="text-xl font-semibold text-gray-900" id="previewTitle">数据预览</h3>
+            <button id="closePreviewBtn" class="text-gray-400 hover:text-gray-600">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        
+        <!-- 模态框内容 -->
+        <div class="flex-1 overflow-auto p-6">
+            <div id="previewContent" class="text-center text-gray-500">
+                <span class="material-symbols-outlined text-4xl mb-2">hourglass_empty</span>
+                <p>加载中...</p>
+            </div>
+        </div>
+        
+        <!-- 模态框底部 -->
+        <div class="p-6 border-t bg-gray-50">
+            <p class="text-sm text-gray-600">
+                <span class="material-symbols-outlined text-sm align-middle mr-1">info</span>
+                仅显示前10条记录作为预览
+            </p>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const checkboxes = document.querySelectorAll('.table-checkbox');
+    const selectAllBtn = document.getElementById('selectAllBtn');
+    const deselectAllBtn = document.getElementById('deselectAllBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const selectedInfo = document.getElementById('selectedInfo');
+    const selectedCount = document.getElementById('selectedCount');
+    const previewModal = document.getElementById('previewModal');
+    const closePreviewBtn = document.getElementById('closePreviewBtn');
+    const previewBtns = document.querySelectorAll('.preview-btn');
+
+    // 加载每个表的记录数
+    checkboxes.forEach(checkbox => {
+        const tableKey = checkbox.dataset.table;
+        fetch(`/data_export/export/preview/${tableKey}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const countElement = document.querySelector(`.table-count[data-table="${tableKey}"] .count-value`);
+                    if (countElement) {
+                        countElement.textContent = data.total_count.toLocaleString();
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('加载记录数失败:', error);
+                const countElement = document.querySelector(`.table-count[data-table="${tableKey}"] .count-value`);
+                if (countElement) {
+                    countElement.textContent = '未知';
+                }
+            });
+    });
+
+    // 更新选中状态
+    function updateSelectedState() {
+        const selectedCheckboxes = Array.from(checkboxes).filter(cb => cb.checked);
+        const count = selectedCheckboxes.length;
+        
+        selectedCount.textContent = count;
+        
+        if (count > 0) {
+            selectedInfo.classList.remove('hidden');
+            downloadBtn.disabled = false;
+        } else {
+            selectedInfo.classList.add('hidden');
+            downloadBtn.disabled = true;
+        }
+    }
+
+    // 复选框变化事件
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateSelectedState);
+    });
+
+    // 卡片点击切换选中状态
+    document.querySelectorAll('.table-card').forEach(card => {
+        card.addEventListener('click', function(e) {
+            // 如果点击的是预览按钮，不触发选中
+            if (e.target.closest('.preview-btn')) {
+                return;
+            }
+            
+            const tableKey = this.dataset.table;
+            const checkbox = document.getElementById(`checkbox-${tableKey}`);
+            checkbox.checked = !checkbox.checked;
+            updateSelectedState();
+        });
+    });
+
+    // 全选
+    selectAllBtn.addEventListener('click', function() {
+        checkboxes.forEach(cb => cb.checked = true);
+        updateSelectedState();
+    });
+
+    // 取消全选
+    deselectAllBtn.addEventListener('click', function() {
+        checkboxes.forEach(cb => cb.checked = false);
+        updateSelectedState();
+    });
+
+    // 下载
+    downloadBtn.addEventListener('click', function() {
+        const selectedTables = Array.from(checkboxes)
+            .filter(cb => cb.checked)
+            .map(cb => cb.dataset.table);
+        
+        if (selectedTables.length === 0) {
+            alert('请至少选择一个表');
+            return;
+        }
+
+        // 显示加载状态
+        const originalText = downloadBtn.innerHTML;
+        downloadBtn.innerHTML = '<span class="material-symbols-outlined text-sm align-middle mr-1 animate-spin">progress_activity</span>正在生成...';
+        downloadBtn.disabled = true;
+
+        // 发送下载请求
+        fetch('/data_export/export/download', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ tables: selectedTables })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('下载失败');
+            }
+            return response.blob();
+        })
+        .then(blob => {
+            // 创建下载链接
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `数据导出_${new Date().getTime()}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            // 恢复按钮状态
+            downloadBtn.innerHTML = originalText;
+            downloadBtn.disabled = false;
+            
+            // 显示成功消息
+            alert('下载成功！');
+        })
+        .catch(error => {
+            console.error('下载失败:', error);
+            alert('下载失败，请重试');
+            downloadBtn.innerHTML = originalText;
+            downloadBtn.disabled = false;
+        });
+    });
+
+    // 预览功能
+    previewBtns.forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation(); // 阻止事件冒泡
+            const tableKey = this.dataset.table;
+            showPreview(tableKey);
+        });
+    });
+
+    // 关闭预览
+    closePreviewBtn.addEventListener('click', function() {
+        previewModal.classList.add('hidden');
+    });
+
+    // 点击模态框背景关闭
+    previewModal.addEventListener('click', function(e) {
+        if (e.target === previewModal) {
+            previewModal.classList.add('hidden');
+        }
+    });
+
+    // 显示预览
+    function showPreview(tableKey) {
+        const previewContent = document.getElementById('previewContent');
+        const previewTitle = document.getElementById('previewTitle');
+        
+        // 显示模态框
+        previewModal.classList.remove('hidden');
+        
+        // 显示加载状态
+        previewContent.innerHTML = `
+            <div class="text-center text-gray-500">
+                <span class="material-symbols-outlined text-4xl mb-2 animate-spin">progress_activity</span>
+                <p>加载中...</p>
+            </div>
+        `;
+        
+        // 获取预览数据
+        fetch(`/data_export/export/preview/${tableKey}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    previewTitle.textContent = `${data.table_name} - 数据预览（共${data.total_count}条记录）`;
+                    
+                    if (data.data.length === 0) {
+                        previewContent.innerHTML = `
+                            <div class="text-center text-gray-500 py-8">
+                                <span class="material-symbols-outlined text-4xl mb-2">inbox</span>
+                                <p>暂无数据</p>
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    // 生成表格
+                    let tableHtml = '<div class="overflow-x-auto"><table class="min-w-full divide-y divide-gray-200 border">';
+                    
+                    // 表头
+                    tableHtml += '<thead class="bg-gray-50"><tr>';
+                    data.columns.forEach(col => {
+                        tableHtml += `<th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-r">${col}</th>`;
+                    });
+                    tableHtml += '</tr></thead>';
+                    
+                    // 表体
+                    tableHtml += '<tbody class="bg-white divide-y divide-gray-200">';
+                    data.data.forEach(row => {
+                        tableHtml += '<tr class="hover:bg-gray-50">';
+                        data.columns.forEach(col => {
+                            const value = row[col] || '';
+                            tableHtml += `<td class="px-4 py-3 text-sm text-gray-900 border-r whitespace-nowrap">${value}</td>`;
+                        });
+                        tableHtml += '</tr>';
+                    });
+                    tableHtml += '</tbody></table></div>';
+                    
+                    previewContent.innerHTML = tableHtml;
+                } else {
+                    throw new Error(data.message || '加载失败');
+                }
+            })
+            .catch(error => {
+                console.error('预览失败:', error);
+                previewContent.innerHTML = `
+                    <div class="text-center text-red-500 py-8">
+                        <span class="material-symbols-outlined text-4xl mb-2">error</span>
+                        <p>加载失败：${error.message}</p>
+                    </div>
+                `;
+            });
+    }
+
+    // 初始化状态
+    updateSelectedState();
+});
+</script>
+{% endblock %}
+

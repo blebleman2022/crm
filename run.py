@@ -53,6 +53,7 @@ def create_app(config_name=None):
     from routes.consultations import consultations_bp
     from routes.mobile_test import mobile_test_bp
     from routes.teachers import teachers_bp
+    from routes.data_export import data_export_bp
 
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(admin_bp, url_prefix='/admin')
@@ -64,6 +65,7 @@ def create_app(config_name=None):
     app.register_blueprint(consultations_bp, url_prefix='/consultations')
     app.register_blueprint(mobile_test_bp, url_prefix='/test')
     app.register_blueprint(teachers_bp, url_prefix='/teachers')
+    app.register_blueprint(data_export_bp, url_prefix='/data_export')
 
     # 添加全局模板函数
     @app.context_processor

@@ -90,7 +90,18 @@
                 </div>
             </div>
             {% endif %}
-            
+
+            <!-- 数据下载 -->
+            {% if current_user.role == 'sales_manager' %}
+            <div class="space-y-1">
+                <a href="{{ url_for('data_export.export_page') }}"
+                   class="flex items-center px-4 py-2 text-sm font-medium text-gray-300 rounded-md hover:bg-gray-700 hover:text-white">
+                    <span class="material-symbols-outlined mr-3">download</span>
+                    数据下载
+                </a>
+            </div>
+            {% endif %}
+
             <!-- 系统管理 -->
             {% if current_user.is_admin() %}
             <div class="space-y-1">
