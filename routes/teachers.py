@@ -250,21 +250,33 @@ def change_teacher(customer_id):
     """更换客户的老师（需要二次确认）"""
     try:
         customer = Customer.query.get_or_404(customer_id)
-        teacher_id = request.json.get('teacher_id', type=int)
-        confirmed = request.json.get('confirmed', False)
-        
+
+        # 获取JSON数据
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'message': '无效的请求数据'}), 400
+
+        teacher_id = data.get('teacher_id')
+        confirmed = data.get('confirmed', False)
+
         if not teacher_id:
             return jsonify({'success': False, 'message': '请选择老师'}), 400
-        
+
+        # 转换为整数
+        try:
+            teacher_id = int(teacher_id)
+        except (ValueError, TypeError):
+            return jsonify({'success': False, 'message': '无效的老师ID'}), 400
+
         teacher = Teacher.query.get_or_404(teacher_id)
-        
+
         if not teacher.status:
             return jsonify({'success': False, 'message': '该老师已被禁用'}), 400
-        
+
         # 检查权限：只有班主任角色可以更换老师
         if current_user.role != 'teacher_supervisor':
             return jsonify({'success': False, 'message': '只有班主任可以更换老师'}), 403
-        
+
         # 如果未确认，返回需要确认的信息
         if not confirmed:
             old_teacher_name = customer.teacher.chinese_name if customer.teacher else '未分配'
@@ -273,19 +285,19 @@ def change_teacher(customer_id):
                 'need_confirm': True,
                 'message': f'确定要将老师从 {old_teacher_name} 更换为 {teacher.chinese_name} 吗？'
             })
-        
+
         # 已确认，执行更换
         old_teacher_name = customer.teacher.chinese_name if customer.teacher else '未分配'
         customer.teacher_id = teacher_id
         customer.updated_at = datetime.utcnow()
         db.session.commit()
-        
+
         return jsonify({
             'success': True,
             'message': f'已将老师从 {old_teacher_name} 更换为 {teacher.chinese_name}',
             'teacher_name': teacher.chinese_name
         })
-        
+
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'更换老师失败：{str(e)}'}), 500
