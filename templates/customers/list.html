@@ -117,14 +117,18 @@
                         </td>
                         <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                             {% if customer.teacher %}
-                                <button onclick="showChangeTeacherModal({{ customer.id }}, '{{ customer.lead.student_name }}', {{ customer.teacher.id }}, '{{ customer.teacher.chinese_name }}')"
-                                        class="text-blue-600 hover:text-blue-800 cursor-pointer underline">
-                                    {{ customer.teacher.chinese_name }}
-                                </button>
+                                {% if current_user.role == 'teacher_supervisor' %}
+                                    <button onclick="showChangeTeacherModal({{ customer.id }}, '{{ customer.lead.student_name }}', {{ customer.teacher.id }}, '{{ customer.teacher.chinese_name }}')"
+                                            class="text-blue-600 hover:text-blue-800 cursor-pointer">
+                                        {{ customer.teacher.chinese_name }}
+                                    </button>
+                                {% else %}
+                                    <span class="text-gray-900">{{ customer.teacher.chinese_name }}</span>
+                                {% endif %}
                             {% else %}
-                                {% if current_user.is_sales_manager() %}
+                                {% if current_user.role == 'teacher_supervisor' %}
                                     <button onclick="showAssignTeacherModal({{ customer.id }}, '{{ customer.lead.student_name }}')"
-                                            class="text-red-600 hover:text-red-800 cursor-pointer underline">待分配</button>
+                                            class="text-red-600 hover:text-red-800 cursor-pointer">待分配</button>
                                 {% else %}
                                     <span class="text-gray-400">待分配</span>
                                 {% endif %}
@@ -322,7 +326,7 @@
                 </div>
             </div>
             <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
-                <button type="button" onclick="changeTeacher()"
+                <button type="button" onclick="changeTeacher(event)"
                         class="inline-flex w-full justify-center rounded-md border border-transparent bg-red-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm">
                     确认更换
                 </button>
@@ -455,18 +459,34 @@ function hideChangeTeacherModal() {
     currentStudentName = null;
     currentTeacherId = null;
     currentTeacherName = null;
+    changeTeacherConfirmed = false;
+
+    // 重置按钮状态
+    if (changeTeacherButton) {
+        changeTeacherButton.disabled = false;
+        changeTeacherButton.textContent = '确认更换';
+        changeTeacherButton.classList.remove('animate-pulse');
+        changeTeacherButton = null;
+    }
+
     document.getElementById('changeTeacherModal').classList.add('hidden');
     document.getElementById('newTeacherSelect').value = '';
 }
 
 // 更换辅导老师（需要二次确认）
 let changeTeacherConfirmed = false;
+let changeTeacherButton = null;
 
-function changeTeacher() {
+function changeTeacher(event) {
     const newTeacherId = document.getElementById('newTeacherSelect').value;
     if (!newTeacherId) {
         alert('请选择新辅导老师');
         return;
+    }
+
+    // 保存按钮引用
+    if (!changeTeacherButton) {
+        changeTeacherButton = event.target;
     }
 
     // 第一次点击，显示确认提示
@@ -475,13 +495,17 @@ function changeTeacher() {
         if (confirm(`确定要将辅导老师从 ${currentTeacherName} 更换为 ${newTeacher.chinese_name} 吗？\n\n此操作需要二次确认，请再次点击"确认更换"按钮。`)) {
             changeTeacherConfirmed = true;
             // 改变按钮文字提示用户需要再次点击
-            event.target.textContent = '再次点击确认';
-            event.target.classList.add('animate-pulse');
+            changeTeacherButton.textContent = '再次点击确认';
+            changeTeacherButton.classList.add('animate-pulse');
         }
         return;
     }
 
     // 第二次点击，执行更换
+    // 禁用按钮防止重复点击
+    changeTeacherButton.disabled = true;
+    changeTeacherButton.textContent = '处理中...';
+
     fetch(`/teachers/change/${currentCustomerId}`, {
         method: 'POST',
         headers: {
@@ -497,16 +521,27 @@ function changeTeacher() {
         if (data.success) {
             alert(data.message);
             changeTeacherConfirmed = false;
+            changeTeacherButton = null;
             hideChangeTeacherModal();
             location.reload();
         } else {
             alert(data.message);
             changeTeacherConfirmed = false;
+            changeTeacherButton.disabled = false;
+            changeTeacherButton.textContent = '确认更换';
+            changeTeacherButton.classList.remove('animate-pulse');
+            changeTeacherButton = null;
         }
     })
     .catch(error => {
         alert('操作失败，请重试');
         changeTeacherConfirmed = false;
+        if (changeTeacherButton) {
+            changeTeacherButton.disabled = false;
+            changeTeacherButton.textContent = '确认更换';
+            changeTeacherButton.classList.remove('animate-pulse');
+        }
+        changeTeacherButton = null;
     });
 }
 
