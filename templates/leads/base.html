@@ -83,6 +83,15 @@
                         </a>
                     </li>
                     {% endif %}
+                    {% if current_user.role == 'teacher_supervisor' %}
+                    <li>
+                        <a class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium {% if request.endpoint in ['teachers.list_teachers', 'teachers.add_teacher', 'teachers.edit_teacher', 'teachers.detail_teacher'] %}text-white bg-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}"
+                           href="{{ url_for('teachers.list_teachers') }}">
+                            <span class="material-symbols-outlined text-lg {% if request.endpoint in ['teachers.list_teachers', 'teachers.add_teacher', 'teachers.edit_teacher', 'teachers.detail_teacher'] %}text-white{% else %}text-gray-500{% endif %}">school</span>
+                            老师管理
+                        </a>
+                    </li>
+                    {% endif %}
                     <li>
                         <a class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium {% if request.endpoint in ['customers.list_customers', 'customers.edit_customer'] %}text-white bg-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}"
                            href="{{ url_for('customers.list_customers') }}">
