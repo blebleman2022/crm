@@ -38,10 +38,19 @@ fi
 
 # 3. 停止当前运行的服务
 echo -e "${YELLOW}步骤 2/7: 停止当前服务...${NC}"
-pkill -f "gunicorn.*run:app" 2>/dev/null && echo -e "${GREEN}✓ Gunicorn服务已停止${NC}"
-pkill -f "python.*run.py" 2>/dev/null && echo -e "${GREEN}✓ Python服务已停止${NC}"
-if ! pgrep -f "gunicorn.*run:app\|python.*run.py" > /dev/null; then
-    echo -e "${YELLOW}! 没有运行中的服务${NC}"
+
+# 优先使用 systemd 停止服务
+if systemctl is-active --quiet crm 2>/dev/null; then
+    echo -e "${GREEN}使用 systemctl 停止服务...${NC}"
+    sudo systemctl stop crm
+    echo -e "${GREEN}✓ systemd 服务已停止${NC}"
+else
+    # 如果没有 systemd 服务，使用 pkill
+    pkill -f "gunicorn.*run:app" 2>/dev/null && echo -e "${GREEN}✓ Gunicorn服务已停止${NC}"
+    pkill -f "python.*run.py" 2>/dev/null && echo -e "${GREEN}✓ Python服务已停止${NC}"
+    if ! pgrep -f "gunicorn.*run:app\|python.*run.py" > /dev/null; then
+        echo -e "${YELLOW}! 没有运行中的服务${NC}"
+    fi
 fi
 sleep 2
 
@@ -90,26 +99,51 @@ rm /tmp/db_check.txt
 # 8. 启动服务
 echo -e "${YELLOW}步骤 7/7: 启动服务...${NC}"
 
-# 设置环境变量
-export FLASK_ENV=production
-export DATABASE_URL="sqlite:///$(pwd)/instance/edu_crm.db"
-
 # 创建日志目录
 mkdir -p logs
 
-# 使用 Gunicorn 启动服务（生产环境推荐）
-nohup gunicorn -w 4 -b 0.0.0.0:5000 --timeout 120 --access-logfile logs/access.log --error-logfile logs/error.log run:app > logs/app.log 2>&1 &
-sleep 3
+# 检查是否使用 systemd 管理服务
+if systemctl is-active --quiet crm 2>/dev/null || [ -f /etc/systemd/system/crm.service ]; then
+    echo -e "${GREEN}检测到 systemd 服务配置，使用 systemctl 重启服务...${NC}"
+    sudo systemctl restart crm
+    sleep 3
 
-# 检查服务是否启动成功
-if pgrep -f "gunicorn.*run:app" > /dev/null; then
-    echo -e "${GREEN}✓ 服务启动成功${NC}"
-    echo -e "${GREEN}  进程ID: $(pgrep -f 'gunicorn.*run:app' | head -1)${NC}"
-    echo -e "${GREEN}  工作进程数: $(pgrep -f 'gunicorn.*run:app' | wc -l)${NC}"
+    # 检查服务状态
+    if systemctl is-active --quiet crm; then
+        echo -e "${GREEN}✓ 服务启动成功${NC}"
+        sudo systemctl status crm --no-pager -l
+    else
+        echo -e "${RED}错误：服务启动失败${NC}"
+        sudo systemctl status crm --no-pager -l
+        exit 1
+    fi
 else
-    echo -e "${RED}错误：服务启动失败，请检查日志${NC}"
-    tail -20 logs/app.log
-    exit 1
+    echo -e "${YELLOW}未检测到 systemd 服务，使用 Gunicorn 直接启动...${NC}"
+    echo -e "${YELLOW}提示：建议使用 systemd 管理服务，运行以下命令安装：${NC}"
+    echo -e "${YELLOW}  sudo cp crm.service /etc/systemd/system/${NC}"
+    echo -e "${YELLOW}  sudo systemctl daemon-reload${NC}"
+    echo -e "${YELLOW}  sudo systemctl enable crm${NC}"
+    echo -e "${YELLOW}  sudo systemctl start crm${NC}"
+    echo ""
+
+    # 设置环境变量
+    export FLASK_ENV=production
+    export DATABASE_URL="sqlite:///$(pwd)/instance/edu_crm.db"
+
+    # 使用 Gunicorn 启动服务（生产环境推荐）
+    nohup gunicorn -w 4 -b 0.0.0.0:5000 --timeout 120 --access-logfile logs/access.log --error-logfile logs/error.log run:app > logs/app.log 2>&1 &
+    sleep 3
+
+    # 检查服务是否启动成功
+    if pgrep -f "gunicorn.*run:app" > /dev/null; then
+        echo -e "${GREEN}✓ 服务启动成功${NC}"
+        echo -e "${GREEN}  进程ID: $(pgrep -f 'gunicorn.*run:app' | head -1)${NC}"
+        echo -e "${GREEN}  工作进程数: $(pgrep -f 'gunicorn.*run:app' | wc -l)${NC}"
+    else
+        echo -e "${RED}错误：服务启动失败，请检查日志${NC}"
+        tail -20 logs/app.log
+        exit 1
+    fi
 fi
 
 # 9. 显示部署摘要
@@ -125,8 +159,21 @@ echo ""
 echo -e "查看应用日志: ${YELLOW}tail -f logs/app.log${NC}"
 echo -e "查看访问日志: ${YELLOW}tail -f logs/access.log${NC}"
 echo -e "查看错误日志: ${YELLOW}tail -f logs/error.log${NC}"
-echo -e "停止服务: ${YELLOW}pkill -f 'gunicorn.*run:app'${NC}"
-echo -e "查看进程: ${YELLOW}ps aux | grep gunicorn${NC}"
+echo ""
+
+# 根据服务管理方式显示不同的命令
+if systemctl is-active --quiet crm 2>/dev/null || [ -f /etc/systemd/system/crm.service ]; then
+    echo -e "${GREEN}Systemd 服务管理命令：${NC}"
+    echo -e "查看服务状态: ${YELLOW}sudo systemctl status crm${NC}"
+    echo -e "停止服务: ${YELLOW}sudo systemctl stop crm${NC}"
+    echo -e "启动服务: ${YELLOW}sudo systemctl start crm${NC}"
+    echo -e "重启服务: ${YELLOW}sudo systemctl restart crm${NC}"
+    echo -e "查看服务日志: ${YELLOW}sudo journalctl -u crm -f${NC}"
+else
+    echo -e "${GREEN}手动服务管理命令：${NC}"
+    echo -e "停止服务: ${YELLOW}pkill -f 'gunicorn.*run:app'${NC}"
+    echo -e "查看进程: ${YELLOW}ps aux | grep gunicorn${NC}"
+fi
 echo ""
 echo -e "${GREEN}✓ 所有步骤完成！${NC}"
 

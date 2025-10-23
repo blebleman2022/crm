@@ -1,0 +1,41 @@
+[Unit]
+Description=EduConnect CRM Application
+After=network.target
+
+[Service]
+Type=notify
+User=root
+Group=root
+WorkingDirectory=/root/crm
+Environment="PATH=/root/crm/venv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="FLASK_ENV=production"
+Environment="DATABASE_URL=sqlite:////root/crm/instance/edu_crm.db"
+
+# Gunicorn 配置
+ExecStart=/root/crm/venv/bin/gunicorn \
+    --workers 4 \
+    --bind 0.0.0.0:5000 \
+    --timeout 120 \
+    --access-logfile /root/crm/logs/access.log \
+    --error-logfile /root/crm/logs/error.log \
+    --log-level info \
+    run:app
+
+# 重启策略
+Restart=always
+RestartSec=10
+
+# 日志配置
+StandardOutput=append:/root/crm/logs/app.log
+StandardError=append:/root/crm/logs/app.log
+
+# 安全配置
+NoNewPrivileges=true
+PrivateTmp=true
+
+# 资源限制
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+
