@@ -50,7 +50,15 @@ class BaseConfig:
     @staticmethod
     def init_app(app):
         """初始化应用配置"""
-        pass
+        # 启用 SQLite 外键约束
+        from sqlalchemy import event
+        from sqlalchemy.engine import Engine
+
+        @event.listens_for(Engine, "connect")
+        def set_sqlite_pragma(dbapi_conn, connection_record):
+            cursor = dbapi_conn.cursor()
+            cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.close()
 
 class DevelopmentConfig(BaseConfig):
     """开发环境配置"""

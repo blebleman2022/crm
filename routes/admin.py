@@ -584,37 +584,18 @@ def update_lead(lead_id):
 @login_required
 @admin_required
 def delete_lead(lead_id):
-    """删除线索及其关联的客户数据"""
-    from models import Customer, Payment, TutoringDelivery, CompetitionDelivery, CommunicationRecord
+    """删除线索及其关联的客户数据
 
+    注意：由于已配置级联删除（cascade='all, delete-orphan'），
+    删除 Lead 时会自动删除关联的 Customer、Payment、CommunicationRecord，
+    以及 Customer 关联的 TutoringDelivery 和 CompetitionDelivery。
+    """
     lead = Lead.query.get_or_404(lead_id)
     lead_name = lead.student_name or "未命名"
 
     try:
-        # 1. 查找关联的客户
-        customer = Customer.query.filter_by(lead_id=lead_id).first()
-
-        # 2. 如果存在关联客户，删除客户的交付记录和沟通记录
-        if customer:
-            # 删除课题辅导交付记录
-            TutoringDelivery.query.filter_by(customer_id=customer.id).delete()
-
-            # 删除竞赛辅导交付记录
-            CompetitionDelivery.query.filter_by(customer_id=customer.id).delete()
-
-            # 删除客户记录
-            db.session.delete(customer)
-
-        # 3. 删除线索的沟通记录（包括线索阶段和客户阶段的所有沟通记录）
-        CommunicationRecord.query.filter_by(lead_id=lead_id).delete()
-
-        # 4. 删除线索的付款记录
-        Payment.query.filter_by(lead_id=lead_id).delete()
-
-        # 5. 删除线索
+        # 直接删除线索，级联删除会自动处理所有关联数据
         db.session.delete(lead)
-
-        # 6. 提交事务
         db.session.commit()
 
         return jsonify({

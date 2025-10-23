@@ -98,9 +98,13 @@ class Lead(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # 关联关系
-    customer = db.relationship('Customer', backref='lead', uselist=False)
-    payments = db.relationship('Payment', backref='lead', lazy='dynamic')
+    # 关联关系（添加级联删除保护）
+    customer = db.relationship('Customer', backref='lead', uselist=False,
+                              cascade='all, delete-orphan')
+    payments = db.relationship('Payment', backref='lead', lazy='dynamic',
+                              cascade='all, delete-orphan')
+    communication_records = db.relationship('CommunicationRecord', back_populates='lead',
+                                           cascade='all, delete-orphan')
 
     def get_service_types_list(self):
         """获取服务类型列表"""
@@ -156,9 +160,13 @@ class Customer(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # 关联关系
-    tutoring_delivery = db.relationship('TutoringDelivery', backref='customer', uselist=False)
-    competition_delivery = db.relationship('CompetitionDelivery', backref='customer', uselist=False)
+    # 关联关系（添加级联删除保护）
+    tutoring_delivery = db.relationship('TutoringDelivery', backref='customer', uselist=False,
+                                       cascade='all, delete-orphan')
+    competition_delivery = db.relationship('CompetitionDelivery', backref='customer', uselist=False,
+                                          cascade='all, delete-orphan')
+    customer_communication_records = db.relationship('CommunicationRecord', back_populates='customer',
+                                                     cascade='all, delete-orphan')
 
     # ✨ 通过 @property 从线索表读取合同内容（单一数据源）
     @property
@@ -359,9 +367,10 @@ class CommunicationRecord(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, comment='创建时间')
 
     # 关联关系
-    lead = db.relationship('Lead', backref='communication_records')
-    customer = db.relationship('Customer', backref='communication_records')
-    user = db.relationship('User', backref='communication_records')
+    # 注意：backref 在父表（Lead）中定义，这里只定义反向引用
+    lead = db.relationship('Lead', back_populates='communication_records')
+    customer = db.relationship('Customer', back_populates='customer_communication_records')
+    user = db.relationship('User', backref='user_communication_records')
 
     def __repr__(self):
         stage = 'customer' if self.customer_id else 'lead'

@@ -408,14 +408,21 @@ def delete_teacher_image(image_id):
     try:
         image = TeacherImage.query.get_or_404(image_id)
 
-        # 删除文件
+        # 1. 先记录文件路径
         filepath = os.path.join('static', image.image_path)
-        if os.path.exists(filepath):
-            os.remove(filepath)
 
-        # 删除数据库记录
+        # 2. 删除数据库记录（先删除数据库，保证数据一致性）
         db.session.delete(image)
         db.session.commit()
+
+        # 3. 最后删除文件（即使失败也不影响数据一致性）
+        if os.path.exists(filepath):
+            try:
+                os.remove(filepath)
+            except Exception as e:
+                # 记录日志，但不影响主流程
+                import logging
+                logging.warning(f"文件删除失败: {filepath}, 错误: {e}")
 
         return jsonify({'success': True, 'message': '图片删除成功'})
 
