@@ -107,8 +107,12 @@ class Lead(db.Model):
         import json
         if self.service_types:
             try:
+                # 尝试解析 JSON 格式
                 return json.loads(self.service_types)
             except:
+                # 如果不是 JSON，尝试按逗号分隔
+                if ',' in self.service_types or self.service_types:
+                    return [s.strip() for s in self.service_types.split(',') if s.strip()]
                 return []
         return []
 

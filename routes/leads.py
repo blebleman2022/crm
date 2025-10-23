@@ -429,11 +429,11 @@ def list_leads():
         filter_period = f"{first_payment_date_start} 至 {first_payment_date_end}"
 
     # 获取班主任列表（用于转客户时选择）
-    # 包含：班主任、销售管理
+    # 只包含：teacher_supervisor（班主任）角色
     teachers = User.query.filter(
-        User.role.in_(['teacher', 'sales_manager']),
+        User.role == 'teacher_supervisor',
         User.status == True
-    ).all()
+    ).order_by(User.username).all()
 
     return render_template('leads/list.html',
                          leads=leads,
