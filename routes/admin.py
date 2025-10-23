@@ -219,7 +219,7 @@ def delete_user(user_id):
 
     # 检查是否有关联数据
     leads_count = user.leads_as_sales.count()
-    customers_count = user.customers_as_teacher.count()
+    customers_count = user.customers_as_teacher_user.count()
 
     if leads_count > 0 or customers_count > 0:
         return jsonify({
