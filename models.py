@@ -454,3 +454,22 @@ class TeacherImage(db.Model):
             return f'{size_mb:.1f} MB'
 
 # ConsultationDetail表已删除，现在统一使用CommunicationRecord表
+
+
+class SystemConfig(db.Model):
+    """系统配置表"""
+    __tablename__ = 'system_config'
+
+    id = db.Column(db.Integer, primary_key=True)
+    config_key = db.Column(db.String(50), unique=True, nullable=False, comment='配置键')
+    config_value = db.Column(db.String(200), comment='配置值')
+    description = db.Column(db.String(200), comment='配置说明')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
+    updated_by = db.Column(db.Integer, db.ForeignKey('users.id'), comment='更新人ID')
+
+    # 关联关系
+    updater = db.relationship('User', foreign_keys=[updated_by])
+
+    def __repr__(self):
+        return f'<SystemConfig {self.config_key}={self.config_value}>'

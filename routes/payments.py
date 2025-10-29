@@ -14,7 +14,7 @@
 
 from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for
 from flask_login import login_required, current_user
-from models import db, Customer, CustomerPayment, User, Lead
+from models import db, Customer, CustomerPayment, User, Lead, SystemConfig
 from functools import wraps
 from datetime import datetime
 from decimal import Decimal
@@ -39,6 +39,15 @@ def teacher_supervisor_required(f):
         if not current_user.is_teacher_supervisor():
             flash('您没有权限访问此页面', 'error')
             return redirect(url_for('auth.login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def sales_manager_required(f):
+    """要求销售管理角色"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_sales_manager():
+            return jsonify({'success': False, 'message': '您没有权限执行此操作'}), 403
         return f(*args, **kwargs)
     return decorated_function
 
@@ -339,12 +348,12 @@ def manage():
 @teacher_supervisor_required
 def update_payment(customer_id):
     """更新客户付款信息"""
-    
+
     # 验证权限：只能更新自己负责的客户
     customer = Customer.query.get_or_404(customer_id)
     if customer.teacher_user_id != current_user.id:
         return jsonify({'success': False, 'message': '您只能编辑自己负责的客户付款信息'}), 403
-    
+
     # 获取或创建付款记录
     payment = CustomerPayment.query.filter_by(customer_id=customer_id).first()
     if not payment:
@@ -353,44 +362,102 @@ def update_payment(customer_id):
             teacher_user_id=current_user.id
         )
         db.session.add(payment)
-    
+
     try:
         # 更新字段
         data = request.get_json()
+
+        # 获取锁定月份配置
+        lock_config = SystemConfig.query.filter_by(config_key='payment_lock_month').first()
+        lock_month = lock_config.config_value if lock_config else None
         
         # 总金额
         if 'total_amount' in data:
             payment.total_amount = Decimal(str(data['total_amount'])) if data['total_amount'] else None
         
+        # 检查锁定：如果修改的是已有付款记录，检查是否被锁定
+        def check_payment_locked(payment_date_str, field_name):
+            """检查付款是否被锁定"""
+            if lock_month and payment_date_str:
+                # 比较年-月格式的字符串
+                if payment_date_str <= lock_month:
+                    return True, f'{field_name}已被锁定（锁定月份：{lock_month}），无法修改'
+            return False, None
+
         # 第一笔付款
-        if 'first_payment' in data:
-            payment.first_payment = Decimal(str(data['first_payment'])) if data['first_payment'] else None
-        if 'first_payment_date' in data:
-            if data['first_payment_date']:
-                # 支持年-月格式，转换为该月的第一天
-                payment.first_payment_date = datetime.strptime(data['first_payment_date'] + '-01', '%Y-%m-%d').date()
-            else:
-                payment.first_payment_date = None
+        if 'first_payment' in data or 'first_payment_date' in data:
+            # 检查原有付款日期是否被锁定
+            if payment.first_payment_date:
+                original_month = payment.first_payment_date.strftime('%Y-%m')
+                is_locked, error_msg = check_payment_locked(original_month, '第一笔付款')
+                if is_locked:
+                    return jsonify({'success': False, 'message': error_msg}), 403
+
+            # 检查新的付款日期是否被锁定
+            if 'first_payment_date' in data and data['first_payment_date']:
+                new_month = data['first_payment_date']
+                is_locked, error_msg = check_payment_locked(new_month, '第一笔付款')
+                if is_locked:
+                    return jsonify({'success': False, 'message': f'不能将付款日期设置为已锁定的月份（锁定月份：{lock_month}）'}), 403
+
+            # 更新数据
+            if 'first_payment' in data:
+                payment.first_payment = Decimal(str(data['first_payment'])) if data['first_payment'] else None
+            if 'first_payment_date' in data:
+                if data['first_payment_date']:
+                    payment.first_payment_date = datetime.strptime(data['first_payment_date'] + '-01', '%Y-%m-%d').date()
+                else:
+                    payment.first_payment_date = None
 
         # 第二笔付款
-        if 'second_payment' in data:
-            payment.second_payment = Decimal(str(data['second_payment'])) if data['second_payment'] else None
-        if 'second_payment_date' in data:
-            if data['second_payment_date']:
-                # 支持年-月格式，转换为该月的第一天
-                payment.second_payment_date = datetime.strptime(data['second_payment_date'] + '-01', '%Y-%m-%d').date()
-            else:
-                payment.second_payment_date = None
+        if 'second_payment' in data or 'second_payment_date' in data:
+            # 检查原有付款日期是否被锁定
+            if payment.second_payment_date:
+                original_month = payment.second_payment_date.strftime('%Y-%m')
+                is_locked, error_msg = check_payment_locked(original_month, '第二笔付款')
+                if is_locked:
+                    return jsonify({'success': False, 'message': error_msg}), 403
+
+            # 检查新的付款日期是否被锁定
+            if 'second_payment_date' in data and data['second_payment_date']:
+                new_month = data['second_payment_date']
+                is_locked, error_msg = check_payment_locked(new_month, '第二笔付款')
+                if is_locked:
+                    return jsonify({'success': False, 'message': f'不能将付款日期设置为已锁定的月份（锁定月份：{lock_month}）'}), 403
+
+            # 更新数据
+            if 'second_payment' in data:
+                payment.second_payment = Decimal(str(data['second_payment'])) if data['second_payment'] else None
+            if 'second_payment_date' in data:
+                if data['second_payment_date']:
+                    payment.second_payment_date = datetime.strptime(data['second_payment_date'] + '-01', '%Y-%m-%d').date()
+                else:
+                    payment.second_payment_date = None
 
         # 第三笔付款
-        if 'third_payment' in data:
-            payment.third_payment = Decimal(str(data['third_payment'])) if data['third_payment'] else None
-        if 'third_payment_date' in data:
-            if data['third_payment_date']:
-                # 支持年-月格式，转换为该月的第一天
-                payment.third_payment_date = datetime.strptime(data['third_payment_date'] + '-01', '%Y-%m-%d').date()
-            else:
-                payment.third_payment_date = None
+        if 'third_payment' in data or 'third_payment_date' in data:
+            # 检查原有付款日期是否被锁定
+            if payment.third_payment_date:
+                original_month = payment.third_payment_date.strftime('%Y-%m')
+                is_locked, error_msg = check_payment_locked(original_month, '第三笔付款')
+                if is_locked:
+                    return jsonify({'success': False, 'message': error_msg}), 403
+
+            # 检查新的付款日期是否被锁定
+            if 'third_payment_date' in data and data['third_payment_date']:
+                new_month = data['third_payment_date']
+                is_locked, error_msg = check_payment_locked(new_month, '第三笔付款')
+                if is_locked:
+                    return jsonify({'success': False, 'message': f'不能将付款日期设置为已锁定的月份（锁定月份：{lock_month}）'}), 403
+
+            # 更新数据
+            if 'third_payment' in data:
+                payment.third_payment = Decimal(str(data['third_payment'])) if data['third_payment'] else None
+            if 'third_payment_date' in data:
+                if data['third_payment_date']:
+                    payment.third_payment_date = datetime.strptime(data['third_payment_date'] + '-01', '%Y-%m-%d').date()
+                else:
+                    payment.third_payment_date = None
         
         # 验证：已付款总额不能超过总金额
         total_paid = payment.get_total_paid()
@@ -415,4 +482,103 @@ def update_payment(customer_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'更新失败：{str(e)}'}), 500
+
+
+@payments_bp.route('/get_lock_month', methods=['GET'])
+@login_required
+def get_lock_month():
+    """获取当前付款锁定月份"""
+    try:
+        config = SystemConfig.query.filter_by(config_key='payment_lock_month').first()
+
+        result = {
+            'lock_month': config.config_value if config else None
+        }
+
+        # 如果有锁定信息，返回更新人和更新时间
+        if config and config.updated_by:
+            updater = User.query.get(config.updated_by)
+            result['updated_by'] = updater.username if updater else '未知'
+            result['updated_at'] = config.updated_at.strftime('%Y-%m-%d %H:%M:%S') if config.updated_at else None
+
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'lock_month': None, 'error': str(e)})
+
+
+@payments_bp.route('/set_lock_month', methods=['POST'])
+@login_required
+@sales_manager_required
+def set_lock_month():
+    """设置付款锁定月份（仅销售管理可操作）"""
+    try:
+        data = request.get_json()
+        lock_month = data.get('lock_month')
+
+        if not lock_month:
+            return jsonify({'success': False, 'message': '请选择锁定月份'}), 400
+
+        # 验证月份格式
+        try:
+            datetime.strptime(lock_month, '%Y-%m')
+        except ValueError:
+            return jsonify({'success': False, 'message': '月份格式错误，应为YYYY-MM'}), 400
+
+        # 更新或创建配置
+        config = SystemConfig.query.filter_by(config_key='payment_lock_month').first()
+        if config:
+            old_value = config.config_value
+            config.config_value = lock_month
+            config.updated_by = current_user.id
+            config.updated_at = datetime.utcnow()
+            action = '更新'
+        else:
+            config = SystemConfig(
+                config_key='payment_lock_month',
+                config_value=lock_month,
+                description='付款记录锁定月份（该月份及之前的付款记录不可编辑）',
+                updated_by=current_user.id
+            )
+            db.session.add(config)
+            old_value = None
+            action = '设置'
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'已{action}锁定月份为 {lock_month}，该月份及之前的所有付款记录将无法编辑',
+            'lock_month': lock_month,
+            'old_value': old_value
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'设置失败：{str(e)}'}), 500
+
+
+@payments_bp.route('/clear_lock_month', methods=['POST'])
+@login_required
+@sales_manager_required
+def clear_lock_month():
+    """清除付款锁定（仅销售管理可操作）"""
+    try:
+        config = SystemConfig.query.filter_by(config_key='payment_lock_month').first()
+
+        if not config:
+            return jsonify({'success': False, 'message': '当前没有锁定设置'}), 400
+
+        old_value = config.config_value
+        db.session.delete(config)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'已清除锁定设置（原锁定月份：{old_value}），所有付款记录现在可以编辑',
+            'old_value': old_value
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'清除失败：{str(e)}'}), 500
 

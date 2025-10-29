@@ -194,6 +194,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const cellValue = cell.querySelector('.cell-value');
 
         cellValue.addEventListener('click', function() {
+            // 检查单元格是否被锁定
+            if (cell.classList.contains('locked')) {
+                showToast('此付款记录已被锁定，无法编辑', 'error');
+                return;
+            }
+
             const field = cell.dataset.field;
             const type = cell.dataset.type;
             const currentValue = cellValue.textContent.trim().replace('¥', '').replace(',', '').replace('-', '');
@@ -411,6 +417,104 @@ document.addEventListener('DOMContentLoaded', function() {
                 endDateInput.value = currentMonth;
             }
         });
+    }
+
+    // 获取锁定月份并更新可编辑状态
+    let lockMonth = null;
+
+    fetch('/payments/get_lock_month')
+        .then(res => res.json())
+        .then(data => {
+            lockMonth = data.lock_month;
+            if (lockMonth) {
+                updateEditableStatus();
+                // 显示锁定提示
+                showLockNotice(lockMonth, data.updated_by, data.updated_at);
+            }
+        })
+        .catch(err => console.error('获取锁定月份失败:', err));
+
+    function updateEditableStatus() {
+        if (!lockMonth) return;
+
+        document.querySelectorAll('tr[data-customer-id]').forEach(row => {
+            // 检查每笔付款的日期
+            ['first', 'second', 'third'].forEach(prefix => {
+                const dateCell = row.querySelector(`[data-field="${prefix}_payment_date"]`);
+                const amountCell = row.querySelector(`[data-field="${prefix}_payment"]`);
+
+                if (dateCell) {
+                    // 提取日期文本（从.cell-value元素中获取）
+                    const cellValue = dateCell.querySelector('.cell-value');
+                    if (!cellValue) return;
+
+                    let paymentMonth = cellValue.textContent.trim();
+
+                    // 如果是"-"表示空日期，跳过
+                    if (paymentMonth === '-' || !paymentMonth) {
+                        return;
+                    }
+
+                    // 检查是否需要锁定
+                    if (paymentMonth <= lockMonth) {
+                        // 锁定：添加locked类和锁定样式
+                        dateCell.classList.add('locked', 'bg-gray-100', 'cursor-not-allowed');
+                        amountCell.classList.add('locked', 'bg-gray-100', 'cursor-not-allowed');
+
+                        // 修改cell-value的样式
+                        const dateCellValue = dateCell.querySelector('.cell-value');
+                        const amountCellValue = amountCell.querySelector('.cell-value');
+                        if (dateCellValue) {
+                            dateCellValue.classList.remove('cursor-pointer', 'hover:bg-blue-50');
+                            dateCellValue.classList.add('text-gray-500');
+                        }
+                        if (amountCellValue) {
+                            amountCellValue.classList.remove('cursor-pointer', 'hover:bg-blue-50');
+                            amountCellValue.classList.add('text-gray-500');
+                        }
+
+                        // 添加锁定图标
+                        if (!cellValue.querySelector('.lock-icon')) {
+                            const lockIcon = document.createElement('span');
+                            lockIcon.className = 'material-symbols-outlined text-gray-400 lock-icon mr-1';
+                            lockIcon.textContent = 'lock';
+                            lockIcon.style.fontSize = '14px';
+                            lockIcon.style.verticalAlign = 'middle';
+                            cellValue.insertBefore(lockIcon, cellValue.firstChild);
+                        }
+
+                        // 添加提示
+                        dateCell.title = `已锁定（锁定月份：${lockMonth}）`;
+                        amountCell.title = `已锁定（锁定月份：${lockMonth}）`;
+                    }
+                }
+            });
+        });
+    }
+
+    function showLockNotice(month, updatedBy, updatedAt) {
+        const notice = document.createElement('div');
+        notice.className = 'mb-4 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded';
+        notice.innerHTML = `
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <span class="material-symbols-outlined text-yellow-400">lock</span>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-yellow-800">付款记录已锁定</h3>
+                    <div class="mt-2 text-sm text-yellow-700">
+                        <p><strong>${month}</strong> 及之前的付款记录已被锁定，无法编辑</p>
+                        <p class="text-xs mt-1">设置人：${updatedBy || '未知'} | 设置时间：${updatedAt || '未知'}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // 插入到统计信息之后
+        const statsDiv = document.querySelector('.bg-blue-50');
+        if (statsDiv) {
+            statsDiv.parentNode.insertBefore(notice, statsDiv.nextSibling);
+        }
     }
 });
 </script>

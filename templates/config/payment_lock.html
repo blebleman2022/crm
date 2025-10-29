@@ -1,0 +1,176 @@
+{% extends "admin/base.html" %}
+
+{% block title %}付款锁定管理 - EduConnect CRM{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <!-- 页面标题 -->
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-900">付款锁定管理</h1>
+        <p class="mt-1 text-sm text-gray-600">
+            设置付款记录的锁定月份，锁定后班主任将无法修改该月份及之前的付款记录
+        </p>
+    </div>
+
+    <!-- Flash消息 -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="mb-4 p-4 rounded-md {% if category == 'error' %}bg-red-50 text-red-800{% elif category == 'warning' %}bg-yellow-50 text-yellow-800{% else %}bg-green-50 text-green-800{% endif %}">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <span class="material-symbols-outlined">
+                                {% if category == 'error' %}error{% elif category == 'warning' %}warning{% else %}check_circle{% endif %}
+                            </span>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm font-medium">{{ message }}</p>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- 当前锁定状态 -->
+    <div class="bg-white shadow rounded-lg p-6 mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <span class="material-symbols-outlined mr-2 text-blue-600">info</span>
+            当前锁定状态
+        </h2>
+        
+        {% if lock_info %}
+        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <span class="material-symbols-outlined text-yellow-400">lock</span>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-yellow-800">付款记录已锁定</h3>
+                    <div class="mt-2 text-sm text-yellow-700">
+                        <p><strong>锁定月份：</strong>{{ lock_info.lock_month }} 及之前</p>
+                        <p><strong>设置人：</strong>{{ lock_info.updated_by }}</p>
+                        <p><strong>设置时间：</strong>{{ lock_info.updated_at }}</p>
+                        <p class="mt-2 text-xs">{{ lock_info.description }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="bg-green-50 border-l-4 border-green-400 p-4">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <span class="material-symbols-outlined text-green-400">lock_open</span>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-green-800">当前未设置锁定</h3>
+                    <div class="mt-2 text-sm text-green-700">
+                        <p>所有付款记录均可编辑</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 设置锁定 -->
+    <div class="bg-white shadow rounded-lg p-6 mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <span class="material-symbols-outlined mr-2 text-blue-600">settings</span>
+            设置锁定月份
+        </h2>
+        
+        <form method="POST" action="{{ url_for('config.set_payment_lock') }}" class="space-y-4">
+            <div>
+                <label for="lock_month" class="block text-sm font-medium text-gray-700 mb-2">
+                    选择锁定月份
+                </label>
+                <input type="month" 
+                       id="lock_month" 
+                       name="lock_month" 
+                       value="{{ lock_info.lock_month if lock_info else '' }}"
+                       class="block w-full max-w-xs px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                       required>
+                <p class="mt-2 text-sm text-gray-500">
+                    选择的月份及之前的所有付款记录将被锁定，班主任无法编辑
+                </p>
+            </div>
+
+            <div class="bg-blue-50 border-l-4 border-blue-400 p-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <span class="material-symbols-outlined text-blue-400">info</span>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-blue-800">锁定说明</h3>
+                        <div class="mt-2 text-sm text-blue-700">
+                            <ul class="list-disc list-inside space-y-1">
+                                <li>锁定后，班主任无法修改锁定月份及之前的付款金额和付款时间</li>
+                                <li>班主任仍可以添加新的付款记录（锁定月份之后的）</li>
+                                <li>管理员可以随时修改或清除锁定设置</li>
+                                <li>建议在每月对账完成后设置锁定</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex gap-3">
+                <button type="submit" 
+                        class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    <span class="material-symbols-outlined mr-2">lock</span>
+                    {% if lock_info %}更新锁定{% else %}设置锁定{% endif %}
+                </button>
+                
+                {% if lock_info %}
+                <button type="button" 
+                        onclick="if(confirm('确定要清除锁定设置吗？清除后所有付款记录将可以编辑。')) { document.getElementById('clearForm').submit(); }"
+                        class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    <span class="material-symbols-outlined mr-2">lock_open</span>
+                    清除锁定
+                </button>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
+    <!-- 清除锁定表单（隐藏） -->
+    {% if lock_info %}
+    <form id="clearForm" method="POST" action="{{ url_for('config.clear_payment_lock') }}" style="display: none;"></form>
+    {% endif %}
+
+    <!-- 使用示例 -->
+    <div class="bg-white shadow rounded-lg p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <span class="material-symbols-outlined mr-2 text-blue-600">help</span>
+            使用示例
+        </h2>
+        
+        <div class="space-y-4 text-sm text-gray-700">
+            <div>
+                <h3 class="font-medium text-gray-900 mb-2">场景1：月度对账</h3>
+                <p class="text-gray-600">
+                    每月初对上月付款进行对账后，设置锁定月份为上月（如2025-10），
+                    这样班主任就无法修改10月及之前的付款记录，确保对账数据的准确性。
+                </p>
+            </div>
+            
+            <div>
+                <h3 class="font-medium text-gray-900 mb-2">场景2：季度结算</h3>
+                <p class="text-gray-600">
+                    每季度末进行财务结算后，设置锁定月份为本季度最后一个月（如2025-09），
+                    锁定整个季度的付款数据。
+                </p>
+            </div>
+            
+            <div>
+                <h3 class="font-medium text-gray-900 mb-2">场景3：临时解锁</h3>
+                <p class="text-gray-600">
+                    如需修改已锁定的数据，管理员可以临时清除锁定，修改完成后重新设置锁定。
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
