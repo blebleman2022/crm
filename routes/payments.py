@@ -94,16 +94,53 @@ def reconciliation():
         # 总金额从customer_payments.total_amount获取（公司应付给供应商的金额）
         total_amount = float(payment.total_amount) if payment and payment.total_amount else 0
 
-        # 时间筛选：检查是否有任何一笔付款在时间范围内
+        # 时间筛选：检查是否有任何一笔付款在时间范围内，并计算时间段内的付款总额
+        period_paid = 0  # 筛选时间段内的付款总额
         if start_date or end_date:
             payment_dates = []
             if payment:
+                # 检查第一笔付款
                 if payment.first_payment_date:
-                    payment_dates.append(payment.first_payment_date.strftime('%Y-%m'))
+                    date_str = payment.first_payment_date.strftime('%Y-%m')
+                    payment_dates.append(date_str)
+                    # 检查是否在时间范围内
+                    if start_date and end_date:
+                        if start_date <= date_str <= end_date:
+                            period_paid += float(payment.first_payment) if payment.first_payment else 0
+                    elif start_date:
+                        if date_str >= start_date:
+                            period_paid += float(payment.first_payment) if payment.first_payment else 0
+                    elif end_date:
+                        if date_str <= end_date:
+                            period_paid += float(payment.first_payment) if payment.first_payment else 0
+
+                # 检查第二笔付款
                 if payment.second_payment_date:
-                    payment_dates.append(payment.second_payment_date.strftime('%Y-%m'))
+                    date_str = payment.second_payment_date.strftime('%Y-%m')
+                    payment_dates.append(date_str)
+                    if start_date and end_date:
+                        if start_date <= date_str <= end_date:
+                            period_paid += float(payment.second_payment) if payment.second_payment else 0
+                    elif start_date:
+                        if date_str >= start_date:
+                            period_paid += float(payment.second_payment) if payment.second_payment else 0
+                    elif end_date:
+                        if date_str <= end_date:
+                            period_paid += float(payment.second_payment) if payment.second_payment else 0
+
+                # 检查第三笔付款
                 if payment.third_payment_date:
-                    payment_dates.append(payment.third_payment_date.strftime('%Y-%m'))
+                    date_str = payment.third_payment_date.strftime('%Y-%m')
+                    payment_dates.append(date_str)
+                    if start_date and end_date:
+                        if start_date <= date_str <= end_date:
+                            period_paid += float(payment.third_payment) if payment.third_payment else 0
+                    elif start_date:
+                        if date_str >= start_date:
+                            period_paid += float(payment.third_payment) if payment.third_payment else 0
+                    elif end_date:
+                        if date_str <= end_date:
+                            period_paid += float(payment.third_payment) if payment.third_payment else 0
 
             # 如果没有付款记录，跳过
             if not payment_dates:
@@ -144,6 +181,7 @@ def reconciliation():
             'third_payment_date': payment.third_payment_date.strftime('%Y-%m') if payment and payment.third_payment_date else '',
             'total_paid': total_paid,
             'remaining': remaining,
+            'period_paid': period_paid,  # 筛选时间段内的付款总额
             'teacher_user_name': teacher_user.username if teacher_user else '未分配'
         })
 
@@ -200,15 +238,52 @@ def manage():
         # 总金额从customer_payments.total_amount获取（公司应付给供应商的金额）
         total_amount = float(payment.total_amount) if payment.total_amount else 0
 
-        # 时间筛选：检查是否有任何一笔付款在时间范围内
+        # 时间筛选：检查是否有任何一笔付款在时间范围内，并计算时间段内的付款总额
+        period_paid = 0  # 筛选时间段内的付款总额
         if start_date or end_date:
             payment_dates = []
+            # 检查第一笔付款
             if payment.first_payment_date:
-                payment_dates.append(payment.first_payment_date.strftime('%Y-%m'))
+                date_str = payment.first_payment_date.strftime('%Y-%m')
+                payment_dates.append(date_str)
+                # 检查是否在时间范围内
+                if start_date and end_date:
+                    if start_date <= date_str <= end_date:
+                        period_paid += float(payment.first_payment) if payment.first_payment else 0
+                elif start_date:
+                    if date_str >= start_date:
+                        period_paid += float(payment.first_payment) if payment.first_payment else 0
+                elif end_date:
+                    if date_str <= end_date:
+                        period_paid += float(payment.first_payment) if payment.first_payment else 0
+
+            # 检查第二笔付款
             if payment.second_payment_date:
-                payment_dates.append(payment.second_payment_date.strftime('%Y-%m'))
+                date_str = payment.second_payment_date.strftime('%Y-%m')
+                payment_dates.append(date_str)
+                if start_date and end_date:
+                    if start_date <= date_str <= end_date:
+                        period_paid += float(payment.second_payment) if payment.second_payment else 0
+                elif start_date:
+                    if date_str >= start_date:
+                        period_paid += float(payment.second_payment) if payment.second_payment else 0
+                elif end_date:
+                    if date_str <= end_date:
+                        period_paid += float(payment.second_payment) if payment.second_payment else 0
+
+            # 检查第三笔付款
             if payment.third_payment_date:
-                payment_dates.append(payment.third_payment_date.strftime('%Y-%m'))
+                date_str = payment.third_payment_date.strftime('%Y-%m')
+                payment_dates.append(date_str)
+                if start_date and end_date:
+                    if start_date <= date_str <= end_date:
+                        period_paid += float(payment.third_payment) if payment.third_payment else 0
+                elif start_date:
+                    if date_str >= start_date:
+                        period_paid += float(payment.third_payment) if payment.third_payment else 0
+                elif end_date:
+                    if date_str <= end_date:
+                        period_paid += float(payment.third_payment) if payment.third_payment else 0
 
             # 如果没有付款记录，跳过
             if not payment_dates:
@@ -249,7 +324,8 @@ def manage():
             'third_payment': float(payment.third_payment) if payment.third_payment else 0,
             'third_payment_date': payment.third_payment_date.strftime('%Y-%m') if payment.third_payment_date else '',
             'total_paid': payment.get_total_paid() if hasattr(payment, 'get_total_paid') else 0,
-            'remaining': payment.get_remaining() if hasattr(payment, 'get_remaining') else 0
+            'remaining': payment.get_remaining() if hasattr(payment, 'get_remaining') else 0,
+            'period_paid': period_paid  # 筛选时间段内的付款总额
         })
 
     return render_template('payments/manage.html',
