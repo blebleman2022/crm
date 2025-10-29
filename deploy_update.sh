@@ -78,24 +78,10 @@ echo -e "${YELLOW}步骤 5/7: 执行数据库迁移...${NC}"
 python migrate_database.py
 
 if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✓ 基础数据库迁移完成${NC}"
+    echo -e "${GREEN}✓ 数据库迁移完成${NC}"
 else
     echo -e "${RED}错误：数据库迁移失败${NC}"
     exit 1
-fi
-
-# 执行老师表的 created_by_user_id 字段迁移
-echo -e "${YELLOW}执行老师数据隔离迁移...${NC}"
-if [ -f "migrations/add_created_by_to_teachers.py" ]; then
-    python migrations/add_created_by_to_teachers.py
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}✓ 老师数据隔离迁移完成${NC}"
-    else
-        echo -e "${RED}错误：老师数据隔离迁移失败${NC}"
-        exit 1
-    fi
-else
-    echo -e "${YELLOW}! 未找到老师数据隔离迁移脚本，跳过${NC}"
 fi
 
 # 7. 验证数据库完整性
