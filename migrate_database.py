@@ -62,9 +62,9 @@ def migrate_add_teachers_table(conn):
         # 检查表结构是否正确
         columns = get_table_columns(conn, 'teachers')
 
-        # 如果是旧结构（有 name 字段而不是 chinese_name），需要重建
-        if 'name' in columns and 'chinese_name' not in columns:
-            print_warning("检测到旧版 teachers 表结构，需要重建...")
+        # 如果是旧结构（缺少 created_by_user_id 字段），需要重建
+        if 'created_by_user_id' not in columns:
+            print_warning("检测到旧版 teachers 表结构（缺少 created_by_user_id），需要重建...")
 
             # 备份旧数据（如果有）
             cursor.execute("SELECT COUNT(*) FROM teachers")
@@ -74,8 +74,8 @@ def migrate_add_teachers_table(conn):
                 print_warning(f"发现 {old_count} 条旧数据，将被清除（旧表结构不兼容）")
 
             # 删除旧表
-            cursor.execute("DROP TABLE IF EXISTS teachers")
             cursor.execute("DROP TABLE IF EXISTS teacher_images")
+            cursor.execute("DROP TABLE IF EXISTS teachers")
             print_success("已删除旧版 teachers 表")
         else:
             print_warning("teachers 表已存在且结构正确，跳过创建")
@@ -97,25 +97,30 @@ def migrate_add_teachers_table(conn):
             innovation_coaching_achievements TEXT,
             social_roles TEXT,
             status BOOLEAN DEFAULT 1,
+            created_by_user_id INTEGER NOT NULL,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (created_by_user_id) REFERENCES users (id)
         )
     """)
 
-    # 创建 teacher_images 表
+    # 创建 teacher_images 表（与 models.py 中的 TeacherImage 模型一致）
     cursor.execute("""
         CREATE TABLE teacher_images (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             teacher_id INTEGER NOT NULL,
             image_path VARCHAR(500) NOT NULL,
-            image_type VARCHAR(50),
-            uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            description VARCHAR(200),
+            file_size INTEGER,
+            file_name VARCHAR(200),
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (teacher_id) REFERENCES teachers (id) ON DELETE CASCADE
         )
     """)
 
     # 创建索引
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_teacher_images_teacher_id ON teacher_images(teacher_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_teachers_created_by ON teachers(created_by_user_id)")
 
     conn.commit()
     print_success("teachers 和 teacher_images 表创建成功")
