@@ -42,10 +42,10 @@
                 </div>
                 <div>
                     {% if start_date or end_date %}
-                    <p class="text-sm text-gray-600">筛选时间段已付款总额</p>
+                    <p class="text-sm text-gray-600">付款总额</p>
                     <p class="text-2xl font-bold text-green-600">¥{{ "{:,.0f}".format(payment_data|sum(attribute='period_paid')) }}</p>
                     {% else %}
-                    <p class="text-sm text-gray-600">已付款总额</p>
+                    <p class="text-sm text-gray-600">付款总额</p>
                     <p class="text-2xl font-bold text-green-600">¥{{ "{:,.0f}".format(payment_data|sum(attribute='total_paid')) }}</p>
                     {% endif %}
                 </div>
