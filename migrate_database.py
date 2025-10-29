@@ -177,6 +177,77 @@ def migrate_update_user_roles(conn):
         print_error(f"更新角色失败: {str(e)}")
         return False
 
+def migrate_add_system_config_table(conn):
+    """添加 system_config 表"""
+    cursor = conn.cursor()
+
+    # 检查表是否已存在
+    if check_table_exists(conn, 'system_config'):
+        print_warning("system_config 表已存在，跳过创建")
+        return False
+
+    print_warning("创建 system_config 表...")
+
+    try:
+        cursor.execute("""
+            CREATE TABLE system_config (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                config_key VARCHAR(50) NOT NULL UNIQUE,
+                config_value VARCHAR(200),
+                description VARCHAR(200),
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_by INTEGER,
+                FOREIGN KEY (updated_by) REFERENCES users (id)
+            )
+        """)
+
+        # 创建索引
+        cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_system_config_key ON system_config(config_key)")
+
+        conn.commit()
+        print_success("system_config 表创建成功")
+        return True
+    except Exception as e:
+        print_error(f"创建 system_config 表失败: {str(e)}")
+        return False
+
+def migrate_add_customer_payments_table(conn):
+    """添加 customer_payments 表"""
+    cursor = conn.cursor()
+
+    # 检查表是否已存在
+    if check_table_exists(conn, 'customer_payments'):
+        print_warning("customer_payments 表已存在，跳过创建")
+        return False
+
+    print_warning("创建 customer_payments 表...")
+
+    try:
+        cursor.execute("""
+            CREATE TABLE customer_payments (
+                customer_id INTEGER PRIMARY KEY,
+                first_payment NUMERIC(10, 2),
+                first_payment_date DATE,
+                second_payment NUMERIC(10, 2),
+                second_payment_date DATE,
+                third_payment NUMERIC(10, 2),
+                third_payment_date DATE,
+                total_amount NUMERIC(10, 2),
+                FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE
+            )
+        """)
+
+        # 创建索引
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_payments_dates ON customer_payments(first_payment_date, second_payment_date, third_payment_date)")
+
+        conn.commit()
+        print_success("customer_payments 表创建成功")
+        return True
+    except Exception as e:
+        print_error(f"创建 customer_payments 表失败: {str(e)}")
+        return False
+
 def verify_database_integrity(conn):
     """验证数据库完整性"""
     cursor = conn.cursor()
@@ -193,20 +264,21 @@ def verify_database_integrity(conn):
 def get_table_stats(conn):
     """获取表统计信息"""
     cursor = conn.cursor()
-    
+
     tables = [
-        'users', 'leads', 'customers', 'payments', 
+        'users', 'leads', 'customers', 'payments',
         'teachers', 'tutoring_deliveries', 'competition_deliveries',
-        'communication_records', 'login_logs', 'competition_names'
+        'communication_records', 'login_logs', 'competition_names',
+        'system_config', 'customer_payments'
     ]
-    
+
     stats = {}
     for table in tables:
         if check_table_exists(conn, table):
             cursor.execute(f"SELECT COUNT(*) FROM {table}")
             count = cursor.fetchone()[0]
             stats[table] = count
-    
+
     return stats
 
 def main():
@@ -248,6 +320,14 @@ def main():
     # 迁移3: 更新用户角色
     if migrate_update_user_roles(conn):
         migrations_applied.append("更新用户角色 teacher -> teacher_supervisor")
+
+    # 迁移4: 添加 system_config 表
+    if migrate_add_system_config_table(conn):
+        migrations_applied.append("添加 system_config 表")
+
+    # 迁移5: 添加 customer_payments 表
+    if migrate_add_customer_payments_table(conn):
+        migrations_applied.append("添加 customer_payments 表")
 
     if migrations_applied:
         print_success(f"应用了 {len(migrations_applied)} 个迁移")
