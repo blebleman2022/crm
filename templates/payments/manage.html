@@ -166,32 +166,65 @@
 document.addEventListener('DOMContentLoaded', function() {
     // 行内编辑功能
     const editableCells = document.querySelectorAll('.editable-cell');
-    
+
     editableCells.forEach(cell => {
         const cellValue = cell.querySelector('.cell-value');
-        
+
         cellValue.addEventListener('click', function() {
             const field = cell.dataset.field;
             const type = cell.dataset.type;
             const currentValue = cellValue.textContent.trim().replace('¥', '').replace(',', '').replace('-', '');
             const row = cell.closest('tr');
             const customerId = row.dataset.customerId;
-            
+
+            // 如果是日期字段，检查对应的金额字段是否有值
+            if (type === 'date') {
+                let amountField = '';
+                if (field === 'first_payment_date') {
+                    amountField = 'first_payment';
+                } else if (field === 'second_payment_date') {
+                    amountField = 'second_payment';
+                } else if (field === 'third_payment_date') {
+                    amountField = 'third_payment';
+                }
+
+                // 查找对应的金额单元格
+                const amountCell = row.querySelector(`[data-field="${amountField}"]`);
+                if (amountCell) {
+                    const amountValue = amountCell.querySelector('.cell-value').textContent.trim().replace(',', '');
+                    // 如果金额为0或空，不允许编辑日期
+                    if (!amountValue || amountValue === '0') {
+                        showToast('请先输入付款金额', 'error');
+                        return;
+                    }
+                }
+            }
+
             // 创建输入框
             let input;
             if (type === 'date') {
                 input = document.createElement('input');
                 input.type = 'date';
-                input.value = currentValue !== '' ? currentValue : '';
+                // 如果当前没有日期，默认使用今天的日期
+                if (!currentValue || currentValue === '') {
+                    const today = new Date().toISOString().split('T')[0];
+                    input.value = today;
+                } else {
+                    input.value = currentValue;
+                }
                 input.className = 'w-full px-2 py-1 border border-blue-500 rounded focus:outline-none focus:ring-2 focus:ring-blue-500';
             } else {
+                // 金额字段使用text类型而不是number类型
                 input = document.createElement('input');
-                input.type = 'number';
+                input.type = 'text';
                 input.value = currentValue !== '' ? currentValue : '0';
                 input.className = 'w-full px-2 py-1 border border-blue-500 rounded text-right focus:outline-none focus:ring-2 focus:ring-blue-500';
-                input.step = '1';
+                // 只允许输入数字
+                input.addEventListener('input', function(e) {
+                    this.value = this.value.replace(/[^\d]/g, '');
+                });
             }
-            
+
             // 替换显示内容
             cellValue.style.display = 'none';
             cell.appendChild(input);
@@ -201,11 +234,26 @@ document.addEventListener('DOMContentLoaded', function() {
             // 保存函数
             const saveValue = async () => {
                 const newValue = input.value;
-                
+
                 // 构建更新数据
                 const updateData = {};
                 updateData[field] = newValue !== '' ? (type === 'date' ? newValue : parseFloat(newValue)) : null;
-                
+
+                // 如果是金额字段且被清空或设为0，需要同时清空对应的日期字段
+                if (type !== 'date' && (!newValue || newValue === '0')) {
+                    let dateField = '';
+                    if (field === 'first_payment') {
+                        dateField = 'first_payment_date';
+                    } else if (field === 'second_payment') {
+                        dateField = 'second_payment_date';
+                    } else if (field === 'third_payment') {
+                        dateField = 'third_payment_date';
+                    }
+                    if (dateField) {
+                        updateData[dateField] = null;
+                    }
+                }
+
                 try {
                     const response = await fetch(`/payments/update/${customerId}`, {
                         method: 'POST',
@@ -214,9 +262,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         },
                         body: JSON.stringify(updateData)
                     });
-                    
+
                     const result = await response.json();
-                    
+
                     if (result.success) {
                         // 更新显示值
                         if (type === 'date') {
@@ -227,14 +275,33 @@ document.addEventListener('DOMContentLoaded', function() {
                             } else {
                                 cellValue.textContent = newValue ? parseFloat(newValue).toLocaleString('zh-CN', {maximumFractionDigits: 0}) : '0';
                             }
+
+                            // 如果金额被清空，同时清空对应的日期显示
+                            if (!newValue || newValue === '0') {
+                                let dateField = '';
+                                if (field === 'first_payment') {
+                                    dateField = 'first_payment_date';
+                                } else if (field === 'second_payment') {
+                                    dateField = 'second_payment_date';
+                                } else if (field === 'third_payment') {
+                                    dateField = 'third_payment_date';
+                                }
+                                if (dateField) {
+                                    const dateCell = row.querySelector(`[data-field="${dateField}"]`);
+                                    if (dateCell) {
+                                        const dateCellValue = dateCell.querySelector('.cell-value');
+                                        dateCellValue.textContent = '-';
+                                    }
+                                }
+                            }
                         }
-                        
+
                         // 更新已付款和剩余付款
                         const totalPaidCell = row.querySelector('.total-paid-cell');
                         const remainingCell = row.querySelector('.remaining-cell');
                         totalPaidCell.textContent = `¥${result.data.total_paid.toLocaleString('zh-CN', {maximumFractionDigits: 0})}`;
                         remainingCell.textContent = `¥${result.data.remaining.toLocaleString('zh-CN', {maximumFractionDigits: 0})}`;
-                        
+
                         // 显示成功提示
                         showToast('保存成功', 'success');
                     } else {
