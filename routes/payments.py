@@ -89,6 +89,9 @@ def reconciliation():
             total_paid = 0
             remaining = float(customer.payment_amount) if customer.payment_amount else 0
         
+        # 确保总金额从customer.payment_amount获取
+        total_amount = float(customer.payment_amount) if customer.payment_amount else 0
+
         payment_data.append({
             'customer_id': customer.id,
             'student_name': lead.student_name if lead else '',
@@ -96,13 +99,13 @@ def reconciliation():
             'has_tutoring': '是' if has_tutoring else '否',
             'has_competition': '是' if has_competition else '否',
             'award_level': customer.competition_award_level or '无',
-            'total_amount': float(customer.payment_amount) if customer.payment_amount else 0,
+            'total_amount': total_amount,
             'first_payment': float(payment.first_payment) if payment and payment.first_payment else 0,
-            'first_payment_date': payment.first_payment_date.strftime('%Y-%m-%d') if payment and payment.first_payment_date else '',
+            'first_payment_date': payment.first_payment_date.strftime('%Y-%m') if payment and payment.first_payment_date else '',
             'second_payment': float(payment.second_payment) if payment and payment.second_payment else 0,
-            'second_payment_date': payment.second_payment_date.strftime('%Y-%m-%d') if payment and payment.second_payment_date else '',
+            'second_payment_date': payment.second_payment_date.strftime('%Y-%m') if payment and payment.second_payment_date else '',
             'third_payment': float(payment.third_payment) if payment and payment.third_payment else 0,
-            'third_payment_date': payment.third_payment_date.strftime('%Y-%m-%d') if payment and payment.third_payment_date else '',
+            'third_payment_date': payment.third_payment_date.strftime('%Y-%m') if payment and payment.third_payment_date else '',
             'total_paid': total_paid,
             'remaining': remaining,
             'teacher_user_name': teacher_user.username if teacher_user else '未分配'
@@ -151,7 +154,10 @@ def manage():
                 teacher_user_id=current_user.id,
                 total_amount=customer.payment_amount
             )
-        
+
+        # 确保总金额从customer.payment_amount获取
+        total_amount = float(customer.payment_amount) if customer.payment_amount else 0
+
         payment_data.append({
             'customer_id': customer.id,
             'payment_id': payment.id if payment.id else None,
@@ -160,13 +166,13 @@ def manage():
             'has_tutoring': '是' if has_tutoring else '否',
             'has_competition': '是' if has_competition else '否',
             'award_level': customer.competition_award_level or '无',
-            'total_amount': float(payment.total_amount) if payment.total_amount else 0,
+            'total_amount': total_amount,
             'first_payment': float(payment.first_payment) if payment.first_payment else 0,
-            'first_payment_date': payment.first_payment_date.strftime('%Y-%m-%d') if payment.first_payment_date else '',
+            'first_payment_date': payment.first_payment_date.strftime('%Y-%m') if payment.first_payment_date else '',
             'second_payment': float(payment.second_payment) if payment.second_payment else 0,
-            'second_payment_date': payment.second_payment_date.strftime('%Y-%m-%d') if payment.second_payment_date else '',
+            'second_payment_date': payment.second_payment_date.strftime('%Y-%m') if payment.second_payment_date else '',
             'third_payment': float(payment.third_payment) if payment.third_payment else 0,
-            'third_payment_date': payment.third_payment_date.strftime('%Y-%m-%d') if payment.third_payment_date else '',
+            'third_payment_date': payment.third_payment_date.strftime('%Y-%m') if payment.third_payment_date else '',
             'total_paid': payment.get_total_paid() if hasattr(payment, 'get_total_paid') else 0,
             'remaining': payment.get_remaining() if hasattr(payment, 'get_remaining') else 0
         })
@@ -205,20 +211,32 @@ def update_payment(customer_id):
         # 第一笔付款
         if 'first_payment' in data:
             payment.first_payment = Decimal(str(data['first_payment'])) if data['first_payment'] else None
-        if 'first_payment_date' in data and data['first_payment_date']:
-            payment.first_payment_date = datetime.strptime(data['first_payment_date'], '%Y-%m-%d').date()
-        
+        if 'first_payment_date' in data:
+            if data['first_payment_date']:
+                # 支持年-月格式，转换为该月的第一天
+                payment.first_payment_date = datetime.strptime(data['first_payment_date'] + '-01', '%Y-%m-%d').date()
+            else:
+                payment.first_payment_date = None
+
         # 第二笔付款
         if 'second_payment' in data:
             payment.second_payment = Decimal(str(data['second_payment'])) if data['second_payment'] else None
-        if 'second_payment_date' in data and data['second_payment_date']:
-            payment.second_payment_date = datetime.strptime(data['second_payment_date'], '%Y-%m-%d').date()
-        
+        if 'second_payment_date' in data:
+            if data['second_payment_date']:
+                # 支持年-月格式，转换为该月的第一天
+                payment.second_payment_date = datetime.strptime(data['second_payment_date'] + '-01', '%Y-%m-%d').date()
+            else:
+                payment.second_payment_date = None
+
         # 第三笔付款
         if 'third_payment' in data:
             payment.third_payment = Decimal(str(data['third_payment'])) if data['third_payment'] else None
-        if 'third_payment_date' in data and data['third_payment_date']:
-            payment.third_payment_date = datetime.strptime(data['third_payment_date'], '%Y-%m-%d').date()
+        if 'third_payment_date' in data:
+            if data['third_payment_date']:
+                # 支持年-月格式，转换为该月的第一天
+                payment.third_payment_date = datetime.strptime(data['third_payment_date'] + '-01', '%Y-%m-%d').date()
+            else:
+                payment.third_payment_date = None
         
         # 验证：已付款总额不能超过总金额
         total_paid = payment.get_total_paid()

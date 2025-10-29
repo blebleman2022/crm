@@ -204,11 +204,31 @@ document.addEventListener('DOMContentLoaded', function() {
             let input;
             if (type === 'date') {
                 input = document.createElement('input');
-                input.type = 'date';
-                // 如果当前没有日期，默认使用今天的日期
+                input.type = 'month';  // 改为年-月格式
+                // 如果当前没有日期，默认使用上一行的值
                 if (!currentValue || currentValue === '') {
-                    const today = new Date().toISOString().split('T')[0];
-                    input.value = today;
+                    // 查找上一行
+                    const prevRow = row.previousElementSibling;
+                    let defaultValue = '';
+
+                    if (prevRow && prevRow.tagName === 'TR') {
+                        // 获取上一行对应的日期字段
+                        const prevDateCell = prevRow.querySelector(`[data-field="${field}"]`);
+                        if (prevDateCell) {
+                            const prevDateValue = prevDateCell.querySelector('.cell-value').textContent.trim();
+                            if (prevDateValue && prevDateValue !== '-') {
+                                defaultValue = prevDateValue;
+                            }
+                        }
+                    }
+
+                    // 如果上一行没有值，使用当前年月
+                    if (!defaultValue) {
+                        const today = new Date();
+                        defaultValue = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+                    }
+
+                    input.value = defaultValue;
                 } else {
                     input.value = currentValue;
                 }
