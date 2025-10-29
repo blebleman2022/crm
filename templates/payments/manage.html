@@ -194,12 +194,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const cellValue = cell.querySelector('.cell-value');
 
         cellValue.addEventListener('click', function() {
-            // 检查单元格是否被锁定
-            if (cell.classList.contains('locked')) {
-                showToast('此付款记录已被锁定，无法编辑', 'error');
-                return;
-            }
-
             const field = cell.dataset.field;
             const type = cell.dataset.type;
             const currentValue = cellValue.textContent.trim().replace('¥', '').replace(',', '').replace('-', '');
@@ -469,16 +463,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (amountCellValue) {
                             amountCellValue.classList.remove('cursor-pointer', 'hover:bg-blue-50');
                             amountCellValue.classList.add('text-gray-500');
-                        }
-
-                        // 添加锁定图标
-                        if (!cellValue.querySelector('.lock-icon')) {
-                            const lockIcon = document.createElement('span');
-                            lockIcon.className = 'material-symbols-outlined text-gray-400 lock-icon mr-1';
-                            lockIcon.textContent = 'lock';
-                            lockIcon.style.fontSize = '14px';
-                            lockIcon.style.verticalAlign = 'middle';
-                            cellValue.insertBefore(lockIcon, cellValue.firstChild);
                         }
 
                         // 添加提示
