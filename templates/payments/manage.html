@@ -41,108 +41,108 @@
 
         <!-- 付款列表 -->
         <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
+            <table class="min-w-full divide-y divide-gray-200 text-sm">
                 <thead class="bg-gray-50">
                     <tr>
                         <!-- 前5个字段：统一样式（与对账页面一致） -->
-                        <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-28">学员姓名</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-32">家长微信名</th>
-                        <th class="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 w-24">课题</th>
-                        <th class="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 w-24">竞赛</th>
-                        <th class="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 w-24">奖项</th>
-                        
+                        <th class="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-20">学员姓名</th>
+                        <th class="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-24">家长微信名</th>
+                        <th class="px-2 py-2 text-center text-xs font-medium uppercase tracking-wider text-gray-500 w-16">课题</th>
+                        <th class="px-2 py-2 text-center text-xs font-medium uppercase tracking-wider text-gray-500 w-16">竞赛</th>
+                        <th class="px-2 py-2 text-center text-xs font-medium uppercase tracking-wider text-gray-500 w-16">奖项</th>
+
                         <!-- 付款信息字段（可编辑） -->
-                        <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 w-28">总金额</th>
-                        <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 w-28">第一笔</th>
-                        <th class="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 w-28">付款时间</th>
-                        <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 w-28">第二笔</th>
-                        <th class="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 w-28">付款时间</th>
-                        <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 w-28">第三笔</th>
-                        <th class="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 w-28">付款时间</th>
-                        <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 w-28 bg-green-50">已付款</th>
-                        <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 w-28 bg-orange-50">剩余付款</th>
+                        <th class="px-2 py-2 text-right text-xs font-medium uppercase tracking-wider text-gray-500 w-20">总金额</th>
+                        <th class="px-2 py-2 text-right text-xs font-medium uppercase tracking-wider text-gray-500 w-20">第一笔</th>
+                        <th class="px-2 py-2 text-center text-xs font-medium uppercase tracking-wider text-gray-500 w-20">付款时间</th>
+                        <th class="px-2 py-2 text-right text-xs font-medium uppercase tracking-wider text-gray-500 w-20">第二笔</th>
+                        <th class="px-2 py-2 text-center text-xs font-medium uppercase tracking-wider text-gray-500 w-20">付款时间</th>
+                        <th class="px-2 py-2 text-right text-xs font-medium uppercase tracking-wider text-gray-500 w-20">第三笔</th>
+                        <th class="px-2 py-2 text-center text-xs font-medium uppercase tracking-wider text-gray-500 w-20">付款时间</th>
+                        <th class="px-2 py-2 text-right text-xs font-medium uppercase tracking-wider text-gray-500 w-20 bg-green-50">已付款</th>
+                        <th class="px-2 py-2 text-right text-xs font-medium uppercase tracking-wider text-gray-500 w-20 bg-orange-50">剩余付款</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200 bg-white">
                     {% for payment in payment_data %}
                     <tr class="hover:bg-gray-50" data-customer-id="{{ payment.customer_id }}">
                         <!-- 前5个字段：统一样式（与对账页面一致） -->
-                        <td class="px-4 py-3 text-sm font-medium text-gray-900 w-28">{{ payment.student_name or '-' }}</td>
-                        <td class="px-4 py-3 text-sm text-gray-700 w-32">{{ payment.parent_wechat_name or '-' }}</td>
-                        <td class="px-4 py-3 text-sm text-center text-gray-700 w-24">
+                        <td class="px-2 py-2 text-sm font-medium text-gray-900 w-20">{{ payment.student_name or '-' }}</td>
+                        <td class="px-2 py-2 text-sm text-gray-700 w-24">{{ payment.parent_wechat_name or '-' }}</td>
+                        <td class="px-2 py-2 text-sm text-center text-gray-700 w-16">
                             <span class="{% if payment.has_tutoring == '是' %}text-green-600 font-medium{% else %}text-gray-400{% endif %}">
                                 {{ payment.has_tutoring }}
                             </span>
                         </td>
-                        <td class="px-4 py-3 text-sm text-center text-gray-700 w-24">
+                        <td class="px-2 py-2 text-sm text-center text-gray-700 w-16">
                             <span class="{% if payment.has_competition == '是' %}text-green-600 font-medium{% else %}text-gray-400{% endif %}">
                                 {{ payment.has_competition }}
                             </span>
                         </td>
-                        <td class="px-4 py-3 text-sm text-center text-gray-700 w-24">
+                        <td class="px-2 py-2 text-sm text-center text-gray-700 w-16">
                             {% if payment.award_level == '国奖' %}
-                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">国奖</span>
+                                <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">国奖</span>
                             {% elif payment.award_level == '市奖' %}
-                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">市奖</span>
+                                <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">市奖</span>
                             {% else %}
                                 <span class="text-gray-400">{{ payment.award_level }}</span>
                             {% endif %}
                         </td>
-                        
+
                         <!-- 付款信息字段（可编辑） -->
-                        <td class="px-4 py-3 text-sm text-right font-medium text-gray-900 w-28 editable-cell"
+                        <td class="px-2 py-2 text-sm text-right font-medium text-gray-900 w-20 editable-cell"
                             data-field="total_amount"
                             data-type="number">
-                            <span class="cell-value cursor-pointer hover:bg-blue-50 px-2 py-1 rounded">
+                            <span class="cell-value cursor-pointer hover:bg-blue-50 px-1 py-0.5 rounded">
                                 ¥{{ "{:,.0f}".format(payment.total_amount) if payment.total_amount else '0' }}
                             </span>
                         </td>
-                        <td class="px-4 py-3 text-sm text-right text-gray-700 w-28 editable-cell"
+                        <td class="px-2 py-2 text-sm text-right text-gray-700 w-20 editable-cell"
                             data-field="first_payment"
                             data-type="number">
-                            <span class="cell-value cursor-pointer hover:bg-blue-50 px-2 py-1 rounded">
+                            <span class="cell-value cursor-pointer hover:bg-blue-50 px-1 py-0.5 rounded">
                                 {{ "{:,.0f}".format(payment.first_payment) if payment.first_payment else '0' }}
                             </span>
                         </td>
-                        <td class="px-4 py-3 text-sm text-center text-gray-600 w-28 editable-cell"
+                        <td class="px-2 py-2 text-sm text-center text-gray-600 w-20 editable-cell"
                             data-field="first_payment_date"
                             data-type="date">
-                            <span class="cell-value cursor-pointer hover:bg-blue-50 px-2 py-1 rounded">
+                            <span class="cell-value cursor-pointer hover:bg-blue-50 px-1 py-0.5 rounded whitespace-nowrap">
                                 {{ payment.first_payment_date or '-' }}
                             </span>
                         </td>
-                        <td class="px-4 py-3 text-sm text-right text-gray-700 w-28 editable-cell"
+                        <td class="px-2 py-2 text-sm text-right text-gray-700 w-20 editable-cell"
                             data-field="second_payment"
                             data-type="number">
-                            <span class="cell-value cursor-pointer hover:bg-blue-50 px-2 py-1 rounded">
+                            <span class="cell-value cursor-pointer hover:bg-blue-50 px-1 py-0.5 rounded">
                                 {{ "{:,.0f}".format(payment.second_payment) if payment.second_payment else '0' }}
                             </span>
                         </td>
-                        <td class="px-4 py-3 text-sm text-center text-gray-600 w-28 editable-cell"
+                        <td class="px-2 py-2 text-sm text-center text-gray-600 w-20 editable-cell"
                             data-field="second_payment_date"
                             data-type="date">
-                            <span class="cell-value cursor-pointer hover:bg-blue-50 px-2 py-1 rounded">
+                            <span class="cell-value cursor-pointer hover:bg-blue-50 px-1 py-0.5 rounded whitespace-nowrap">
                                 {{ payment.second_payment_date or '-' }}
                             </span>
                         </td>
-                        <td class="px-4 py-3 text-sm text-right text-gray-700 w-28 editable-cell"
+                        <td class="px-2 py-2 text-sm text-right text-gray-700 w-20 editable-cell"
                             data-field="third_payment"
                             data-type="number">
-                            <span class="cell-value cursor-pointer hover:bg-blue-50 px-2 py-1 rounded">
+                            <span class="cell-value cursor-pointer hover:bg-blue-50 px-1 py-0.5 rounded">
                                 {{ "{:,.0f}".format(payment.third_payment) if payment.third_payment else '0' }}
                             </span>
                         </td>
-                        <td class="px-4 py-3 text-sm text-center text-gray-600 w-28 editable-cell"
+                        <td class="px-2 py-2 text-sm text-center text-gray-600 w-20 editable-cell"
                             data-field="third_payment_date"
                             data-type="date">
-                            <span class="cell-value cursor-pointer hover:bg-blue-50 px-2 py-1 rounded">
+                            <span class="cell-value cursor-pointer hover:bg-blue-50 px-1 py-0.5 rounded whitespace-nowrap">
                                 {{ payment.third_payment_date or '-' }}
                             </span>
                         </td>
-                        <td class="px-4 py-3 text-sm text-right font-medium text-green-600 w-28 bg-green-50 total-paid-cell">
+                        <td class="px-2 py-2 text-sm text-right font-medium text-green-600 w-20 bg-green-50 total-paid-cell">
                             ¥{{ "{:,.0f}".format(payment.total_paid) }}
                         </td>
-                        <td class="px-4 py-3 text-sm text-right font-medium text-orange-600 w-28 bg-orange-50 remaining-cell">
+                        <td class="px-2 py-2 text-sm text-right font-medium text-orange-600 w-20 bg-orange-50 remaining-cell">
                             ¥{{ "{:,.0f}".format(payment.remaining) }}
                         </td>
                     </tr>
