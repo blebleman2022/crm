@@ -6,7 +6,29 @@
 {% block content %}
 <div class="max-w-full mx-auto">
     <div class="bg-white p-6 rounded-lg shadow-sm">
-        
+
+        <!-- 筛选条件 -->
+        <form method="GET" class="mb-6">
+            <div class="flex items-center gap-4">
+                <label for="start_date" class="text-sm font-medium text-gray-700 whitespace-nowrap">付款时间:</label>
+                <input type="month" name="start_date" id="start_date" value="{{ start_date or '' }}"
+                       class="block w-64 rounded-md border-0 py-2 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm">
+                <span class="text-gray-500">至</span>
+                <input type="month" name="end_date" id="end_date" value="{{ end_date or '' }}"
+                       class="block w-64 rounded-md border-0 py-2 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm">
+                <button type="submit"
+                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                    <span class="material-symbols-outlined mr-1 text-sm">filter_list</span>
+                    筛选
+                </button>
+                <a href="{{ url_for('payments.manage') }}"
+                   class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                    <span class="material-symbols-outlined mr-1 text-sm">refresh</span>
+                    重置
+                </a>
+            </div>
+        </form>
+
         <!-- 统计信息 -->
         <div class="mb-4 p-4 bg-blue-50 rounded-lg">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -364,16 +386,30 @@ document.addEventListener('DOMContentLoaded', function() {
     function showToast(message, type = 'info') {
         const toast = document.createElement('div');
         toast.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg text-white z-50 ${
-            type === 'success' ? 'bg-green-500' : 
-            type === 'error' ? 'bg-red-500' : 
+            type === 'success' ? 'bg-green-500' :
+            type === 'error' ? 'bg-red-500' :
             'bg-blue-500'
         }`;
         toast.textContent = message;
         document.body.appendChild(toast);
-        
+
         setTimeout(() => {
             toast.remove();
         }, 3000);
+    }
+
+    // 时间筛选：当开始时间改变时，如果截止时间为空，自动设置为当月
+    const startDateInput = document.getElementById('start_date');
+    const endDateInput = document.getElementById('end_date');
+
+    if (startDateInput && endDateInput) {
+        startDateInput.addEventListener('change', function() {
+            if (this.value && !endDateInput.value) {
+                const today = new Date();
+                const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+                endDateInput.value = currentMonth;
+            }
+        });
     }
 });
 </script>

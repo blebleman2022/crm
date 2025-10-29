@@ -8,27 +8,46 @@
     <div class="bg-white p-6 rounded-lg shadow-sm">
         
         <!-- 筛选条件 -->
-        {% if current_user.is_sales_manager() %}
         <form method="GET" class="mb-6">
-            <div class="flex items-center gap-4">
-                <label for="teacher_user_id" class="text-sm font-medium text-gray-700">筛选班主任:</label>
-                <select name="teacher_user_id" id="teacher_user_id"
-                        class="block w-64 rounded-md border-0 py-2 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm">
-                    <option value="">全部班主任</option>
-                    {% for teacher in teacher_supervisors %}
-                        <option value="{{ teacher.id }}" {% if selected_teacher_id == teacher.id %}selected{% endif %}>
-                            {{ teacher.username }}
-                        </option>
-                    {% endfor %}
-                </select>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {% if current_user.is_sales_manager() %}
+                <div class="flex items-center gap-4">
+                    <label for="teacher_user_id" class="text-sm font-medium text-gray-700 whitespace-nowrap">筛选班主任:</label>
+                    <select name="teacher_user_id" id="teacher_user_id"
+                            class="block w-full rounded-md border-0 py-2 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm">
+                        <option value="">全部班主任</option>
+                        {% for teacher in teacher_supervisors %}
+                            <option value="{{ teacher.id }}" {% if selected_teacher_id == teacher.id %}selected{% endif %}>
+                                {{ teacher.username }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+
+                <div class="flex items-center gap-4">
+                    <label for="start_date" class="text-sm font-medium text-gray-700 whitespace-nowrap">付款时间:</label>
+                    <input type="month" name="start_date" id="start_date" value="{{ start_date or '' }}"
+                           class="block w-full rounded-md border-0 py-2 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm">
+                    <span class="text-gray-500">至</span>
+                    <input type="month" name="end_date" id="end_date" value="{{ end_date or '' }}"
+                           class="block w-full rounded-md border-0 py-2 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm">
+                </div>
+            </div>
+
+            <div class="mt-4 flex gap-2">
                 <button type="submit"
                         class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
                     <span class="material-symbols-outlined mr-1 text-sm">filter_list</span>
                     筛选
                 </button>
+                <a href="{{ url_for('payments.reconciliation') }}"
+                   class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                    <span class="material-symbols-outlined mr-1 text-sm">refresh</span>
+                    重置
+                </a>
             </div>
         </form>
-        {% endif %}
 
         <!-- 统计信息 -->
         <div class="mb-4 p-4 bg-blue-50 rounded-lg">
@@ -150,5 +169,25 @@
         </div>
     </div>
 </div>
+
+<!-- 时间筛选脚本 -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const startDateInput = document.getElementById('start_date');
+    const endDateInput = document.getElementById('end_date');
+
+    if (startDateInput && endDateInput) {
+        // 当开始时间改变时，如果截止时间为空，自动设置为当月
+        startDateInput.addEventListener('change', function() {
+            if (this.value && !endDateInput.value) {
+                // 获取当前年月
+                const today = new Date();
+                const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+                endDateInput.value = currentMonth;
+            }
+        });
+    }
+});
+</script>
 {% endblock %}
 

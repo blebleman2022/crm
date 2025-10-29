@@ -48,10 +48,12 @@ def teacher_supervisor_required(f):
 @sales_manager_or_teacher_supervisor_required
 def reconciliation():
     """销售管理和班主任对账页面（只读视图）"""
-    
+
     # 获取筛选参数
     teacher_user_id = request.args.get('teacher_user_id', type=int)
-    
+    start_date = request.args.get('start_date', '')
+    end_date = request.args.get('end_date', '')
+
     # 构建查询
     query = db.session.query(
         Customer, CustomerPayment, Lead, User
@@ -62,17 +64,17 @@ def reconciliation():
     ).outerjoin(
         User, Customer.teacher_user_id == User.id
     )
-    
+
     # 如果是班主任，只显示自己负责的客户
     if current_user.is_teacher_supervisor():
         query = query.filter(Customer.teacher_user_id == current_user.id)
     # 如果是销售管理，可以按班主任筛选
     elif teacher_user_id:
         query = query.filter(Customer.teacher_user_id == teacher_user_id)
-    
+
     # 执行查询
     results = query.all()
-    
+
     # 组织数据
     payment_data = []
     for customer, payment, lead, teacher_user in results:
@@ -92,6 +94,40 @@ def reconciliation():
         # 总金额从customer_payments.total_amount获取（公司应付给供应商的金额）
         total_amount = float(payment.total_amount) if payment and payment.total_amount else 0
 
+        # 时间筛选：检查是否有任何一笔付款在时间范围内
+        if start_date or end_date:
+            payment_dates = []
+            if payment:
+                if payment.first_payment_date:
+                    payment_dates.append(payment.first_payment_date.strftime('%Y-%m'))
+                if payment.second_payment_date:
+                    payment_dates.append(payment.second_payment_date.strftime('%Y-%m'))
+                if payment.third_payment_date:
+                    payment_dates.append(payment.third_payment_date.strftime('%Y-%m'))
+
+            # 如果没有付款记录，跳过
+            if not payment_dates:
+                continue
+
+            # 检查是否有付款在时间范围内
+            in_range = False
+            for payment_date in payment_dates:
+                if start_date and end_date:
+                    if start_date <= payment_date <= end_date:
+                        in_range = True
+                        break
+                elif start_date:
+                    if payment_date >= start_date:
+                        in_range = True
+                        break
+                elif end_date:
+                    if payment_date <= end_date:
+                        in_range = True
+                        break
+
+            if not in_range:
+                continue
+
         payment_data.append({
             'customer_id': customer.id,
             'student_name': lead.student_name if lead else '',
@@ -110,14 +146,16 @@ def reconciliation():
             'remaining': remaining,
             'teacher_user_name': teacher_user.username if teacher_user else '未分配'
         })
-    
+
     # 获取所有班主任（用于筛选）
     teacher_supervisors = User.query.filter_by(role='teacher_supervisor', status=True).all()
-    
+
     return render_template('payments/reconciliation.html',
                          payment_data=payment_data,
                          teacher_supervisors=teacher_supervisors,
-                         selected_teacher_id=teacher_user_id)
+                         selected_teacher_id=teacher_user_id,
+                         start_date=start_date,
+                         end_date=end_date)
 
 
 @payments_bp.route('/manage')
@@ -125,7 +163,11 @@ def reconciliation():
 @teacher_supervisor_required
 def manage():
     """班主任付款管理页面（编辑视图）"""
-    
+
+    # 获取筛选参数
+    start_date = request.args.get('start_date', '')
+    end_date = request.args.get('end_date', '')
+
     # 只查询当前班主任负责的客户
     query = db.session.query(
         Customer, CustomerPayment, Lead
@@ -136,9 +178,9 @@ def manage():
     ).filter(
         Customer.teacher_user_id == current_user.id
     )
-    
+
     results = query.all()
-    
+
     # 组织数据
     payment_data = []
     for customer, payment, lead in results:
@@ -158,6 +200,39 @@ def manage():
         # 总金额从customer_payments.total_amount获取（公司应付给供应商的金额）
         total_amount = float(payment.total_amount) if payment.total_amount else 0
 
+        # 时间筛选：检查是否有任何一笔付款在时间范围内
+        if start_date or end_date:
+            payment_dates = []
+            if payment.first_payment_date:
+                payment_dates.append(payment.first_payment_date.strftime('%Y-%m'))
+            if payment.second_payment_date:
+                payment_dates.append(payment.second_payment_date.strftime('%Y-%m'))
+            if payment.third_payment_date:
+                payment_dates.append(payment.third_payment_date.strftime('%Y-%m'))
+
+            # 如果没有付款记录，跳过
+            if not payment_dates:
+                continue
+
+            # 检查是否有付款在时间范围内
+            in_range = False
+            for payment_date in payment_dates:
+                if start_date and end_date:
+                    if start_date <= payment_date <= end_date:
+                        in_range = True
+                        break
+                elif start_date:
+                    if payment_date >= start_date:
+                        in_range = True
+                        break
+                elif end_date:
+                    if payment_date <= end_date:
+                        in_range = True
+                        break
+
+            if not in_range:
+                continue
+
         payment_data.append({
             'customer_id': customer.id,
             'payment_id': payment.id if payment.id else None,
@@ -176,8 +251,11 @@ def manage():
             'total_paid': payment.get_total_paid() if hasattr(payment, 'get_total_paid') else 0,
             'remaining': payment.get_remaining() if hasattr(payment, 'get_remaining') else 0
         })
-    
-    return render_template('payments/manage.html', payment_data=payment_data)
+
+    return render_template('payments/manage.html',
+                         payment_data=payment_data,
+                         start_date=start_date,
+                         end_date=end_date)
 
 
 @payments_bp.route('/update/<int:customer_id>', methods=['POST'])
