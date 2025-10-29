@@ -218,27 +218,45 @@ def migrate_add_customer_payments_table(conn):
 
     # 检查表是否已存在
     if check_table_exists(conn, 'customer_payments'):
-        print_warning("customer_payments 表已存在，跳过创建")
-        return False
+        # 检查表结构是否正确（是否有id字段）
+        columns = get_table_columns(conn, 'customer_payments')
+        if 'id' not in columns:
+            print_warning("customer_payments 表结构不正确，需要重建...")
+            # 备份数据
+            cursor.execute("SELECT * FROM customer_payments")
+            old_data = cursor.fetchall()
+
+            # 删除旧表
+            cursor.execute("DROP TABLE customer_payments")
+            print_success("已删除旧版 customer_payments 表")
+        else:
+            print_warning("customer_payments 表已存在且结构正确，跳过创建")
+            return False
 
     print_warning("创建 customer_payments 表...")
 
     try:
         cursor.execute("""
             CREATE TABLE customer_payments (
-                customer_id INTEGER PRIMARY KEY,
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                customer_id INTEGER NOT NULL UNIQUE,
+                teacher_user_id INTEGER NOT NULL,
+                total_amount NUMERIC(10, 2),
                 first_payment NUMERIC(10, 2),
                 first_payment_date DATE,
                 second_payment NUMERIC(10, 2),
                 second_payment_date DATE,
                 third_payment NUMERIC(10, 2),
                 third_payment_date DATE,
-                total_amount NUMERIC(10, 2),
-                FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE,
+                FOREIGN KEY (teacher_user_id) REFERENCES users (id)
             )
         """)
 
         # 创建索引
+        cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_customer_payments_customer_id ON customer_payments(customer_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_payments_dates ON customer_payments(first_payment_date, second_payment_date, third_payment_date)")
 
         conn.commit()
