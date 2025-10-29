@@ -305,11 +305,13 @@ class Teacher(db.Model):
     innovation_coaching_achievements = db.Column(db.Text, comment='科创辅导成果')
     social_roles = db.Column(db.Text, comment='社会角色')
     status = db.Column(db.Boolean, default=True, comment='状态：True启用/False禁用')
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, comment='创建人ID（班主任）')
     created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # 关联关系
     customers = db.relationship('Customer', foreign_keys='Customer.teacher_id', backref='teacher', lazy='dynamic')
+    created_by = db.relationship('User', foreign_keys=[created_by_user_id], backref='created_teachers')
 
     def __repr__(self):
         return f'<Teacher {self.chinese_name}>'

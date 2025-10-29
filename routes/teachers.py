@@ -26,9 +26,10 @@ def list_teachers():
     page = request.args.get('page', 1, type=int)
     search = request.args.get('search', '', type=str)
     status_filter = request.args.get('status', '', type=str)
-    
-    query = Teacher.query
-    
+
+    # 数据隔离：只查询当前班主任创建的老师
+    query = Teacher.query.filter(Teacher.created_by_user_id == current_user.id)
+
     # 搜索过滤
     if search:
         query = query.filter(
@@ -37,13 +38,13 @@ def list_teachers():
             (Teacher.current_institution.contains(search)) |
             (Teacher.major_direction.contains(search))
         )
-    
+
     # 状态筛选
     if status_filter == 'active':
         query = query.filter(Teacher.status == True)
     elif status_filter == 'inactive':
         query = query.filter(Teacher.status == False)
-    
+
     # 按创建时间倒序排列
     query = query.order_by(Teacher.created_at.desc())
     
@@ -82,7 +83,8 @@ def add_teacher():
                 research_achievements=request.form.get('research_achievements', '').strip(),
                 innovation_coaching_achievements=request.form.get('innovation_coaching_achievements', '').strip(),
                 social_roles=request.form.get('social_roles', '').strip(),
-                status=True
+                status=True,
+                created_by_user_id=current_user.id  # 记录创建人
             )
             
             # 验证必填字段
@@ -109,7 +111,12 @@ def add_teacher():
 def edit_teacher(teacher_id):
     """编辑老师"""
     teacher = Teacher.query.get_or_404(teacher_id)
-    
+
+    # 权限检查：只能编辑自己创建的老师
+    if teacher.created_by_user_id != current_user.id:
+        flash('您只能编辑自己创建的老师信息', 'error')
+        return redirect(url_for('teachers.list_teachers'))
+
     if request.method == 'POST':
         try:
             teacher.chinese_name = request.form.get('chinese_name', '').strip()
@@ -145,7 +152,12 @@ def edit_teacher(teacher_id):
 def detail_teacher(teacher_id):
     """老师详情页"""
     teacher = Teacher.query.get_or_404(teacher_id)
-    
+
+    # 权限检查：只能查看自己创建的老师
+    if teacher.created_by_user_id != current_user.id:
+        flash('您只能查看自己创建的老师信息', 'error')
+        return redirect(url_for('teachers.list_teachers'))
+
     # 获取该老师负责的客户列表
     customers = Customer.query.filter(Customer.teacher_id == teacher_id).join(Lead).all()
     
@@ -160,7 +172,12 @@ def delete_teacher(teacher_id):
     """删除老师（软删除，设置status=False）"""
     try:
         teacher = Teacher.query.get_or_404(teacher_id)
-        
+
+        # 权限检查：只能删除自己创建的老师
+        if teacher.created_by_user_id != current_user.id:
+            flash('您只能删除自己创建的老师', 'error')
+            return redirect(url_for('teachers.list_teachers'))
+
         # 检查是否有客户关联
         customer_count = Customer.query.filter(Customer.teacher_id == teacher_id).count()
         if customer_count > 0:
@@ -187,6 +204,12 @@ def activate_teacher(teacher_id):
     """启用老师"""
     try:
         teacher = Teacher.query.get_or_404(teacher_id)
+
+        # 权限检查：只能启用自己创建的老师
+        if teacher.created_by_user_id != current_user.id:
+            flash('您只能启用自己创建的老师', 'error')
+            return redirect(url_for('teachers.list_teachers'))
+
         teacher.status = True
         teacher.updated_at = datetime.utcnow()
         db.session.commit()
@@ -203,7 +226,16 @@ def activate_teacher(teacher_id):
 @login_required
 def get_active_teachers():
     """获取所有启用的老师（用于分配老师的下拉列表）"""
-    teachers = Teacher.query.filter(Teacher.status == True).order_by(Teacher.chinese_name).all()
+    # 数据隔离：只返回当前班主任创建的启用老师
+    if current_user.role == 'teacher_supervisor':
+        teachers = Teacher.query.filter(
+            Teacher.status == True,
+            Teacher.created_by_user_id == current_user.id
+        ).order_by(Teacher.chinese_name).all()
+    else:
+        # 非班主任角色返回空列表
+        teachers = []
+
     return jsonify([{
         'id': t.id,
         'chinese_name': t.chinese_name,
@@ -218,18 +250,22 @@ def assign_teacher(customer_id):
     try:
         customer = Customer.query.get_or_404(customer_id)
         teacher_id = request.form.get('teacher_id', type=int)
-        
+
         if not teacher_id:
             return jsonify({'success': False, 'message': '请选择老师'}), 400
-        
+
         teacher = Teacher.query.get_or_404(teacher_id)
-        
+
         if not teacher.status:
             return jsonify({'success': False, 'message': '该老师已被禁用'}), 400
-        
+
         # 检查权限：只有班主任角色可以分配老师
         if current_user.role != 'teacher_supervisor':
             return jsonify({'success': False, 'message': '只有班主任可以分配老师'}), 403
+
+        # 权限检查：只能分配自己创建的老师
+        if teacher.created_by_user_id != current_user.id:
+            return jsonify({'success': False, 'message': '您只能分配自己创建的老师'}), 403
         
         old_teacher_name = customer.teacher.chinese_name if customer.teacher else '未分配'
         customer.teacher_id = teacher_id
@@ -279,6 +315,10 @@ def change_teacher(customer_id):
         if current_user.role != 'teacher_supervisor':
             return jsonify({'success': False, 'message': '只有班主任可以更换老师'}), 403
 
+        # 权限检查：只能分配自己创建的老师
+        if teacher.created_by_user_id != current_user.id:
+            return jsonify({'success': False, 'message': '您只能分配自己创建的老师'}), 403
+
         # 如果未确认，返回需要确认的信息
         if not confirmed:
             old_teacher_name = customer.teacher.chinese_name if customer.teacher else '未分配'
@@ -322,6 +362,10 @@ def allowed_image_file(filename):
 def upload_teacher_image(teacher_id):
     """上传老师图片"""
     teacher = Teacher.query.get_or_404(teacher_id)
+
+    # 权限检查：只能为自己创建的老师上传图片
+    if teacher.created_by_user_id != current_user.id:
+        return jsonify({'success': False, 'message': '您只能为自己创建的老师上传图片'}), 403
 
     # 检查当前图片数量
     current_image_count = TeacherImage.query.filter_by(teacher_id=teacher_id).count()
@@ -407,6 +451,11 @@ def delete_teacher_image(image_id):
     """删除老师图片"""
     try:
         image = TeacherImage.query.get_or_404(image_id)
+        teacher = Teacher.query.get_or_404(image.teacher_id)
+
+        # 权限检查：只能删除自己创建的老师的图片
+        if teacher.created_by_user_id != current_user.id:
+            return jsonify({'success': False, 'message': '您只能删除自己创建的老师的图片'}), 403
 
         # 1. 先记录文件路径
         filepath = os.path.join('static', image.image_path)
@@ -437,6 +486,11 @@ def update_image_description(image_id):
     """更新图片描述"""
     try:
         image = TeacherImage.query.get_or_404(image_id)
+        teacher = Teacher.query.get_or_404(image.teacher_id)
+
+        # 权限检查：只能更新自己创建的老师的图片描述
+        if teacher.created_by_user_id != current_user.id:
+            return jsonify({'success': False, 'message': '您只能更新自己创建的老师的图片描述'}), 403
 
         data = request.get_json()
         if not data:
