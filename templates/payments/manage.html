@@ -428,8 +428,6 @@ document.addEventListener('DOMContentLoaded', function() {
             lockMonth = data.lock_month;
             if (lockMonth) {
                 updateEditableStatus();
-                // 显示锁定提示
-                showLockNotice(lockMonth, data.updated_by, data.updated_at);
             }
         })
         .catch(err => console.error('获取锁定月份失败:', err));
@@ -490,31 +488,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         });
-    }
-
-    function showLockNotice(month, updatedBy, updatedAt) {
-        const notice = document.createElement('div');
-        notice.className = 'mb-4 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded';
-        notice.innerHTML = `
-            <div class="flex">
-                <div class="flex-shrink-0">
-                    <span class="material-symbols-outlined text-yellow-400">lock</span>
-                </div>
-                <div class="ml-3">
-                    <h3 class="text-sm font-medium text-yellow-800">付款记录已锁定</h3>
-                    <div class="mt-2 text-sm text-yellow-700">
-                        <p><strong>${month}</strong> 及之前的付款记录已被锁定，无法编辑</p>
-                        <p class="text-xs mt-1">设置人：${updatedBy || '未知'} | 设置时间：${updatedAt || '未知'}</p>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        // 插入到统计信息之后
-        const statsDiv = document.querySelector('.bg-blue-50');
-        if (statsDiv) {
-            statsDiv.parentNode.insertBefore(notice, statsDiv.nextSibling);
-        }
     }
 });
 </script>
