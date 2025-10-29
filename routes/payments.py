@@ -89,8 +89,8 @@ def reconciliation():
             total_paid = 0
             remaining = float(customer.payment_amount) if customer.payment_amount else 0
         
-        # 确保总金额从customer.payment_amount获取
-        total_amount = float(customer.payment_amount) if customer.payment_amount else 0
+        # 总金额从customer_payments.total_amount获取（公司应付给供应商的金额）
+        total_amount = float(payment.total_amount) if payment and payment.total_amount else 0
 
         payment_data.append({
             'customer_id': customer.id,
@@ -152,11 +152,11 @@ def manage():
             payment = CustomerPayment(
                 customer_id=customer.id,
                 teacher_user_id=current_user.id,
-                total_amount=customer.payment_amount
+                total_amount=None  # 总金额需要手动设置
             )
 
-        # 确保总金额从customer.payment_amount获取
-        total_amount = float(customer.payment_amount) if customer.payment_amount else 0
+        # 总金额从customer_payments.total_amount获取（公司应付给供应商的金额）
+        total_amount = float(payment.total_amount) if payment.total_amount else 0
 
         payment_data.append({
             'customer_id': customer.id,
