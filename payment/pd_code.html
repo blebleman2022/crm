@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Supplier Payment Reconciliation</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#177ccf",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#111a21",
+                        "surface-light": "#ffffff",
+                        "surface-dark": "#18242f",
+                        "text-light": "#0e151b",
+                        "text-dark": "#e7eef3",
+                        "border-light": "#d0dce7",
+                        "border-dark": "#344250",
+                        "muted-light": "#4e7697",
+                        "muted-dark": "#9ab0c4",
+                        "success": "#28A745",
+                        "warning": "#FFC107",
+                        "danger": "#DC3545",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "0.75rem",
+                        "xl": "1rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="font-display bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark">
+<div class="relative flex min-h-screen w-full flex-col">
+<div class="flex h-full flex-1">
+<!-- SideNavBar -->
+<aside class="flex w-64 flex-col gap-4 border-r border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark p-4">
+<div class="flex items-center gap-3">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" data-alt="Admin user avatar" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuB_3wIHGwMtxrZwFTb4gupqI1e0w3XbHxHK-TYY_xSybTCntNgl9ZUCAwYrNNdMqTnvS9ySskBZkMcI8U3Mky80A8_3VHpAtA4Eh98e8Bowzn3RfTncX1KmRFBYW2-6jv54qTYjuSUCL9NG_HkjV3tU3gHS-hg2J95bqezRmDpHOMxKBgoxUJdemQa1cVoARUeKhK9PScGR1U04NBrJVKif1YxhxMj1C4ta03dHplHv8e1N6_mtmQmH-YjZ6EyfJfE2s-K_H9zxqZST");'></div>
+<div class="flex flex-col">
+<h1 class="text-base font-medium">Admin User</h1>
+<p class="text-sm font-normal text-muted-light dark:text-muted-dark">finance@edu-institution.com</p>
+</div>
+</div>
+<nav class="flex flex-col gap-2 flex-grow">
+<a class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg hover:bg-primary/10" href="#">
+<span class="material-symbols-outlined text-xl">dashboard</span>
+                    Dashboard
+                </a>
+<a class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg bg-primary/10 text-primary" href="#">
+<span class="material-symbols-outlined text-xl">receipt_long</span>
+                    Reconciliation
+                </a>
+<a class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg hover:bg-primary/10" href="#">
+<span class="material-symbols-outlined text-xl">business_center</span>
+                    Suppliers
+                </a>
+<a class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg hover:bg-primary/10" href="#">
+<span class="material-symbols-outlined text-xl">groups</span>
+                    Students
+                </a>
+<a class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg hover:bg-primary/10" href="#">
+<span class="material-symbols-outlined text-xl">assessment</span>
+                    Reports
+                </a>
+</nav>
+<div class="flex flex-col gap-1">
+<a class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg hover:bg-primary/10" href="#">
+<span class="material-symbols-outlined text-xl">settings</span>
+                    Settings
+                </a>
+<a class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg hover:bg-primary/10" href="#">
+<span class="material-symbols-outlined text-xl">logout</span>
+                    Logout
+                </a>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 overflow-x-auto">
+<div class="p-6 md:p-8 lg:p-10">
+<!-- PageHeading -->
+<div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+<h1 class="text-3xl font-black tracking-tight">Supplier Payment Reconciliation</h1>
+<!-- ToolBar -->
+<div class="flex items-center gap-2">
+<button class="flex items-center justify-center rounded-lg h-10 w-10 border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark hover:bg-primary/10">
+<span class="material-symbols-outlined text-xl">refresh</span>
+</button>
+<button class="flex items-center justify-center gap-2 overflow-hidden rounded-lg h-10 bg-primary text-white text-sm font-bold px-4">
+<span class="material-symbols-outlined text-xl">download</span>
+<span class="truncate">Export Data</span>
+</button>
+</div>
+</div>
+<!-- Stats -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+<div class="flex flex-col gap-2 rounded-lg p-6 border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark">
+<p class="text-base font-medium text-muted-light dark:text-muted-dark">Total Paid Amount</p>
+<p class="tracking-light text-3xl font-bold">$1,250,450</p>
+<p class="text-sm font-medium text-success">+2.5% vs last month</p>
+</div>
+<div class="flex flex-col gap-2 rounded-lg p-6 border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark">
+<p class="text-base font-medium text-muted-light dark:text-muted-dark">Total Remaining</p>
+<p class="tracking-light text-3xl font-bold">$150,890</p>
+<p class="text-sm font-medium text-danger">-1.2% vs last month</p>
+</div>
+<div class="flex flex-col gap-2 rounded-lg p-6 border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark">
+<p class="text-base font-medium text-muted-light dark:text-muted-dark">Total Reconciled Records</p>
+<p class="tracking-light text-3xl font-bold">8,421</p>
+<p class="text-sm font-medium text-success">+5.0% vs last month</p>
+</div>
+</div>
+<!-- Filters & Search -->
+<div class="p-4 mb-6 rounded-lg border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark">
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+<!-- SearchBar -->
+<div class="lg:col-span-2">
+<label class="text-sm font-medium text-muted-light dark:text-muted-dark block mb-1.5" for="search">Search</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-muted-light dark:text-muted-dark">search</span>
+<input class="form-input flex w-full rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark h-11 placeholder:text-muted-light dark:placeholder:text-muted-dark pl-10 text-base" id="search" placeholder="Student Name, Parent WeChat..." value=""/>
+</div>
+</div>
+<div>
+<label class="text-sm font-medium text-muted-light dark:text-muted-dark block mb-1.5" for="supplier">Supplier</label>
+<select class="form-select w-full rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark h-11" id="supplier">
+<option>All Suppliers</option>
+<option>Supplier A</option>
+<option>Supplier B</option>
+</select>
+</div>
+<div>
+<label class="text-sm font-medium text-muted-light dark:text-muted-dark block mb-1.5" for="date-range">Date Range</label>
+<input class="form-input w-full rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark h-11" id="date-range" placeholder="Select Date Range" type="text"/>
+</div>
+</div>
+</div>
+<!-- Data Table -->
+<div class="overflow-hidden rounded-lg border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark">
+<div class="overflow-x-auto">
+<table class="w-full min-w-[1200px] text-sm">
+<thead class="bg-background-light dark:bg-background-dark text-left">
+<tr>
+<th class="p-4 font-medium">Student Name</th>
+<th class="p-4 font-medium">Parent WeChat</th>
+<th class="p-4 font-medium">Tutoring</th>
+<th class="p-4 font-medium">Competition</th>
+<th class="p-4 font-medium">Payment 1</th>
+<th class="p-4 font-medium">Payment 2</th>
+<th class="p-4 font-medium">Payment 3</th>
+<th class="p-4 font-medium text-right">Total Paid</th>
+<th class="p-4 font-medium text-right">Remaining</th>
+<th class="p-4 font-medium text-center">Status</th>
+</tr>
+</thead>
+<tbody>
+<tr class="border-t border-border-light dark:border-border-dark">
+<td class="p-4 font-medium">Liam Johnson</td>
+<td class="p-4 text-muted-light dark:text-muted-dark">liam_j</td>
+<td class="p-4"><span class="material-symbols-outlined text-success">check_circle</span></td>
+<td class="p-4"><span class="material-symbols-outlined text-success">check_circle</span></td>
+<td class="p-4">$500 <span class="text-muted-light dark:text-muted-dark text-xs">/ 01-15-24</span></td>
+<td class="p-4">$500 <span class="text-muted-light dark:text-muted-dark text-xs">/ 02-15-24</span></td>
+<td class="p-4">$500 <span class="text-muted-light dark:text-muted-dark text-xs">/ 03-15-24</span></td>
+<td class="p-4 text-right font-medium">$1500.00</td>
+<td class="p-4 text-right font-medium text-success">$0.00</td>
+<td class="p-4 text-center"><span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-success/10 text-success">Paid in Full</span></td>
+</tr>
+<tr class="border-t border-border-light dark:border-border-dark">
+<td class="p-4 font-medium">Olivia Smith</td>
+<td class="p-4 text-muted-light dark:text-muted-dark">olivia_s</td>
+<td class="p-4"><span class="material-symbols-outlined text-success">check_circle</span></td>
+<td class="p-4"><span class="material-symbols-outlined text-muted-light dark:text-muted-dark">cancel</span></td>
+<td class="p-4">$400 <span class="text-muted-light dark:text-muted-dark text-xs">/ 01-20-24</span></td>
+<td class="p-4">$400 <span class="text-muted-light dark:text-muted-dark text-xs">/ 02-20-24</span></td>
+<td class="p-4 text-muted-light dark:text-muted-dark">-</td>
+<td class="p-4 text-right font-medium">$800.00</td>
+<td class="p-4 text-right font-medium text-warning">$400.00</td>
+<td class="p-4 text-center"><span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-warning/10 text-warning">Partially Paid</span></td>
+</tr>
+<tr class="border-t border-border-light dark:border-border-dark">
+<td class="p-4 font-medium">Noah Brown</td>
+<td class="p-4 text-muted-light dark:text-muted-dark">noah_b</td>
+<td class="p-4"><span class="material-symbols-outlined text-success">check_circle</span></td>
+<td class="p-4"><span class="material-symbols-outlined text-success">check_circle</span></td>
+<td class="p-4">$600 <span class="text-muted-light dark:text-muted-dark text-xs">/ 01-18-24</span></td>
+<td class="p-4 text-muted-light dark:text-muted-dark">-</td>
+<td class="p-4 text-muted-light dark:text-muted-dark">-</td>
+<td class="p-4 text-right font-medium">$600.00</td>
+<td class="p-4 text-right font-medium text-danger">$1200.00</td>
+<td class="p-4 text-center"><span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-danger/10 text-danger">Overdue</span></td>
+</tr>
+<tr class="border-t border-border-light dark:border-border-dark">
+<td class="p-4 font-medium">Emma Davis</td>
+<td class="p-4 text-muted-light dark:text-muted-dark">emma_d</td>
+<td class="p-4"><span class="material-symbols-outlined text-muted-light dark:text-muted-dark">cancel</span></td>
+<td class="p-4"><span class="material-symbols-outlined text-success">check_circle</span></td>
+<td class="p-4">$750 <span class="text-muted-light dark:text-muted-dark text-xs">/ 02-01-24</span></td>
+<td class="p-4">$750 <span class="text-muted-light dark:text-muted-dark text-xs">/ 03-01-24</span></td>
+<td class="p-4 text-muted-light dark:text-muted-dark">-</td>
+<td class="p-4 text-right font-medium">$1500.00</td>
+<td class="p-4 text-right font-medium text-warning">$750.00</td>
+<td class="p-4 text-center"><span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-warning/10 text-warning">Partially Paid</span></td>
+</tr>
+<tr class="border-t border-border-light dark:border-border-dark">
+<td class="p-4 font-medium">James Wilson</td>
+<td class="p-4 text-muted-light dark:text-muted-dark">james_w</td>
+<td class="p-4"><span class="material-symbols-outlined text-success">check_circle</span></td>
+<td class="p-4"><span class="material-symbols-outlined text-muted-light dark:text-muted-dark">cancel</span></td>
+<td class="p-4">$300 <span class="text-muted-light dark:text-muted-dark text-xs">/ 02-10-24</span></td>
+<td class="p-4">$300 <span class="text-muted-light dark:text-muted-dark text-xs">/ 03-10-24</span></td>
+<td class="p-4">$300 <span class="text-muted-light dark:text-muted-dark text-xs">/ 04-10-24</span></td>
+<td class="p-4 text-right font-medium">$900.00</td>
+<td class="p-4 text-right font-medium text-success">$0.00</td>
+<td class="p-4 text-center"><span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-success/10 text-success">Paid in Full</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination -->
+<div class="flex items-center justify-between p-4 border-t border-border-light dark:border-border-dark">
+<p class="text-sm text-muted-light dark:text-muted-dark">Showing 1 to 5 of 8,421 results</p>
+<div class="flex items-center gap-2">
+<button class="flex items-center justify-center rounded-lg h-9 w-9 border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark hover:bg-primary/10">
+<span class="material-symbols-outlined text-xl">chevron_left</span>
+</button>
+<button class="flex items-center justify-center rounded-lg h-9 w-9 border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark hover:bg-primary/10">
+<span class="material-symbols-outlined text-xl">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</div>
+</body></html>

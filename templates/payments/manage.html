@@ -1,0 +1,294 @@
+{% extends "delivery/base.html" %}
+
+{% block title %}付款管理 - EduConnect CRM{% endblock %}
+{% block page_title %}付款管理{% endblock %}
+
+{% block content %}
+<div class="max-w-full mx-auto">
+    <div class="bg-white p-6 rounded-lg shadow-sm">
+        
+        <!-- 统计信息 -->
+        <div class="mb-4 p-4 bg-blue-50 rounded-lg">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <p class="text-sm text-gray-600">我的客户总数</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ payment_data|length }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600">总金额</p>
+                    <p class="text-2xl font-bold text-gray-900">¥{{ "{:,.0f}".format(payment_data|sum(attribute='total_amount')) }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600">已付款总额</p>
+                    <p class="text-2xl font-bold text-green-600">¥{{ "{:,.0f}".format(payment_data|sum(attribute='total_paid')) }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600">剩余付款</p>
+                    <p class="text-2xl font-bold text-orange-600">¥{{ "{:,.0f}".format(payment_data|sum(attribute='remaining')) }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 操作提示 -->
+        <div class="mb-4 p-3 bg-yellow-50 border-l-4 border-yellow-400 rounded">
+            <div class="flex">
+                <span class="material-symbols-outlined text-yellow-600 mr-2">info</span>
+                <p class="text-sm text-yellow-700">
+                    点击表格中的金额或日期可以直接编辑。编辑后自动保存，已付款和剩余付款会自动计算。
+                </p>
+            </div>
+        </div>
+
+        <!-- 付款列表 -->
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <!-- 前5个字段：统一样式（与对账页面一致） -->
+                        <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-28">学员姓名</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-32">家长微信名</th>
+                        <th class="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 w-24">课题辅导</th>
+                        <th class="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 w-24">竞赛辅导</th>
+                        <th class="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 w-24">赛项级别</th>
+                        
+                        <!-- 付款信息字段（可编辑） -->
+                        <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 w-28">总金额</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 w-28">第一笔</th>
+                        <th class="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 w-28">付款时间</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 w-28">第二笔</th>
+                        <th class="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 w-28">付款时间</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 w-28">第三笔</th>
+                        <th class="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 w-28">付款时间</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 w-28 bg-green-50">已付款</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 w-28 bg-orange-50">剩余付款</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 bg-white">
+                    {% for payment in payment_data %}
+                    <tr class="hover:bg-gray-50" data-customer-id="{{ payment.customer_id }}">
+                        <!-- 前5个字段：统一样式（与对账页面一致） -->
+                        <td class="px-4 py-3 text-sm font-medium text-gray-900 w-28">{{ payment.student_name or '-' }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-700 w-32">{{ payment.parent_wechat_name or '-' }}</td>
+                        <td class="px-4 py-3 text-sm text-center text-gray-700 w-24">
+                            <span class="{% if payment.has_tutoring == '是' %}text-green-600 font-medium{% else %}text-gray-400{% endif %}">
+                                {{ payment.has_tutoring }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-center text-gray-700 w-24">
+                            <span class="{% if payment.has_competition == '是' %}text-green-600 font-medium{% else %}text-gray-400{% endif %}">
+                                {{ payment.has_competition }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-center text-gray-700 w-24">
+                            {% if payment.award_level == '国奖' %}
+                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">国奖</span>
+                            {% elif payment.award_level == '市奖' %}
+                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">市奖</span>
+                            {% else %}
+                                <span class="text-gray-400">{{ payment.award_level }}</span>
+                            {% endif %}
+                        </td>
+                        
+                        <!-- 付款信息字段（可编辑） -->
+                        <td class="px-4 py-3 text-sm text-right font-medium text-gray-900 w-28 editable-cell"
+                            data-field="total_amount"
+                            data-type="number">
+                            <span class="cell-value cursor-pointer hover:bg-blue-50 px-2 py-1 rounded">
+                                ¥{{ "{:,.0f}".format(payment.total_amount) if payment.total_amount else '0' }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-right text-gray-700 w-28 editable-cell"
+                            data-field="first_payment"
+                            data-type="number">
+                            <span class="cell-value cursor-pointer hover:bg-blue-50 px-2 py-1 rounded">
+                                {{ "{:,.0f}".format(payment.first_payment) if payment.first_payment else '0' }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-center text-gray-600 w-28 editable-cell"
+                            data-field="first_payment_date"
+                            data-type="date">
+                            <span class="cell-value cursor-pointer hover:bg-blue-50 px-2 py-1 rounded">
+                                {{ payment.first_payment_date or '-' }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-right text-gray-700 w-28 editable-cell"
+                            data-field="second_payment"
+                            data-type="number">
+                            <span class="cell-value cursor-pointer hover:bg-blue-50 px-2 py-1 rounded">
+                                {{ "{:,.0f}".format(payment.second_payment) if payment.second_payment else '0' }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-center text-gray-600 w-28 editable-cell"
+                            data-field="second_payment_date"
+                            data-type="date">
+                            <span class="cell-value cursor-pointer hover:bg-blue-50 px-2 py-1 rounded">
+                                {{ payment.second_payment_date or '-' }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-right text-gray-700 w-28 editable-cell"
+                            data-field="third_payment"
+                            data-type="number">
+                            <span class="cell-value cursor-pointer hover:bg-blue-50 px-2 py-1 rounded">
+                                {{ "{:,.0f}".format(payment.third_payment) if payment.third_payment else '0' }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-center text-gray-600 w-28 editable-cell"
+                            data-field="third_payment_date"
+                            data-type="date">
+                            <span class="cell-value cursor-pointer hover:bg-blue-50 px-2 py-1 rounded">
+                                {{ payment.third_payment_date or '-' }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-right font-medium text-green-600 w-28 bg-green-50 total-paid-cell">
+                            ¥{{ "{:,.0f}".format(payment.total_paid) }}
+                        </td>
+                        <td class="px-4 py-3 text-sm text-right font-medium text-orange-600 w-28 bg-orange-50 remaining-cell">
+                            ¥{{ "{:,.0f}".format(payment.remaining) }}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="14" class="px-6 py-12 text-center text-gray-500">
+                            <span class="material-symbols-outlined text-6xl text-gray-300 mb-2">receipt_long</span>
+                            <p class="text-lg">暂无客户付款记录</p>
+                            <p class="text-sm text-gray-400 mt-2">请先在客户管理中分配客户</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 行内编辑脚本 -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 行内编辑功能
+    const editableCells = document.querySelectorAll('.editable-cell');
+    
+    editableCells.forEach(cell => {
+        const cellValue = cell.querySelector('.cell-value');
+        
+        cellValue.addEventListener('click', function() {
+            const field = cell.dataset.field;
+            const type = cell.dataset.type;
+            const currentValue = cellValue.textContent.trim().replace('¥', '').replace(',', '').replace('-', '');
+            const row = cell.closest('tr');
+            const customerId = row.dataset.customerId;
+            
+            // 创建输入框
+            let input;
+            if (type === 'date') {
+                input = document.createElement('input');
+                input.type = 'date';
+                input.value = currentValue !== '' ? currentValue : '';
+                input.className = 'w-full px-2 py-1 border border-blue-500 rounded focus:outline-none focus:ring-2 focus:ring-blue-500';
+            } else {
+                input = document.createElement('input');
+                input.type = 'number';
+                input.value = currentValue !== '' ? currentValue : '0';
+                input.className = 'w-full px-2 py-1 border border-blue-500 rounded text-right focus:outline-none focus:ring-2 focus:ring-blue-500';
+                input.step = '1';
+            }
+            
+            // 替换显示内容
+            cellValue.style.display = 'none';
+            cell.appendChild(input);
+            input.focus();
+            input.select();
+            
+            // 保存函数
+            const saveValue = async () => {
+                const newValue = input.value;
+                
+                // 构建更新数据
+                const updateData = {};
+                updateData[field] = newValue !== '' ? (type === 'date' ? newValue : parseFloat(newValue)) : null;
+                
+                try {
+                    const response = await fetch(`/payments/update/${customerId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(updateData)
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        // 更新显示值
+                        if (type === 'date') {
+                            cellValue.textContent = newValue || '-';
+                        } else {
+                            if (field === 'total_amount') {
+                                cellValue.textContent = newValue ? `¥${parseFloat(newValue).toLocaleString('zh-CN', {maximumFractionDigits: 0})}` : '¥0';
+                            } else {
+                                cellValue.textContent = newValue ? parseFloat(newValue).toLocaleString('zh-CN', {maximumFractionDigits: 0}) : '0';
+                            }
+                        }
+                        
+                        // 更新已付款和剩余付款
+                        const totalPaidCell = row.querySelector('.total-paid-cell');
+                        const remainingCell = row.querySelector('.remaining-cell');
+                        totalPaidCell.textContent = `¥${result.data.total_paid.toLocaleString('zh-CN', {maximumFractionDigits: 0})}`;
+                        remainingCell.textContent = `¥${result.data.remaining.toLocaleString('zh-CN', {maximumFractionDigits: 0})}`;
+                        
+                        // 显示成功提示
+                        showToast('保存成功', 'success');
+                    } else {
+                        showToast(result.message || '保存失败', 'error');
+                        // 恢复原值
+                        cellValue.textContent = currentValue || '-';
+                    }
+                } catch (error) {
+                    console.error('保存失败:', error);
+                    showToast('保存失败，请重试', 'error');
+                    cellValue.textContent = currentValue || '-';
+                }
+                
+                // 移除输入框，显示原内容
+                input.remove();
+                cellValue.style.display = '';
+            };
+            
+            // 失焦保存
+            input.addEventListener('blur', saveValue);
+            
+            // 回车保存
+            input.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    saveValue();
+                }
+            });
+            
+            // ESC取消
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    input.remove();
+                    cellValue.style.display = '';
+                }
+            });
+        });
+    });
+    
+    // Toast提示函数
+    function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg text-white z-50 ${
+            type === 'success' ? 'bg-green-500' : 
+            type === 'error' ? 'bg-red-500' : 
+            'bg-blue-500'
+        }`;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.remove();
+        }, 3000);
+    }
+});
+</script>
+{% endblock %}
+

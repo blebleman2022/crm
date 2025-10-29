@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Student Payment Management</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#177ccf",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#111a21",
+                        "surface-light": "#ffffff",
+                        "surface-dark": "#18242e",
+                        "text-light": "#0e151b",
+                        "text-dark": "#e7eef3",
+                        "text-muted-light": "#4e7697",
+                        "text-muted-dark": "#a0b3c6",
+                        "border-light": "#d0dce7",
+                        "border-dark": "#314559",
+                        "success": "#28a745",
+                        "warning": "#ffc107",
+                        "danger": "#dc3545",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "0.75rem",
+                        "xl": "1rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-text-light dark:text-text-dark">
+<div class="flex min-h-screen">
+<!-- SideNavBar -->
+<aside class="w-64 flex-shrink-0 bg-surface-light dark:bg-surface-dark border-r border-border-light dark:border-border-dark hidden lg:flex flex-col">
+<div class="flex h-full flex-col justify-between p-4">
+<div class="flex flex-col gap-4">
+<div class="flex items-center gap-3 px-2">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" data-alt="EduSuppliers Inc. company logo" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuAZjJ94STUYUIzJnELZyXCYfGvNCNNWt50TydIh4b0veBXg-58R685YyGeXH2rJFk6d6W88k3McoGJAXwh5tFmg9hLNZyZmL47TgdoI3CU_zeP9OJwSNslHtHrMQAg8dWajL6Zf6WUdCQWCaL9vVYQmPJsdL8KqlwZw-l53Eea8p0bG58a6MWv8xAiOhSJvF3D0FKwSLT8FYWoP6QfNBavsGQgPpxDoocDFSlZcw_mO05Bg6mknfAWkzRgMsBSk2xIdSDV6zAdxA8FF");'></div>
+<div class="flex flex-col">
+<h1 class="text-base font-semibold">EduSuppliers Inc.</h1>
+<p class="text-text-muted-light dark:text-text-muted-dark text-sm font-normal">Supplier Portal</p>
+</div>
+</div>
+<nav class="flex flex-col gap-2 mt-4">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-primary/10 transition-colors" href="#">
+<span class="material-symbols-outlined text-xl">dashboard</span>
+<p class="text-sm font-medium">Dashboard</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-primary/10 transition-colors" href="#">
+<span class="material-symbols-outlined text-xl">group</span>
+<p class="text-sm font-medium">Students</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-primary/10 text-primary transition-colors" href="#">
+<span class="material-symbols-outlined text-xl">payments</span>
+<p class="text-sm font-medium">Payments</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-primary/10 transition-colors" href="#">
+<span class="material-symbols-outlined text-xl">summarize</span>
+<p class="text-sm font-medium">Reports</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-primary/10 transition-colors" href="#">
+<span class="material-symbols-outlined text-xl">settings</span>
+<p class="text-sm font-medium">Settings</p>
+</a>
+</nav>
+</div>
+<div class="flex flex-col gap-1">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-primary/10 transition-colors" href="#">
+<span class="material-symbols-outlined text-xl">help_outline</span>
+<p class="text-sm font-medium">Help</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-primary/10 transition-colors" href="#">
+<span class="material-symbols-outlined text-xl">logout</span>
+<p class="text-sm font-medium">Log out</p>
+</a>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 p-4 sm:p-6 lg:p-8">
+<div class="w-full max-w-7xl mx-auto">
+<!-- PageHeading -->
+<header class="flex flex-wrap justify-between items-center gap-4 mb-6">
+<h1 class="text-3xl md:text-4xl font-black tracking-tighter">Student Payment Management</h1>
+<button class="flex items-center justify-center gap-2 rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold shadow-sm hover:bg-primary/90 transition-colors">
+<span class="material-symbols-outlined text-xl">add</span>
+<span>Add Student</span>
+</button>
+</header>
+<!-- ToolBar -->
+<div class="flex flex-col md:flex-row justify-between items-center gap-4 p-4 rounded-lg bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark mb-6">
+<div class="relative w-full md:max-w-xs">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-muted-light dark:text-text-muted-dark">search</span>
+<input class="w-full h-10 pl-10 pr-4 rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-2 focus:ring-primary focus:border-primary transition-colors" placeholder="Search by student or parent..." type="text"/>
+</div>
+<div class="flex items-center gap-2">
+<div class="relative w-48">
+<select class="w-full h-10 px-3 pr-8 rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-2 focus:ring-primary focus:border-primary appearance-none transition-colors">
+<option>Filter by Status</option>
+<option>Paid</option>
+<option>Partially Paid</option>
+<option>Pending</option>
+<option>Overdue</option>
+</select>
+<span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted-light dark:text-text-muted-dark pointer-events-none">expand_more</span>
+</div>
+<button class="flex items-center justify-center gap-2 rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold shadow-sm hover:bg-primary/90 transition-colors">
+<span class="material-symbols-outlined text-xl">download</span>
+<span class="truncate">Export Data</span>
+</button>
+</div>
+</div>
+<!-- Table -->
+<div class="overflow-x-auto bg-surface-light dark:bg-surface-dark rounded-lg border border-border-light dark:border-border-dark shadow-sm">
+<table class="w-full min-w-[1600px] text-sm text-left">
+<thead class="border-b border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark/50">
+<tr>
+<th class="p-4 font-semibold">Student Name</th>
+<th class="p-4 font-semibold">Parent WeChat</th>
+<th class="p-4 font-semibold text-center">Services</th>
+<th class="p-4 font-semibold">Competition Level</th>
+<th class="p-4 font-semibold">First Payment</th>
+<th class="p-4 font-semibold">First Pmt Date</th>
+<th class="p-4 font-semibold">Second Payment</th>
+<th class="p-4 font-semibold">Second Pmt Date</th>
+<th class="p-4 font-semibold">Total Paid</th>
+<th class="p-4 font-semibold">Remaining</th>
+<th class="p-4 font-semibold">Status</th>
+<th class="p-4 font-semibold text-center">Actions</th>
+</tr>
+</thead>
+<tbody>
+<!-- Row 1: Paid -->
+<tr class="border-b border-border-light dark:border-border-dark hover:bg-primary/5 dark:hover:bg-primary/10 transition-colors">
+<td class="p-4 whitespace-nowrap font-medium">Olivia Chen</td>
+<td class="p-4 whitespace-nowrap text-text-muted-light dark:text-text-muted-dark">olivia_w</td>
+<td class="p-4 whitespace-nowrap">
+<div class="flex justify-center items-center gap-2">
+<div class="flex items-center gap-1 text-xs py-1 px-2 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200" title="Includes Tutoring"><span class="material-symbols-outlined text-sm">school</span>Tutor</div>
+<div class="flex items-center gap-1 text-xs py-1 px-2 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200" title="Includes Competition Tutoring"><span class="material-symbols-outlined text-sm">emoji_events</span>Comp</div>
+</div>
+</td>
+<td class="p-4 whitespace-nowrap text-text-muted-light dark:text-text-muted-dark">Advanced</td>
+<td class="p-4 whitespace-nowrap">€1,500.00</td>
+<td class="p-4 whitespace-nowrap">2024-03-15</td>
+<td class="p-4 whitespace-nowrap">€1,500.00</td>
+<td class="p-4 whitespace-nowrap">2024-04-15</td>
+<td class="p-4 whitespace-nowrap font-medium">€3,000.00</td>
+<td class="p-4 whitespace-nowrap text-success font-medium">€0.00</td>
+<td class="p-4 whitespace-nowrap">
+<span class="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full bg-success/10 text-success">Paid</span>
+</td>
+<td class="p-4 whitespace-nowrap text-center">
+<button class="h-8 w-8 rounded-full hover:bg-black/10 dark:hover:bg-white/10 flex items-center justify-center transition-colors text-text-muted-light dark:text-text-muted-dark">
+<span class="material-symbols-outlined text-xl">edit</span>
+</button>
+</td>
+</tr>
+<!-- Row 2: Partially Paid - Inline Editing Example -->
+<tr class="border-b border-border-light dark:border-border-dark bg-primary/5 dark:bg-primary/20">
+<td class="p-4 whitespace-nowrap font-medium">Ben Carter</td>
+<td class="p-4 whitespace-nowrap text-text-muted-light dark:text-text-muted-dark">bencarter</td>
+<td class="p-4 whitespace-nowrap">
+<div class="flex justify-center items-center gap-2">
+<div class="flex items-center gap-1 text-xs py-1 px-2 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200" title="Includes Tutoring"><span class="material-symbols-outlined text-sm">school</span>Tutor</div>
+</div>
+</td>
+<td class="p-4 whitespace-nowrap text-text-muted-light dark:text-text-muted-dark">N/A</td>
+<td class="p-4 whitespace-nowrap">
+<input class="w-24 h-8 px-2 rounded border border-primary bg-surface-light dark:bg-surface-dark ring-2 ring-primary/20" type="text" value="1000.00"/>
+</td>
+<td class="p-4 whitespace-nowrap">
+<input class="w-32 h-8 px-2 rounded border border-primary bg-surface-light dark:bg-surface-dark ring-2 ring-primary/20" type="date" value="2024-03-20"/>
+</td>
+<td class="p-4 whitespace-nowrap">
+<input class="w-24 h-8 px-2 rounded border border-primary bg-surface-light dark:bg-surface-dark ring-2 ring-primary/20" type="text" value="1000.00"/>
+</td>
+<td class="p-4 whitespace-nowrap">
+<input class="w-32 h-8 px-2 rounded border border-primary bg-surface-light dark:bg-surface-dark ring-2 ring-primary/20" type="date" value="2024-04-20"/>
+</td>
+<td class="p-4 whitespace-nowrap font-medium">€2,000.00</td>
+<td class="p-4 whitespace-nowrap text-danger font-medium">€1,000.00</td>
+<td class="p-4 whitespace-nowrap">
+<span class="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full bg-warning/10 text-warning">Partially Paid</span>
+</td>
+<td class="p-4 whitespace-nowrap text-center">
+<button class="flex items-center justify-center gap-2 rounded-lg h-8 px-3 bg-success text-white text-xs font-bold shadow-sm hover:bg-success/90 transition-colors">
+<span class="material-symbols-outlined text-base">check</span>
+<span>Save</span>
+</button>
+</td>
+</tr>
+<!-- Row 3: Partially Paid -->
+<tr class="border-b border-border-light dark:border-border-dark hover:bg-primary/5 dark:hover:bg-primary/10 transition-colors">
+<td class="p-4 whitespace-nowrap font-medium">Sophia Rodriguez</td>
+<td class="p-4 whitespace-nowrap text-text-muted-light dark:text-text-muted-dark">sophia_r</td>
+<td class="p-4 whitespace-nowrap">
+<div class="flex justify-center items-center gap-2">
+<div class="flex items-center gap-1 text-xs py-1 px-2 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200" title="Includes Tutoring"><span class="material-symbols-outlined text-sm">school</span>Tutor</div>
+<div class="flex items-center gap-1 text-xs py-1 px-2 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200" title="Includes Competition Tutoring"><span class="material-symbols-outlined text-sm">emoji_events</span>Comp</div>
+</div>
+</td>
+<td class="p-4 whitespace-nowrap text-text-muted-light dark:text-text-muted-dark">Beginner</td>
+<td class="p-4 whitespace-nowrap">€1,200.00</td>
+<td class="p-4 whitespace-nowrap">2024-04-01</td>
+<td class="p-4 whitespace-nowrap">€0.00</td>
+<td class="p-4 whitespace-nowrap">--</td>
+<td class="p-4 whitespace-nowrap font-medium">€1,200.00</td>
+<td class="p-4 whitespace-nowrap text-danger font-medium">€2,400.00</td>
+<td class="p-4 whitespace-nowrap">
+<span class="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full bg-warning/10 text-warning">Partially Paid</span>
+</td>
+<td class="p-4 whitespace-nowrap text-center">
+<button class="h-8 w-8 rounded-full hover:bg-black/10 dark:hover:bg-white/10 flex items-center justify-center transition-colors text-text-muted-light dark:text-text-muted-dark">
+<span class="material-symbols-outlined text-xl">edit</span>
+</button>
+</td>
+</tr>
+<!-- Row 4: Pending -->
+<tr class="border-b border-border-light dark:border-border-dark hover:bg-primary/5 dark:hover:bg-primary/10 transition-colors">
+<td class="p-4 whitespace-nowrap font-medium">Liam Goldberg</td>
+<td class="p-4 whitespace-nowrap text-text-muted-light dark:text-text-muted-dark">liam_gold</td>
+<td class="p-4 whitespace-nowrap">
+<div class="flex justify-center items-center gap-2">
+<div class="flex items-center gap-1 text-xs py-1 px-2 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200" title="Includes Competition Tutoring"><span class="material-symbols-outlined text-sm">emoji_events</span>Comp</div>
+</div>
+</td>
+<td class="p-4 whitespace-nowrap text-text-muted-light dark:text-text-muted-dark">Intermediate</td>
+<td class="p-4 whitespace-nowrap">€0.00</td>
+<td class="p-4 whitespace-nowrap">--</td>
+<td class="p-4 whitespace-nowrap">€0.00</td>
+<td class="p-4 whitespace-nowrap">--</td>
+<td class="p-4 whitespace-nowrap font-medium">€0.00</td>
+<td class="p-4 whitespace-nowrap text-danger font-medium">€3,000.00</td>
+<td class="p-4 whitespace-nowrap">
+<span class="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-500/10 text-slate-600 dark:text-slate-300">Pending</span>
+</td>
+<td class="p-4 whitespace-nowrap text-center">
+<button class="h-8 w-8 rounded-full hover:bg-black/10 dark:hover:bg-white/10 flex items-center justify-center transition-colors text-text-muted-light dark:text-text-muted-dark">
+<span class="material-symbols-outlined text-xl">edit</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</main>
+</div>
+</body></html>

@@ -290,6 +290,52 @@ class Payment(db.Model):
     def __repr__(self):
         return f'<Payment {self.lead.student_name} ¥{self.amount}>'
 
+class CustomerPayment(db.Model):
+    """客户付款信息表"""
+    __tablename__ = 'customer_payments'
+
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'), nullable=False, comment='关联客户ID')
+    teacher_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, comment='责任班主任ID')
+
+    total_amount = db.Column(Numeric(10, 2), comment='总金额')
+
+    first_payment = db.Column(Numeric(10, 2), comment='第一笔付款金额')
+    first_payment_date = db.Column(db.Date, comment='第一笔付款时间')
+
+    second_payment = db.Column(Numeric(10, 2), comment='第二笔付款金额')
+    second_payment_date = db.Column(db.Date, comment='第二笔付款时间')
+
+    third_payment = db.Column(Numeric(10, 2), comment='第三笔付款金额')
+    third_payment_date = db.Column(db.Date, comment='第三笔付款时间')
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # 关联关系
+    customer = db.relationship('Customer', backref='payment_info', uselist=False)
+    teacher_user = db.relationship('User', foreign_keys=[teacher_user_id], backref='managed_payments')
+
+    def get_total_paid(self):
+        """计算已付款总额"""
+        total = 0
+        if self.first_payment:
+            total += float(self.first_payment)
+        if self.second_payment:
+            total += float(self.second_payment)
+        if self.third_payment:
+            total += float(self.third_payment)
+        return total
+
+    def get_remaining(self):
+        """计算剩余付款"""
+        if self.total_amount:
+            return float(self.total_amount) - self.get_total_paid()
+        return 0
+
+    def __repr__(self):
+        return f'<CustomerPayment Customer#{self.customer_id}>'
+
 class Teacher(db.Model):
     """老师信息表"""
     __tablename__ = 'teachers'
