@@ -4,6 +4,18 @@
 {% block page_title %}付款管理{% endblock %}
 
 {% block content %}
+<style>
+    /* 锁定单元格样式 - 移除所有交互效果 */
+    .editable-cell.locked .cell-value {
+        cursor: not-allowed !important;
+        pointer-events: none;
+    }
+
+    .editable-cell.locked .cell-value:hover {
+        background-color: transparent !important;
+    }
+</style>
+
 <div class="max-w-full mx-auto">
     <div class="bg-white p-6 rounded-lg shadow-sm">
 
@@ -194,6 +206,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const cellValue = cell.querySelector('.cell-value');
 
         cellValue.addEventListener('click', function() {
+            // 检查单元格是否被锁定
+            if (cell.classList.contains('locked')) {
+                // 如果被锁定，不执行任何操作，直接返回
+                return;
+            }
+
             const field = cell.dataset.field;
             const type = cell.dataset.type;
             const currentValue = cellValue.textContent.trim().replace('¥', '').replace(',', '').replace('-', '');
