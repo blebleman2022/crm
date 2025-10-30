@@ -1035,6 +1035,110 @@ function togglePriorityCustomer() {
     </div>
 </div>
 
+<!-- 添加赛事弹窗 -->
+<div id="addCompetitionModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50 flex items-center justify-center">
+    <div class="relative mx-auto p-0 border-0 w-full max-w-md shadow-2xl rounded-xl bg-white animate-fadeIn">
+        <!-- 弹窗头部 - 蓝色渐变背景 -->
+        <div class="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4 rounded-t-xl">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <span class="material-symbols-outlined text-white text-2xl">emoji_events</span>
+                    <h3 class="text-lg font-semibold text-white">添加赛事</h3>
+                </div>
+                <button onclick="closeAddCompetitionModal()" class="text-white hover:text-blue-100 transition-colors">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 弹窗内容 -->
+        <form id="addCompetitionForm" onsubmit="submitAddCompetition(event)" class="p-6 space-y-5">
+            <!-- 提示信息 -->
+            <div class="bg-blue-50 border-l-4 border-blue-500 p-3 rounded">
+                <p class="text-sm text-blue-700">请选择要添加的赛事及初始状态</p>
+            </div>
+
+            <!-- 赛事选择 -->
+            <div>
+                <label for="competitionSelect" class="block text-sm font-medium text-gray-700 mb-2">
+                    <span class="material-symbols-outlined text-sm mr-1 align-middle text-blue-600">emoji_events</span>
+                    <span class="align-middle">赛事名称</span>
+                </label>
+                <select id="competitionSelect"
+                        required
+                        class="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+                    <option value="">请选择赛事...</option>
+                </select>
+            </div>
+
+            <!-- 初始状态选择 -->
+            <div>
+                <label for="statusSelect" class="block text-sm font-medium text-gray-700 mb-2">
+                    <span class="material-symbols-outlined text-sm mr-1 align-middle text-blue-600">flag</span>
+                    <span class="align-middle">初始状态</span>
+                </label>
+                <select id="statusSelect"
+                        required
+                        onchange="handleAddCompetitionStatusChange(this.value)"
+                        class="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+                    <option value="未报名">未报名</option>
+                    <option value="已报名">已报名</option>
+                    <option value="国家一等奖">国家一等奖</option>
+                    <option value="国家二等奖">国家二等奖</option>
+                    <option value="国家三等奖">国家三等奖</option>
+                    <option value="市级一等奖">市级一等奖</option>
+                    <option value="市级二等奖">市级二等奖</option>
+                    <option value="市级三等奖">市级三等奖</option>
+                    <option value="其他奖项">其他奖项...</option>
+                </select>
+            </div>
+
+            <!-- 自定义奖项输入框 -->
+            <div id="customAwardInputDiv" class="hidden">
+                <label for="customAwardInput" class="block text-sm font-medium text-gray-700 mb-2">
+                    <span class="material-symbols-outlined text-sm mr-1 align-middle text-blue-600">edit</span>
+                    <span class="align-middle">自定义奖项名称</span>
+                </label>
+                <input type="text"
+                       id="customAwardInput"
+                       placeholder="例如：优秀奖、鼓励奖"
+                       class="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+            </div>
+
+            <!-- 按钮组 -->
+            <div class="flex justify-end space-x-3 pt-4 border-t">
+                <button type="button"
+                        onclick="closeAddCompetitionModal()"
+                        class="px-5 py-2.5 border-2 border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all">
+                    取消
+                </button>
+                <button type="submit"
+                        class="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 border-0 rounded-lg text-sm font-medium text-white hover:from-blue-600 hover:to-blue-700 shadow-md hover:shadow-lg transition-all">
+                    <span class="material-symbols-outlined text-sm mr-1 align-middle">add</span>
+                    <span class="align-middle">确定</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.animate-fadeIn {
+    animation: fadeIn 0.2s ease-out;
+}
+</style>
+
 <!-- 新增客户沟通记录模态框 -->
 <div id="addCustomerCommunicationModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
     <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
@@ -1366,53 +1470,66 @@ async function deleteProgressCompetition(competitionId, competitionName) {
     }
 }
 
-// 显示添加赛事表单
+// 显示添加赛事弹窗
 async function showAddCompetitionInProgress() {
     // 加载赛事名称列表
     await loadProgressCompetitionNames();
 
-    const competitionName = prompt('请选择赛事：\n\n' + progressCompetitionNames.map((cn, idx) => `${idx + 1}. ${cn.name}`).join('\n') + '\n\n请输入序号：');
+    // 填充赛事下拉框
+    const competitionSelect = document.getElementById('competitionSelect');
+    competitionSelect.innerHTML = '<option value="">请选择赛事...</option>';
+    progressCompetitionNames.forEach(cn => {
+        const option = document.createElement('option');
+        option.value = cn.id;
+        option.textContent = cn.name;
+        competitionSelect.appendChild(option);
+    });
 
-    if (!competitionName) return;
+    // 重置表单
+    document.getElementById('addCompetitionForm').reset();
+    document.getElementById('customAwardInputDiv').classList.add('hidden');
+    document.getElementById('customAwardInput').value = '';
 
-    const index = parseInt(competitionName) - 1;
-    if (index < 0 || index >= progressCompetitionNames.length) {
-        alert('无效的序号');
+    // 显示弹窗
+    document.getElementById('addCompetitionModal').classList.remove('hidden');
+}
+
+// 关闭添加赛事弹窗
+function closeAddCompetitionModal() {
+    document.getElementById('addCompetitionModal').classList.add('hidden');
+}
+
+// 处理状态选择变化
+function handleAddCompetitionStatusChange(status) {
+    const customAwardDiv = document.getElementById('customAwardInputDiv');
+    const customAwardInput = document.getElementById('customAwardInput');
+
+    if (status === '其他奖项') {
+        customAwardDiv.classList.remove('hidden');
+        customAwardInput.required = true;
+    } else {
+        customAwardDiv.classList.add('hidden');
+        customAwardInput.required = false;
+        customAwardInput.value = '';
+    }
+}
+
+// 提交添加赛事表单
+async function submitAddCompetition(event) {
+    event.preventDefault();
+
+    const competitionNameId = document.getElementById('competitionSelect').value;
+    const status = document.getElementById('statusSelect').value;
+    const customAward = document.getElementById('customAwardInput').value;
+
+    if (!competitionNameId) {
+        alert('请选择赛事');
         return;
     }
 
-    const selectedCompetition = progressCompetitionNames[index];
-
-    // 选择初始状态
-    const status = prompt('请选择初始状态：\n\n1. 未报名\n2. 已报名\n3. 国家一等奖\n4. 国家二等奖\n5. 国家三等奖\n6. 市级一等奖\n7. 市级二等奖\n8. 市级三等奖\n9. 其他奖项\n\n请输入序号：');
-
-    if (!status) return;
-
-    const statusMap = {
-        '1': '未报名',
-        '2': '已报名',
-        '3': '国家一等奖',
-        '4': '国家二等奖',
-        '5': '国家三等奖',
-        '6': '市级一等奖',
-        '7': '市级二等奖',
-        '8': '市级三等奖',
-        '9': '其他奖项'
-    };
-
-    const selectedStatus = statusMap[status];
-    if (!selectedStatus) {
-        alert('无效的状态');
+    if (status === '其他奖项' && !customAward) {
+        alert('请输入自定义奖项名称');
         return;
-    }
-
-    let customAward = null;
-    if (selectedStatus === '其他奖项') {
-        customAward = prompt('请输入自定义奖项名称：');
-        if (!customAward) {
-            alert('请输入自定义奖项名称');
-            return;
-        }
     }
 
     // 添加赛事
@@ -1423,9 +1540,9 @@ async function showAddCompetitionInProgress() {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                competition_name_id: selectedCompetition.id,
-                status: selectedStatus,
-                custom_award: customAward
+                competition_name_id: parseInt(competitionNameId),
+                status: status,
+                custom_award: status === '其他奖项' ? customAward : null
             })
         });
 
@@ -1434,6 +1551,7 @@ async function showAddCompetitionInProgress() {
         if (data.success) {
             showProgressToast(data.message);
             await loadProgressCompetitions(currentCustomerId);
+            closeAddCompetitionModal();
         } else {
             alert('添加失败：' + data.message);
         }
