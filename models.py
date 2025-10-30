@@ -271,9 +271,51 @@ class CompetitionName(db.Model):
 
     # 关联关系
     competition_deliveries = db.relationship('CompetitionDelivery', backref='competition_name', lazy='dynamic')
+    customer_competitions = db.relationship('CustomerCompetition', backref='competition_name', lazy='dynamic')
 
     def __repr__(self):
         return f'<CompetitionName {self.name}>'
+
+class CustomerCompetition(db.Model):
+    """客户赛事关联表（多赛事管理）"""
+    __tablename__ = 'customer_competitions'
+
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'), nullable=False, comment='关联客户ID')
+    competition_name_id = db.Column(db.Integer, db.ForeignKey('competition_names.id'), nullable=False, comment='赛事ID')
+    status = db.Column(db.String(50), nullable=False, default='未报名', comment='状态')
+    custom_award = db.Column(db.String(100), comment='自定义奖项名称（当status=其他奖项时使用）')
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, comment='创建人（班主任）')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
+
+    # 关联关系
+    customer = db.relationship('Customer', backref=db.backref('competitions', lazy='dynamic'))
+    created_by = db.relationship('User', foreign_keys=[created_by_user_id])
+
+    def get_display_status(self):
+        """获取显示用的状态文本"""
+        if self.status == '其他奖项' and self.custom_award:
+            return self.custom_award
+        return self.status
+
+    def get_status_color(self):
+        """获取状态对应的颜色样式"""
+        color_map = {
+            '未报名': 'bg-gray-100 text-gray-800',
+            '已报名': 'bg-blue-100 text-blue-800',
+            '国家一等奖': 'bg-red-100 text-red-800',
+            '国家二等奖': 'bg-red-50 text-red-700',
+            '国家三等奖': 'bg-red-50 text-red-600',
+            '市级一等奖': 'bg-green-100 text-green-800',
+            '市级二等奖': 'bg-green-50 text-green-700',
+            '市级三等奖': 'bg-green-50 text-green-600',
+            '其他奖项': 'bg-orange-100 text-orange-800'
+        }
+        return color_map.get(self.status, 'bg-gray-100 text-gray-800')
+
+    def __repr__(self):
+        return f'<CustomerCompetition {self.customer.lead.student_name} - {self.competition_name.name}>'
 
 class Payment(db.Model):
     """付款记录表"""

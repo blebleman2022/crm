@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session
 from flask_login import login_required, current_user
 from functools import wraps
-from models import User, Customer, Lead, TutoringDelivery, CompetitionDelivery, db
+from models import User, Customer, Lead, TutoringDelivery, CompetitionDelivery, CustomerCompetition, CompetitionName, db
 from sqlalchemy.orm import joinedload
 from datetime import datetime, date
 from decimal import Decimal
@@ -142,6 +142,20 @@ def list_customers():
             if len(payments) >= 2:
                 second_payments[lead_id] = payments[1].payment_date
 
+    # 批量查询每个客户的赛事数量
+    customer_ids = [customer.id for customer in customers.items]
+    competition_counts = {}
+    if customer_ids:
+        from sqlalchemy import func
+        counts = db.session.query(
+            CustomerCompetition.customer_id,
+            func.count(CustomerCompetition.id).label('count')
+        ).filter(
+            CustomerCompetition.customer_id.in_(customer_ids)
+        ).group_by(CustomerCompetition.customer_id).all()
+
+        competition_counts = {customer_id: count for customer_id, count in counts}
+
     return render_template('customers/list.html',
                          customers=customers,
                          search=search,
@@ -151,7 +165,8 @@ def list_customers():
                          sales_users=sales_users,
                          start_date=start_date,
                          end_date=end_date,
-                         second_payments=second_payments)
+                         second_payments=second_payments,
+                         competition_counts=competition_counts)
 
 @customers_bp.route('/<int:customer_id>/detail')
 @login_required
@@ -511,3 +526,218 @@ def toggle_customer_priority(customer_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'操作失败: {str(e)}'})
+
+# ==================== 赛事管理 API ====================
+
+@customers_bp.route('/api/<int:customer_id>/competitions', methods=['GET'])
+@login_required
+def get_customer_competitions(customer_id):
+    """获取客户的所有赛事"""
+    try:
+        customer = Customer.query.get_or_404(customer_id)
+
+        # 权限检查：班主任只能查看自己负责的客户
+        if current_user.role == 'teacher_supervisor' and customer.teacher_user_id != current_user.id:
+            return jsonify({'success': False, 'message': '无权限查看此客户的赛事'}), 403
+
+        # 获取客户的所有赛事
+        competitions = CustomerCompetition.query.filter_by(customer_id=customer_id)\
+            .order_by(CustomerCompetition.created_at.desc()).all()
+
+        # 构建返回数据
+        data = []
+        for comp in competitions:
+            data.append({
+                'id': comp.id,
+                'competition_name': comp.competition_name.name,
+                'competition_name_id': comp.competition_name_id,
+                'status': comp.status,
+                'custom_award': comp.custom_award,
+                'display_status': comp.get_display_status(),
+                'status_color': comp.get_status_color(),
+                'created_at': comp.created_at.strftime('%Y-%m-%d %H:%M:%S') if comp.created_at else None
+            })
+
+        return jsonify({
+            'success': True,
+            'competitions': data,
+            'count': len(data)
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'获取赛事列表失败: {str(e)}'}), 500
+
+@customers_bp.route('/api/<int:customer_id>/competitions', methods=['POST'])
+@login_required
+def add_customer_competition(customer_id):
+    """为客户添加赛事"""
+    try:
+        customer = Customer.query.get_or_404(customer_id)
+
+        # 权限检查：只有班主任可以添加赛事
+        if current_user.role != 'teacher_supervisor':
+            return jsonify({'success': False, 'message': '只有班主任可以添加赛事'}), 403
+
+        # 权限检查：班主任只能为自己负责的客户添加赛事
+        if customer.teacher_user_id != current_user.id:
+            return jsonify({'success': False, 'message': '无权限为此客户添加赛事'}), 403
+
+        data = request.get_json()
+        competition_name_id = data.get('competition_name_id')
+        status = data.get('status', '未报名')
+        custom_award = data.get('custom_award')
+
+        # 验证必填字段
+        if not competition_name_id:
+            return jsonify({'success': False, 'message': '请选择赛事名称'}), 400
+
+        # 验证赛事名称是否存在
+        competition_name = CompetitionName.query.get(competition_name_id)
+        if not competition_name:
+            return jsonify({'success': False, 'message': '赛事名称不存在'}), 400
+
+        # 检查是否已经添加过该赛事
+        existing = CustomerCompetition.query.filter_by(
+            customer_id=customer_id,
+            competition_name_id=competition_name_id
+        ).first()
+
+        if existing:
+            return jsonify({'success': False, 'message': '该客户已添加过此赛事'}), 400
+
+        # 验证状态值
+        valid_statuses = ['未报名', '已报名', '国家一等奖', '国家二等奖', '国家三等奖',
+                         '市级一等奖', '市级二等奖', '市级三等奖', '其他奖项']
+        if status not in valid_statuses:
+            return jsonify({'success': False, 'message': '无效的状态值'}), 400
+
+        # 如果是"其他奖项"，验证自定义奖项名称
+        if status == '其他奖项' and not custom_award:
+            return jsonify({'success': False, 'message': '请输入自定义奖项名称'}), 400
+
+        # 创建新赛事记录
+        new_competition = CustomerCompetition(
+            customer_id=customer_id,
+            competition_name_id=competition_name_id,
+            status=status,
+            custom_award=custom_award if status == '其他奖项' else None,
+            created_by_user_id=current_user.id
+        )
+
+        db.session.add(new_competition)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': '赛事添加成功',
+            'competition': {
+                'id': new_competition.id,
+                'competition_name': competition_name.name,
+                'status': new_competition.status,
+                'custom_award': new_competition.custom_award,
+                'display_status': new_competition.get_display_status(),
+                'status_color': new_competition.get_status_color()
+            }
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'添加赛事失败: {str(e)}'}), 500
+
+@customers_bp.route('/api/competitions/<int:competition_id>', methods=['PUT'])
+@login_required
+def update_competition_status(competition_id):
+    """更新赛事状态"""
+    try:
+        competition = CustomerCompetition.query.get_or_404(competition_id)
+
+        # 权限检查：只有班主任可以更新赛事状态
+        if current_user.role != 'teacher_supervisor':
+            return jsonify({'success': False, 'message': '只有班主任可以更新赛事状态'}), 403
+
+        # 权限检查：班主任只能更新自己负责的客户的赛事
+        if competition.customer.teacher_user_id != current_user.id:
+            return jsonify({'success': False, 'message': '无权限更新此赛事'}), 403
+
+        data = request.get_json()
+        new_status = data.get('status')
+        custom_award = data.get('custom_award')
+
+        # 验证状态值
+        valid_statuses = ['未报名', '已报名', '国家一等奖', '国家二等奖', '国家三等奖',
+                         '市级一等奖', '市级二等奖', '市级三等奖', '其他奖项']
+        if new_status not in valid_statuses:
+            return jsonify({'success': False, 'message': '无效的状态值'}), 400
+
+        # 如果是"其他奖项"，验证自定义奖项名称
+        if new_status == '其他奖项' and not custom_award:
+            return jsonify({'success': False, 'message': '请输入自定义奖项名称'}), 400
+
+        # 更新状态
+        competition.status = new_status
+        competition.custom_award = custom_award if new_status == '其他奖项' else None
+        competition.updated_at = datetime.utcnow()
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': '状态更新成功',
+            'competition': {
+                'id': competition.id,
+                'status': competition.status,
+                'custom_award': competition.custom_award,
+                'display_status': competition.get_display_status(),
+                'status_color': competition.get_status_color()
+            }
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'更新状态失败: {str(e)}'}), 500
+
+@customers_bp.route('/api/competitions/<int:competition_id>', methods=['DELETE'])
+@login_required
+def delete_competition(competition_id):
+    """删除赛事"""
+    try:
+        competition = CustomerCompetition.query.get_or_404(competition_id)
+
+        # 权限检查：只有班主任可以删除赛事
+        if current_user.role != 'teacher_supervisor':
+            return jsonify({'success': False, 'message': '只有班主任可以删除赛事'}), 403
+
+        # 权限检查：班主任只能删除自己负责的客户的赛事
+        if competition.customer.teacher_user_id != current_user.id:
+            return jsonify({'success': False, 'message': '无权限删除此赛事'}), 403
+
+        competition_name = competition.competition_name.name
+
+        db.session.delete(competition)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'赛事"{competition_name}"已删除'
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'删除赛事失败: {str(e)}'}), 500
+
+@customers_bp.route('/api/competition-names', methods=['GET'])
+@login_required
+def get_competition_names():
+    """获取所有赛事名称（用于下拉选择）"""
+    try:
+        competition_names = CompetitionName.query.order_by(CompetitionName.name).all()
+
+        data = [{'id': cn.id, 'name': cn.name} for cn in competition_names]
+
+        return jsonify({
+            'success': True,
+            'competition_names': data
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'获取赛事名称失败: {str(e)}'}), 500

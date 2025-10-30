@@ -83,7 +83,7 @@
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">奖项要求</th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">中高考时间</th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">课程进度</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">奖项完成</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">赛事进展</th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">升学陪跑</th>
                         <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-20">新增时间</th>
                         <th class="relative px-6 py-3">
@@ -169,16 +169,20 @@
                             {% endif %}
                         </td>
                         <td class="whitespace-nowrap px-6 py-4 text-sm">
-                            {% if customer.competition_delivery %}
-                                {% if customer.competition_delivery.award_obtained_at %}
-                                    <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">已获奖</span>
-                                {% elif customer.competition_delivery.delivery_status in ['已报名待竞赛', '竞赛进行中', '等待竞赛结果'] %}
-                                    <span class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">已报名</span>
+                            {% set service_types = customer.lead.get_service_types_list() %}
+                            {% if 'competition' in service_types %}
+                                {% set comp_count = competition_counts.get(customer.id, 0) %}
+                                {% if comp_count > 0 %}
+                                    <button onclick="showCompetitionsModal({{ customer.id }}, '{{ customer.lead.student_name }}')"
+                                            class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 hover:bg-blue-200 cursor-pointer">
+                                        🏆 {{ comp_count }}项
+                                    </button>
                                 {% else %}
-                                    <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">未报名</span>
+                                    <button onclick="showCompetitionsModal({{ customer.id }}, '{{ customer.lead.student_name }}')"
+                                            class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600 hover:bg-gray-200 cursor-pointer">
+                                        🏆 0项
+                                    </button>
                                 {% endif %}
-                            {% elif customer.award_requirement != '无' %}
-                                <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">未报名</span>
                             {% else %}
                                 <span class="text-gray-400">-</span>
                             {% endif %}
@@ -1092,5 +1096,420 @@ function togglePriorityCustomer() {
 
 <!-- 包含学员详情弹窗组件 -->
 {% include 'components/student_detail_modal.html' %}
+
+<!-- 赛事管理弹窗 -->
+<div id="competitionsModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-2/3 shadow-lg rounded-md bg-white">
+        <!-- 弹窗标题 -->
+        <div class="flex justify-between items-center mb-4 pb-3 border-b">
+            <h3 class="text-lg font-semibold text-gray-900">
+                <span id="competitionsModalTitle">赛事进展管理</span>
+            </h3>
+            <button onclick="closeCompetitionsModal()" class="text-gray-400 hover:text-gray-600">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+
+        <!-- 赛事列表 -->
+        <div id="competitionsList" class="space-y-4 mb-4">
+            <!-- 动态加载赛事列表 -->
+        </div>
+
+        <!-- 添加赛事按钮 -->
+        {% if current_user.role == 'teacher_supervisor' %}
+        <div class="flex justify-between items-center pt-4 border-t">
+            <button onclick="showAddCompetitionForm()"
+                    class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                <span class="material-symbols-outlined mr-1 text-sm">add</span>
+                添加赛事
+            </button>
+            <button onclick="closeCompetitionsModal()"
+                    class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                关闭
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 添加赛事弹窗 -->
+<div id="addCompetitionModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-2/3 lg:w-1/2 shadow-lg rounded-md bg-white">
+        <div class="flex justify-between items-center mb-4 pb-3 border-b">
+            <h3 class="text-lg font-semibold text-gray-900">
+                为 <span id="addCompetitionStudentName"></span> 添加赛事
+            </h3>
+            <button onclick="closeAddCompetitionModal()" class="text-gray-400 hover:text-gray-600">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+
+        <form id="addCompetitionForm" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">赛事名称</label>
+                <select id="competitionNameSelect"
+                        class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                        required>
+                    <option value="">请选择赛事...</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">初始状态</label>
+                <select id="competitionStatusSelect"
+                        onchange="handleStatusChange(this.value)"
+                        class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                        required>
+                    <option value="未报名">未报名</option>
+                    <option value="已报名">已报名</option>
+                    <option value="国家一等奖">国家一等奖</option>
+                    <option value="国家二等奖">国家二等奖</option>
+                    <option value="国家三等奖">国家三等奖</option>
+                    <option value="市级一等奖">市级一等奖</option>
+                    <option value="市级二等奖">市级二等奖</option>
+                    <option value="市级三等奖">市级三等奖</option>
+                    <option value="其他奖项">其他奖项...</option>
+                </select>
+            </div>
+
+            <div id="customAwardInput" class="hidden">
+                <label class="block text-sm font-medium text-gray-700 mb-2">自定义奖项名称</label>
+                <input type="text" id="customAwardText"
+                       class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                       placeholder="例如：优秀奖、鼓励奖">
+            </div>
+
+            <div class="flex justify-end space-x-3 pt-4 border-t">
+                <button type="button" onclick="closeAddCompetitionModal()"
+                        class="px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                    取消
+                </button>
+                <button type="submit"
+                        class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                    添加
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+let competitionCustomerId = null;
+let competitionStudentName = '';
+let competitionNames = [];
+
+// 显示赛事管理弹窗
+async function showCompetitionsModal(customerId, studentName) {
+    competitionCustomerId = customerId;
+    competitionStudentName = studentName;
+
+    document.getElementById('competitionsModalTitle').textContent = `${studentName} - 赛事进展管理`;
+    document.getElementById('competitionsModal').classList.remove('hidden');
+
+    // 加载赛事列表
+    await loadCompetitions();
+}
+
+// 关闭赛事管理弹窗
+function closeCompetitionsModal() {
+    document.getElementById('competitionsModal').classList.add('hidden');
+    competitionCustomerId = null;
+    competitionStudentName = '';
+}
+
+// 加载赛事列表
+async function loadCompetitions() {
+    try {
+        const response = await fetch(`/customers/api/${competitionCustomerId}/competitions`);
+        const data = await response.json();
+
+        if (data.success) {
+            renderCompetitions(data.competitions);
+        } else {
+            alert('加载赛事列表失败：' + data.message);
+        }
+    } catch (error) {
+        console.error('加载赛事列表失败:', error);
+        alert('加载赛事列表失败');
+    }
+}
+
+// 渲染赛事列表
+function renderCompetitions(competitions) {
+    const container = document.getElementById('competitionsList');
+
+    if (competitions.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-8 text-gray-500">
+                <span class="material-symbols-outlined text-4xl mb-2">emoji_events</span>
+                <p>暂无赛事记录</p>
+                {% if current_user.role == 'teacher_supervisor' %}
+                <p class="text-sm mt-2">点击下方"添加赛事"按钮开始添加</p>
+                {% endif %}
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = competitions.map(comp => `
+        <div class="border rounded-lg p-4 bg-gray-50">
+            <div class="flex justify-between items-start">
+                <div class="flex-1">
+                    <h4 class="font-medium text-gray-900 mb-2">🏆 ${comp.competition_name}</h4>
+                    <div class="flex items-center space-x-2">
+                        <label class="text-sm text-gray-600">状态:</label>
+                        {% if current_user.role == 'teacher_supervisor' %}
+                        <select onchange="updateCompetitionStatus(${comp.id}, this.value, ${comp.competition_name_id})"
+                                data-comp-id="${comp.id}"
+                                class="text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${comp.status_color}">
+                            <option value="未报名" ${comp.status === '未报名' ? 'selected' : ''}>未报名</option>
+                            <option value="已报名" ${comp.status === '已报名' ? 'selected' : ''}>已报名</option>
+                            <option value="国家一等奖" ${comp.status === '国家一等奖' ? 'selected' : ''}>国家一等奖</option>
+                            <option value="国家二等奖" ${comp.status === '国家二等奖' ? 'selected' : ''}>国家二等奖</option>
+                            <option value="国家三等奖" ${comp.status === '国家三等奖' ? 'selected' : ''}>国家三等奖</option>
+                            <option value="市级一等奖" ${comp.status === '市级一等奖' ? 'selected' : ''}>市级一等奖</option>
+                            <option value="市级二等奖" ${comp.status === '市级二等奖' ? 'selected' : ''}>市级二等奖</option>
+                            <option value="市级三等奖" ${comp.status === '市级三等奖' ? 'selected' : ''}>市级三等奖</option>
+                            <option value="其他奖项" ${comp.status === '其他奖项' ? 'selected' : ''}>其他奖项...</option>
+                        </select>
+                        ${comp.status === '其他奖项' ? `
+                            <input type="text"
+                                   id="customAward_${comp.id}"
+                                   value="${comp.custom_award || ''}"
+                                   placeholder="输入奖项名称"
+                                   class="text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                   onblur="saveCustomAward(${comp.id})">
+                        ` : ''}
+                        {% else %}
+                        <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${comp.status_color}">
+                            ${comp.display_status}
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% if current_user.role == 'teacher_supervisor' %}
+                <button onclick="deleteCompetition(${comp.id}, '${comp.competition_name}')"
+                        class="ml-4 text-red-600 hover:text-red-800 text-sm">
+                    删除
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    `).join('');
+}
+
+// 更新赛事状态
+async function updateCompetitionStatus(competitionId, newStatus, competitionNameId) {
+    // 如果选择"其他奖项"，需要等待用户输入自定义奖项名称
+    if (newStatus === '其他奖项') {
+        // 重新渲染以显示输入框
+        await loadCompetitions();
+        return;
+    }
+
+    try {
+        const response = await fetch(`/customers/api/competitions/${competitionId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                status: newStatus,
+                custom_award: null
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // 显示成功提示
+            showToast('状态已更新');
+            // 重新加载列表
+            await loadCompetitions();
+            // 刷新页面以更新赛事数量
+            setTimeout(() => location.reload(), 500);
+        } else {
+            alert('更新失败：' + data.message);
+            await loadCompetitions();
+        }
+    } catch (error) {
+        console.error('更新状态失败:', error);
+        alert('更新状态失败');
+        await loadCompetitions();
+    }
+}
+
+// 保存自定义奖项
+async function saveCustomAward(competitionId) {
+    const customAward = document.getElementById(`customAward_${competitionId}`).value.trim();
+
+    if (!customAward) {
+        alert('请输入自定义奖项名称');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/customers/api/competitions/${competitionId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                status: '其他奖项',
+                custom_award: customAward
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showToast('状态已更新');
+            await loadCompetitions();
+            setTimeout(() => location.reload(), 500);
+        } else {
+            alert('保存失败：' + data.message);
+        }
+    } catch (error) {
+        console.error('保存失败:', error);
+        alert('保存失败');
+    }
+}
+
+// 删除赛事
+async function deleteCompetition(competitionId, competitionName) {
+    if (!confirm(`确定要删除赛事"${competitionName}"吗？`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/customers/api/competitions/${competitionId}`, {
+            method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showToast(data.message);
+            await loadCompetitions();
+            // 刷新页面以更新赛事数量
+            setTimeout(() => location.reload(), 500);
+        } else {
+            alert('删除失败：' + data.message);
+        }
+    } catch (error) {
+        console.error('删除失败:', error);
+        alert('删除失败');
+    }
+}
+
+// 显示添加赛事表单
+async function showAddCompetitionForm() {
+    // 加载赛事名称列表
+    await loadCompetitionNames();
+
+    document.getElementById('addCompetitionStudentName').textContent = competitionStudentName;
+    document.getElementById('addCompetitionModal').classList.remove('hidden');
+
+    // 重置表单
+    document.getElementById('addCompetitionForm').reset();
+    document.getElementById('customAwardInput').classList.add('hidden');
+}
+
+// 关闭添加赛事弹窗
+function closeAddCompetitionModal() {
+    document.getElementById('addCompetitionModal').classList.add('hidden');
+}
+
+// 加载赛事名称列表
+async function loadCompetitionNames() {
+    try {
+        const response = await fetch('/customers/api/competition-names');
+        const data = await response.json();
+
+        if (data.success) {
+            competitionNames = data.competition_names;
+            const select = document.getElementById('competitionNameSelect');
+            select.innerHTML = '<option value="">请选择赛事...</option>' +
+                competitionNames.map(cn => `<option value="${cn.id}">${cn.name}</option>`).join('');
+        }
+    } catch (error) {
+        console.error('加载赛事名称失败:', error);
+    }
+}
+
+// 处理状态选择变化
+function handleStatusChange(status) {
+    const customInput = document.getElementById('customAwardInput');
+    if (status === '其他奖项') {
+        customInput.classList.remove('hidden');
+        document.getElementById('customAwardText').required = true;
+    } else {
+        customInput.classList.add('hidden');
+        document.getElementById('customAwardText').required = false;
+    }
+}
+
+// 提交添加赛事表单
+document.getElementById('addCompetitionForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const competitionNameId = document.getElementById('competitionNameSelect').value;
+    const status = document.getElementById('competitionStatusSelect').value;
+    const customAward = document.getElementById('customAwardText').value.trim();
+
+    if (!competitionNameId) {
+        alert('请选择赛事名称');
+        return;
+    }
+
+    if (status === '其他奖项' && !customAward) {
+        alert('请输入自定义奖项名称');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/customers/api/${competitionCustomerId}/competitions`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                competition_name_id: competitionNameId,
+                status: status,
+                custom_award: status === '其他奖项' ? customAward : null
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showToast(data.message);
+            closeAddCompetitionModal();
+            await loadCompetitions();
+            // 刷新页面以更新赛事数量
+            setTimeout(() => location.reload(), 500);
+        } else {
+            alert('添加失败：' + data.message);
+        }
+    } catch (error) {
+        console.error('添加失败:', error);
+        alert('添加失败');
+    }
+});
+
+// 显示提示消息
+function showToast(message) {
+    // 创建提示元素
+    const toast = document.createElement('div');
+    toast.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    // 1秒后移除
+    setTimeout(() => {
+        toast.remove();
+    }, 1000);
+}
+</script>
 
 {% endblock %}
