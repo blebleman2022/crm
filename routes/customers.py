@@ -335,6 +335,7 @@ def get_customer_progress(customer_id):
         'student_name': customer.lead.student_name,
         'customer_notes': customer.customer_notes,
         'is_priority': customer.is_priority,
+        'service_types': customer.get_service_types(),  # 添加服务类型信息
         'tutoring_delivery': None,
         'competition_delivery': None
     }

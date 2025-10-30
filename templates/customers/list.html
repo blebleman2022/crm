@@ -586,8 +586,16 @@ function openProgressModal(customerId, salesUserId) {
                     document.getElementById('completedSessions').value = 0;
                 }
 
-                // 加载赛事列表
-                loadProgressCompetitions(customerId);
+                // 根据服务类型显示或隐藏赛事管理模块
+                const hasCompetitionService = customer.service_types && customer.service_types.includes('competition');
+                const competitionSection = document.getElementById('competitionManagementSection');
+                if (hasCompetitionService) {
+                    competitionSection.classList.remove('hidden');
+                    // 加载赛事列表
+                    loadProgressCompetitions(customerId);
+                } else {
+                    competitionSection.classList.add('hidden');
+                }
 
                 // 设置星标状态
                 updatePriorityStarDisplay(customer.is_priority);
@@ -974,8 +982,8 @@ function togglePriorityCustomer() {
                     </div>
                 </div>
 
-                <!-- 赛事管理 -->
-                <div class="mb-4">
+                <!-- 赛事管理（仅竞赛辅导服务客户显示） -->
+                <div id="competitionManagementSection" class="mb-4 hidden">
                     <div class="flex items-center justify-between mb-2">
                         <h4 class="text-sm font-medium text-gray-900">赛事管理</h4>
                         <button type="button" onclick="showAddCompetitionInProgress()"
