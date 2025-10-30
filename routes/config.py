@@ -46,33 +46,31 @@ def add_competition():
     """添加竞赛名称"""
     if request.method == 'POST':
         competition_name = request.form.get('competition_name', '').strip()
-        description = request.form.get('description', '').strip()
-        
+
         # 验证必填字段
         if not competition_name:
             flash('竞赛名称为必填项', 'error')
             return render_template('config/add_competition.html')
-        
+
         # 检查重复
-        existing = CompetitionConfig.query.filter_by(competition_name=competition_name).first()
+        existing = CompetitionName.query.filter_by(name=competition_name).first()
         if existing:
             flash('竞赛名称已存在', 'error')
             return render_template('config/add_competition.html')
-        
+
         try:
-            competition = CompetitionConfig(
-                competition_name=competition_name,
-                description=description
+            competition = CompetitionName(
+                name=competition_name
             )
             db.session.add(competition)
             db.session.commit()
-            
+
             flash(f'竞赛名称 {competition_name} 添加成功', 'success')
             return redirect(url_for('config.competition_list'))
         except Exception as e:
             db.session.rollback()
             flash(f'添加竞赛名称失败: {str(e)}', 'error')
-    
+
     return render_template('config/add_competition.html')
 
 @config_bp.route('/competitions/<int:competition_id>/edit', methods=['GET', 'POST'])
@@ -80,38 +78,35 @@ def add_competition():
 @admin_required
 def edit_competition(competition_id):
     """编辑竞赛名称"""
-    competition = CompetitionConfig.query.get_or_404(competition_id)
-    
+    competition = CompetitionName.query.get_or_404(competition_id)
+
     if request.method == 'POST':
         competition_name = request.form.get('competition_name', '').strip()
-        description = request.form.get('description', '').strip()
-        
+
         # 验证必填字段
         if not competition_name:
             flash('竞赛名称为必填项', 'error')
             return render_template('config/edit_competition.html', competition=competition)
-        
+
         # 检查重复（排除自己）
-        existing = CompetitionConfig.query.filter(
-            CompetitionConfig.competition_name == competition_name,
-            CompetitionConfig.id != competition_id
+        existing = CompetitionName.query.filter(
+            CompetitionName.name == competition_name,
+            CompetitionName.id != competition_id
         ).first()
         if existing:
             flash('竞赛名称已存在', 'error')
             return render_template('config/edit_competition.html', competition=competition)
-        
+
         try:
-            competition.competition_name = competition_name
-            competition.description = description
-            competition.updated_at = datetime.utcnow()
-            
+            competition.name = competition_name
+
             db.session.commit()
             flash(f'竞赛名称 {competition_name} 更新成功', 'success')
             return redirect(url_for('config.competition_list'))
         except Exception as e:
             db.session.rollback()
             flash(f'更新竞赛名称失败: {str(e)}', 'error')
-    
+
     return render_template('config/edit_competition.html', competition=competition)
 
 @config_bp.route('/competitions/<int:competition_id>/delete', methods=['POST'])
@@ -119,25 +114,25 @@ def edit_competition(competition_id):
 @admin_required
 def delete_competition(competition_id):
     """删除竞赛名称"""
-    competition = CompetitionConfig.query.get_or_404(competition_id)
+    competition = CompetitionName.query.get_or_404(competition_id)
     
     try:
-        # 检查是否有关联的交付记录
-        from models import CompetitionDelivery
-        delivery_count = CompetitionDelivery.query.filter_by(competition_name=competition.competition_name).count()
-        
-        if delivery_count > 0:
+        # 检查是否有关联的客户赛事记录
+        from models import CustomerCompetition
+        usage_count = CustomerCompetition.query.filter_by(competition_name_id=competition.id).count()
+
+        if usage_count > 0:
             return jsonify({
-                'success': False, 
-                'message': f'无法删除，该竞赛名称已被 {delivery_count} 个交付记录使用'
+                'success': False,
+                'message': f'无法删除，该竞赛名称已被 {usage_count} 个客户使用'
             })
-        
+
         db.session.delete(competition)
         db.session.commit()
-        
+
         return jsonify({
-            'success': True, 
-            'message': f'竞赛名称 {competition.competition_name} 删除成功'
+            'success': True,
+            'message': f'竞赛名称 {competition.name} 删除成功'
         })
     except Exception as e:
         db.session.rollback()

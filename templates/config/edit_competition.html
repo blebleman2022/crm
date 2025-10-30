@@ -1,0 +1,49 @@
+{% extends "admin/base.html" %}
+
+{% block title %}编辑竞赛名称 - EduConnect CRM{% endblock %}
+{% block page_title %}编辑竞赛名称{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="mb-8">
+        <a href="{{ url_for('config.competition_list') }}" 
+           class="inline-flex items-center text-sm text-gray-600 hover:text-gray-900">
+            <span class="material-symbols-outlined mr-1">arrow_back</span>
+            返回竞赛列表
+        </a>
+    </div>
+
+    <div class="bg-white shadow-sm rounded-lg p-6">
+        <h2 class="text-2xl font-bold mb-6">编辑竞赛名称</h2>
+
+        <form method="POST" action="{{ url_for('config.edit_competition', competition_id=competition.id) }}">
+            <div class="space-y-6">
+                <div>
+                    <label for="competition_name" class="block text-sm font-medium text-gray-700 mb-2">
+                        竞赛名称 <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" 
+                           id="competition_name" 
+                           name="competition_name" 
+                           value="{{ competition.name }}"
+                           required
+                           class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                           placeholder="例如：全国大学生数学建模竞赛">
+                </div>
+
+                <div class="flex justify-end space-x-3 pt-4 border-t">
+                    <a href="{{ url_for('config.competition_list') }}"
+                       class="px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                        取消
+                    </a>
+                    <button type="submit"
+                            class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                        保存
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+

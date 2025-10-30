@@ -433,7 +433,6 @@ def update_customer_progress(customer_id):
         data = request.get_json()
         total_sessions = data.get('total_sessions', 0)
         completed_sessions = data.get('completed_sessions', 0)
-        award_status = data.get('award_status', '未报名')
         notes = data.get('notes', '')
 
         # 如果备注有变化，添加为沟通记录
@@ -460,31 +459,6 @@ def update_customer_progress(customer_id):
         customer.tutoring_delivery.completed_sessions = completed_sessions
         customer.tutoring_delivery.update_remaining_sessions()
         customer.tutoring_delivery.updated_at = datetime.utcnow()
-
-        # 更新或创建奖项状态记录
-        # 检查是否有竞赛服务类型且有奖项等级要求
-        has_competition = 'competition' in customer.get_service_types()
-        has_award_requirement = customer.competition_award_level and customer.competition_award_level != '无'
-
-        if has_competition and has_award_requirement:
-            if not customer.competition_delivery:
-                competition_delivery = CompetitionDelivery(customer_id=customer.id)
-                db.session.add(competition_delivery)
-                customer.competition_delivery = competition_delivery
-
-            # 根据奖项状态更新记录
-            if award_status == '已获奖':
-                if not customer.competition_delivery.award_obtained_at:
-                    customer.competition_delivery.award_obtained_at = datetime.utcnow()
-                customer.competition_delivery.delivery_status = '已完成'
-            elif award_status == '已报名':
-                customer.competition_delivery.award_obtained_at = None
-                customer.competition_delivery.delivery_status = '已报名待竞赛'
-            else:  # 未报名
-                customer.competition_delivery.award_obtained_at = None
-                customer.competition_delivery.delivery_status = '未报名'
-
-            customer.competition_delivery.updated_at = datetime.utcnow()
 
         db.session.commit()
         return jsonify({
