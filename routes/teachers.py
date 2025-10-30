@@ -18,6 +18,16 @@ def teacher_supervisor_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def sales_manager_required(f):
+    """销售管理角色权限装饰器（只有sales_manager角色的用户可以访问）"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or current_user.role != 'sales_manager':
+            flash('您没有权限访问此页面，仅销售管理可访问', 'error')
+            return redirect(url_for('leads.dashboard'))
+        return f(*args, **kwargs)
+    return decorated_function
+
 @teachers_bp.route('/list')
 @login_required
 @teacher_supervisor_required
@@ -506,4 +516,70 @@ def update_image_description(image_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'更新失败：{str(e)}'}), 500
+
+
+# ==================== 销售管理角色专用路由 ====================
+
+@teachers_bp.route('/list_for_sales')
+@login_required
+@sales_manager_required
+def list_teachers_for_sales():
+    """销售管理角色的老师列表页（只读）"""
+    page = request.args.get('page', 1, type=int)
+    search = request.args.get('search', '', type=str)
+    status_filter = request.args.get('status', '', type=str)
+
+    # 销售管理可以查看所有老师
+    query = Teacher.query
+
+    # 搜索过滤
+    if search:
+        query = query.filter(
+            (Teacher.chinese_name.contains(search)) |
+            (Teacher.english_name.contains(search)) |
+            (Teacher.current_institution.contains(search)) |
+            (Teacher.major_direction.contains(search))
+        )
+
+    # 状态筛选
+    if status_filter == 'active':
+        query = query.filter(Teacher.status == True)
+    elif status_filter == 'inactive':
+        query = query.filter(Teacher.status == False)
+
+    # 按创建时间倒序排列
+    query = query.order_by(Teacher.created_at.desc())
+
+    # 分页
+    per_page = 20
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    teachers = pagination.items
+
+    # 统计每个老师负责的客户数量
+    teacher_customer_counts = {}
+    for teacher in teachers:
+        count = Customer.query.filter(Customer.teacher_id == teacher.id).count()
+        teacher_customer_counts[teacher.id] = count
+
+    return render_template('teachers/list_for_sales.html',
+                         teachers=teachers,
+                         pagination=pagination,
+                         search=search,
+                         status_filter=status_filter,
+                         teacher_customer_counts=teacher_customer_counts)
+
+@teachers_bp.route('/detail_for_sales/<int:teacher_id>')
+@login_required
+@sales_manager_required
+def detail_teacher_for_sales(teacher_id):
+    """销售管理角色的老师详情页（只读）"""
+    teacher = Teacher.query.get_or_404(teacher_id)
+
+    # 获取该老师负责的客户列表
+    customers = Customer.query.filter(Customer.teacher_id == teacher_id).join(Lead).all()
+
+    return render_template('teachers/detail.html',
+                         teacher=teacher,
+                         customers=customers,
+                         is_sales_manager_view=True)  # 标记为销售管理视图
 

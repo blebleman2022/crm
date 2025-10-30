@@ -33,6 +33,14 @@
 <div class="max-w-7xl mx-auto">
     <!-- 顶部操作栏 -->
     <div class="mb-6 flex justify-between items-center">
+        {% if is_sales_manager_view %}
+        <a href="{{ url_for('teachers.list_teachers_for_sales') }}"
+           class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 shadow-sm">
+            <span class="material-symbols-outlined mr-1 text-sm">arrow_back</span>
+            返回列表
+        </a>
+        <span class="text-sm text-gray-500">（只读模式）</span>
+        {% else %}
         <a href="{{ url_for('teachers.list_teachers') }}"
            class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 shadow-sm">
             <span class="material-symbols-outlined mr-1 text-sm">arrow_back</span>
@@ -43,6 +51,7 @@
             <span class="material-symbols-outlined mr-1 text-sm">edit</span>
             编辑资料
         </a>
+        {% endif %}
     </div>
 
     <!-- 个人简介卡片 -->

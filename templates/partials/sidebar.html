@@ -51,7 +51,7 @@
             </div>
             {% endif %}
 
-            <!-- 老师管理 -->
+            <!-- 老师管理（班主任） -->
             {% if current_user.role == 'teacher_supervisor' %}
             <div class="space-y-1">
                 <div class="flex items-center px-4 py-2 text-sm font-medium text-gray-300">
@@ -64,6 +64,17 @@
                         老师列表
                     </a>
                 </div>
+            </div>
+            {% endif %}
+
+            <!-- 老师信息（销售管理） -->
+            {% if current_user.role == 'sales_manager' %}
+            <div class="space-y-1">
+                <a href="{{ url_for('teachers.list_teachers_for_sales') }}"
+                   class="flex items-center px-4 py-2 text-sm font-medium text-gray-300 rounded-md hover:bg-gray-700 hover:text-white group">
+                    <span class="material-symbols-outlined mr-3">school</span>
+                    老师信息
+                </a>
             </div>
             {% endif %}
 
@@ -136,10 +147,127 @@
                 <span class="material-symbols-outlined">close</span>
             </button>
         </div>
-        <nav class="mt-8 flex-1">
-            <!-- 移动端导航内容与桌面端相同 -->
+        <nav class="mt-8 flex-1 overflow-y-auto">
             <div class="px-4 space-y-2">
-                <!-- 这里可以复制上面的导航内容 -->
+                <!-- 仪表板 -->
+                <a href="{{ url_for('leads.dashboard') }}"
+                   class="flex items-center px-4 py-2 text-sm font-medium text-gray-300 rounded-md hover:bg-gray-700 hover:text-white group">
+                    <span class="material-symbols-outlined mr-3">dashboard</span>
+                    仪表板
+                </a>
+
+                <!-- 线索管理 -->
+                <div class="space-y-1">
+                    <div class="flex items-center px-4 py-2 text-sm font-medium text-gray-300">
+                        <span class="material-symbols-outlined mr-3">person_search</span>
+                        线索管理
+                    </div>
+                    <div class="ml-8 space-y-1">
+                        <a href="{{ url_for('leads.list_leads') }}"
+                           class="flex items-center px-4 py-2 text-sm text-gray-400 rounded-md hover:bg-gray-700 hover:text-white">
+                            线索列表
+                        </a>
+                        <a href="{{ url_for('leads.add_lead') }}"
+                           class="flex items-center px-4 py-2 text-sm text-gray-400 rounded-md hover:bg-gray-700 hover:text-white">
+                            添加线索
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 客户管理 -->
+                {% if current_user.is_sales() or current_user.is_admin() %}
+                <div class="space-y-1">
+                    <div class="flex items-center px-4 py-2 text-sm font-medium text-gray-300">
+                        <span class="material-symbols-outlined mr-3">groups</span>
+                        客户管理
+                    </div>
+                    <div class="ml-8 space-y-1">
+                        <a href="{{ url_for('customers.list_customers') }}"
+                           class="flex items-center px-4 py-2 text-sm text-gray-400 rounded-md hover:bg-gray-700 hover:text-white">
+                            客户列表
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- 老师管理（班主任） -->
+                {% if current_user.role == 'teacher_supervisor' %}
+                <div class="space-y-1">
+                    <div class="flex items-center px-4 py-2 text-sm font-medium text-gray-300">
+                        <span class="material-symbols-outlined mr-3">school</span>
+                        老师管理
+                    </div>
+                    <div class="ml-8 space-y-1">
+                        <a href="{{ url_for('teachers.list_teachers') }}"
+                           class="flex items-center px-4 py-2 text-sm text-gray-400 rounded-md hover:bg-gray-700 hover:text-white">
+                            老师列表
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- 老师信息（销售管理） -->
+                {% if current_user.role == 'sales_manager' %}
+                <div class="space-y-1">
+                    <a href="{{ url_for('teachers.list_teachers_for_sales') }}"
+                       class="flex items-center px-4 py-2 text-sm font-medium text-gray-300 rounded-md hover:bg-gray-700 hover:text-white group">
+                        <span class="material-symbols-outlined mr-3">school</span>
+                        老师信息
+                    </a>
+                </div>
+                {% endif %}
+
+                <!-- 交付管理 -->
+                {% if current_user.role == 'teacher_supervisor' or current_user.is_admin() %}
+                <div class="space-y-1">
+                    <div class="flex items-center px-4 py-2 text-sm font-medium text-gray-300">
+                        <span class="material-symbols-outlined mr-3">assignment</span>
+                        交付管理
+                    </div>
+                    <div class="ml-8 space-y-1">
+                        <a href="{{ url_for('delivery.dashboard') }}"
+                           class="flex items-center px-4 py-2 text-sm text-gray-400 rounded-md hover:bg-gray-700 hover:text-white">
+                            交付仪表板
+                        </a>
+                        <a href="{{ url_for('delivery.tutoring_list') }}"
+                           class="flex items-center px-4 py-2 text-sm text-gray-400 rounded-md hover:bg-gray-700 hover:text-white">
+                            课题辅导
+                        </a>
+                        <a href="{{ url_for('delivery.competition_list') }}"
+                           class="flex items-center px-4 py-2 text-sm text-gray-400 rounded-md hover:bg-gray-700 hover:text-white">
+                            竞赛奖项
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- 系统管理 -->
+                {% if current_user.is_admin() %}
+                <div class="space-y-1">
+                    <div class="flex items-center px-4 py-2 text-sm font-medium text-gray-300">
+                        <span class="material-symbols-outlined mr-3">settings</span>
+                        系统管理
+                    </div>
+                    <div class="ml-8 space-y-1">
+                        <a href="{{ url_for('admin.dashboard') }}"
+                           class="flex items-center px-4 py-2 text-sm text-gray-400 rounded-md hover:bg-gray-700 hover:text-white">
+                            管理仪表板
+                        </a>
+                        <a href="{{ url_for('admin.users') }}"
+                           class="flex items-center px-4 py-2 text-sm text-gray-400 rounded-md hover:bg-gray-700 hover:text-white">
+                            用户管理
+                        </a>
+                        <a href="{{ url_for('config.competition_list') }}"
+                           class="flex items-center px-4 py-2 text-sm text-gray-400 rounded-md hover:bg-gray-700 hover:text-white">
+                            竞赛配置
+                        </a>
+                        <a href="{{ url_for('data_export.export_page') }}"
+                           class="flex items-center px-4 py-2 text-sm text-gray-400 rounded-md hover:bg-gray-700 hover:text-white">
+                            数据下载
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
             </div>
         </nav>
     </div>
