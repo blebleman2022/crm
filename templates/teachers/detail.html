@@ -156,12 +156,12 @@
         </div>
         {% endif %}
 
-        <!-- 社会角色 -->
+        <!-- 个人荣誉 -->
         {% if teacher.social_roles and teacher.social_roles != '-' %}
         <div class="bg-white rounded-xl shadow-lg p-6 info-card">
             <h3 class="section-title text-xl font-bold text-gray-900 mb-4">
-                <span class="material-symbols-outlined align-middle mr-2 text-blue-800">groups</span>
-                社会角色
+                <span class="material-symbols-outlined align-middle mr-2 text-blue-800">military_tech</span>
+                个人荣誉
             </h3>
             <div class="space-y-3">
                 {% for role in teacher.social_roles.split('\n') %}

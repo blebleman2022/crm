@@ -392,7 +392,7 @@ class Teacher(db.Model):
     degree_description = db.Column(db.Text, comment='学历说明')
     research_achievements = db.Column(db.Text, comment='科研成果')
     innovation_coaching_achievements = db.Column(db.Text, comment='科创辅导成果')
-    social_roles = db.Column(db.Text, comment='社会角色')
+    social_roles = db.Column(db.Text, comment='个人荣誉')
     status = db.Column(db.Boolean, default=True, comment='状态：True启用/False禁用')
     created_by_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, comment='创建人ID（班主任）')
     created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
