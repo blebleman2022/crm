@@ -191,6 +191,7 @@ function displayServiceRows(studentData) {
 
     // 课题辅导
     if (serviceTypes.includes('tutoring')) {
+        const thesisText = studentData.thesis_name || '已选择';
         const row = document.createElement('tr');
         row.innerHTML = `
             <td class="px-3 py-2 text-sm text-gray-600 bg-gray-50 w-1/3">
@@ -199,7 +200,7 @@ function displayServiceRows(studentData) {
                     <span>课题辅导</span>
                 </div>
             </td>
-            <td class="px-3 py-2 text-sm font-medium text-gray-900">已选择</td>
+            <td class="px-3 py-2 text-sm font-medium text-gray-900">${thesisText}</td>
         `;
         serviceTableBody.appendChild(row);
     }

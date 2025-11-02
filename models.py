@@ -153,6 +153,7 @@ class Customer(db.Model):
     _additional_requirements = db.Column('additional_requirements', db.Text, comment='[已废弃] 额外要求')
 
     exam_year = db.Column(db.Integer, comment='中考或高考年份')
+    thesis_name = db.Column(db.String(200), comment='课题名称')
     customer_notes = db.Column(db.Text, comment='客户备注')
     converted_at = db.Column(db.DateTime, comment='线索转客户时间')
     is_priority = db.Column(db.Boolean, default=False, comment='是否重点关注客户')

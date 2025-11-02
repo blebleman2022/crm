@@ -335,6 +335,7 @@ def get_customer_progress(customer_id):
         'student_name': customer.lead.student_name,
         'customer_notes': customer.customer_notes,
         'is_priority': customer.is_priority,
+        'thesis_name': customer.thesis_name,  # 添加课题名称
         'service_types': customer.get_service_types(),  # 添加服务类型信息
         'tutoring_delivery': None,
         'competition_delivery': None
@@ -400,6 +401,7 @@ def customer_api(customer_id):
         'competition_award_level': customer.competition_award_level,
         'additional_requirements': customer.additional_requirements,
         'exam_year': customer.exam_year,
+        'thesis_name': customer.thesis_name,  # 添加课题名称
         'notes': customer.customer_notes,
         'communications': communications_data,
         'created_at': customer.created_at.isoformat() if customer.created_at else None,
@@ -435,6 +437,7 @@ def update_customer_progress(customer_id):
         total_sessions = data.get('total_sessions', 0)
         completed_sessions = data.get('completed_sessions', 0)
         notes = data.get('notes', '')
+        thesis_name = data.get('thesis_name', '')
 
         # 如果备注有变化，添加为沟通记录
         if notes and notes != customer.customer_notes:
@@ -446,8 +449,9 @@ def update_customer_progress(customer_id):
                 user_id=current_user.id
             )
 
-        # 更新客户备注
+        # 更新客户备注和课题名
         customer.customer_notes = notes
+        customer.thesis_name = thesis_name if thesis_name else None
         customer.updated_at = datetime.utcnow()
 
         # 更新或创建课程进度记录

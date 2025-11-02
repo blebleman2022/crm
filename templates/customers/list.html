@@ -577,13 +577,25 @@ function openProgressModal(customerId, salesUserId) {
                 document.getElementById('progressCustomerId').value = customerId;
                 document.getElementById('progressStudentName').textContent = customer.student_name;
 
-                // 课程进度
-                if (customer.tutoring_delivery) {
-                    document.getElementById('totalSessions').value = customer.tutoring_delivery.total_sessions || 0;
-                    document.getElementById('completedSessions').value = customer.tutoring_delivery.completed_sessions || 0;
+                // 根据服务类型显示或隐藏课程进度模块
+                const hasTutoringService = customer.service_types && customer.service_types.includes('tutoring');
+                const courseProgressSection = document.getElementById('courseProgressSection');
+                if (hasTutoringService) {
+                    courseProgressSection.classList.remove('hidden');
+
+                    // 课题名称
+                    document.getElementById('thesisName').value = customer.thesis_name || '';
+
+                    // 课程进度
+                    if (customer.tutoring_delivery) {
+                        document.getElementById('totalSessions').value = customer.tutoring_delivery.total_sessions || 0;
+                        document.getElementById('completedSessions').value = customer.tutoring_delivery.completed_sessions || 0;
+                    } else {
+                        document.getElementById('totalSessions').value = 0;
+                        document.getElementById('completedSessions').value = 0;
+                    }
                 } else {
-                    document.getElementById('totalSessions').value = 0;
-                    document.getElementById('completedSessions').value = 0;
+                    courseProgressSection.classList.add('hidden');
                 }
 
                 // 根据服务类型显示或隐藏赛事管理模块
@@ -623,6 +635,7 @@ function closeProgressModal() {
 
 function updateProgress() {
     const customerId = document.getElementById('progressCustomerId').value;
+    const thesisName = document.getElementById('thesisName').value;
     const totalSessions = document.getElementById('totalSessions').value;
     const completedSessions = document.getElementById('completedSessions').value;
 
@@ -638,6 +651,7 @@ function updateProgress() {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+            thesis_name: thesisName,
             total_sessions: parseInt(totalSessions),
             completed_sessions: parseInt(completedSessions)
         })
@@ -968,10 +982,15 @@ function togglePriorityCustomer() {
                 <input type="hidden" id="progressCustomerId">
 
                 <!-- 课程进度 -->
-                <div class="mb-6 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <div id="courseProgressSection" class="mb-6 bg-gray-50 p-4 rounded-lg border border-gray-200 hidden">
                     <div class="flex items-center mb-3">
                         <span class="material-symbols-outlined text-blue-600 mr-2">school</span>
                         <h4 class="text-sm font-semibold text-gray-900">课程进度</h4>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">课题名称</label>
+                        <input type="text" id="thesisName" placeholder="请输入课题名称"
+                               class="block w-full px-3 py-2 border-2 border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
