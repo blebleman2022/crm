@@ -1749,9 +1749,9 @@ async function loadCourseRecordImages(customerId) {
         if (data.success && data.images.length > 0) {
             container.innerHTML = data.images.map(img => `
                 <div class="relative group">
-                    <img src="/${img.image_path}" alt="${img.description || '课程记录'}"
+                    <img src="/static/${img.image_path}" alt="${img.description || '课程记录'}"
                          class="w-full h-20 object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-75 transition-opacity"
-                         onclick="window.open('/${img.image_path}', '_blank')">
+                         onclick="window.open('/static/${img.image_path}', '_blank')">
                     <button type="button" onclick="deleteCourseRecordImage(${img.id})"
                             class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <span class="material-symbols-outlined text-xs">close</span>
@@ -1854,9 +1854,9 @@ async function loadAwardCertificateImages(customerId) {
         if (data.success && data.images.length > 0) {
             container.innerHTML = data.images.map(img => `
                 <div class="relative group">
-                    <img src="/${img.image_path}" alt="${img.description || '获奖证书'}"
+                    <img src="/static/${img.image_path}" alt="${img.description || '获奖证书'}"
                          class="w-full h-20 object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-75 transition-opacity"
-                         onclick="window.open('/${img.image_path}', '_blank')">
+                         onclick="window.open('/static/${img.image_path}', '_blank')">
                     <button type="button" onclick="deleteAwardCertificateImage(${img.id})"
                             class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <span class="material-symbols-outlined text-xs">close</span>
