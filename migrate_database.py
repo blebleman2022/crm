@@ -271,6 +271,32 @@ def migrate_add_customer_payments_table(conn):
         print_error(f"创建 customer_payments 表失败: {str(e)}")
         return False
 
+def migrate_add_thesis_name_to_customers(conn):
+    """为 customers 表添加 thesis_name 字段"""
+    cursor = conn.cursor()
+
+    # 检查字段是否已存在
+    columns = get_table_columns(conn, 'customers')
+
+    if 'thesis_name' in columns:
+        print_warning("customers 表已有 thesis_name 字段，跳过添加")
+        return False
+
+    print_warning("为 customers 表添加 thesis_name 字段...")
+
+    try:
+        cursor.execute("""
+            ALTER TABLE customers
+            ADD COLUMN thesis_name VARCHAR(200)
+        """)
+
+        conn.commit()
+        print_success("成功为 customers 表添加 thesis_name 字段")
+        return True
+    except Exception as e:
+        print_error(f"添加字段失败: {str(e)}")
+        return False
+
 def verify_database_integrity(conn):
     """验证数据库完整性"""
     cursor = conn.cursor()
@@ -351,6 +377,10 @@ def main():
     # 迁移5: 添加 customer_payments 表
     if migrate_add_customer_payments_table(conn):
         migrations_applied.append("添加 customer_payments 表")
+
+    # 迁移6: 为 customers 表添加 thesis_name 字段
+    if migrate_add_thesis_name_to_customers(conn):
+        migrations_applied.append("为 customers 表添加 thesis_name 字段")
 
     if migrations_applied:
         print_success(f"应用了 {len(migrations_applied)} 个迁移")
