@@ -496,6 +496,64 @@ class TeacherImage(db.Model):
             size_mb = size_kb / 1024
             return f'{size_mb:.1f} MB'
 
+class CourseRecordImage(db.Model):
+    """课程记录图片表"""
+    __tablename__ = 'course_record_images'
+
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'), nullable=False, comment='客户ID')
+    image_path = db.Column(db.String(500), nullable=False, comment='图片路径')
+    description = db.Column(db.String(200), comment='图片描述')
+    file_size = db.Column(db.Integer, comment='文件大小(字节)')
+    file_name = db.Column(db.String(200), comment='原始文件名')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='上传时间')
+
+    # 关联关系
+    customer = db.relationship('Customer', backref=db.backref('course_record_images', lazy='dynamic', cascade='all, delete-orphan'))
+
+    def __repr__(self):
+        return f'<CourseRecordImage {self.customer_id} - {self.file_name}>'
+
+    def get_file_size_display(self):
+        """返回格式化的文件大小"""
+        if not self.file_size:
+            return '-'
+        size_kb = self.file_size / 1024
+        if size_kb < 1024:
+            return f'{size_kb:.1f} KB'
+        else:
+            size_mb = size_kb / 1024
+            return f'{size_mb:.1f} MB'
+
+class AwardCertificateImage(db.Model):
+    """获奖证书图片表"""
+    __tablename__ = 'award_certificate_images'
+
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'), nullable=False, comment='客户ID')
+    image_path = db.Column(db.String(500), nullable=False, comment='图片路径')
+    description = db.Column(db.String(200), comment='图片描述')
+    file_size = db.Column(db.Integer, comment='文件大小(字节)')
+    file_name = db.Column(db.String(200), comment='原始文件名')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='上传时间')
+
+    # 关联关系
+    customer = db.relationship('Customer', backref=db.backref('award_certificate_images', lazy='dynamic', cascade='all, delete-orphan'))
+
+    def __repr__(self):
+        return f'<AwardCertificateImage {self.customer_id} - {self.file_name}>'
+
+    def get_file_size_display(self):
+        """返回格式化的文件大小"""
+        if not self.file_size:
+            return '-'
+        size_kb = self.file_size / 1024
+        if size_kb < 1024:
+            return f'{size_kb:.1f} KB'
+        else:
+            size_mb = size_kb / 1024
+            return f'{size_mb:.1f} MB'
+
 # ConsultationDetail表已删除，现在统一使用CommunicationRecord表
 
 

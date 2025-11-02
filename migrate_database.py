@@ -310,6 +310,61 @@ def verify_database_integrity(conn):
         print_error(f"数据库完整性检查失败: {result}")
         return False
 
+def migrate_add_customer_image_tables(conn):
+    """添加客户图片表"""
+    cursor = conn.cursor()
+
+    try:
+        # 检查course_record_images表是否存在
+        if check_table_exists(conn, 'course_record_images'):
+            print_warning("course_record_images表已存在，跳过")
+            table1_created = False
+        else:
+            # 创建课程记录图片表
+            cursor.execute("""
+                CREATE TABLE course_record_images (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    customer_id INTEGER NOT NULL,
+                    image_path VARCHAR(500) NOT NULL,
+                    description VARCHAR(200),
+                    file_size INTEGER,
+                    file_name VARCHAR(200),
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (customer_id) REFERENCES customers(id)
+                )
+            """)
+            print_success("成功创建course_record_images表")
+            table1_created = True
+
+        # 检查award_certificate_images表是否存在
+        if check_table_exists(conn, 'award_certificate_images'):
+            print_warning("award_certificate_images表已存在，跳过")
+            table2_created = False
+        else:
+            # 创建获奖证书图片表
+            cursor.execute("""
+                CREATE TABLE award_certificate_images (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    customer_id INTEGER NOT NULL,
+                    image_path VARCHAR(500) NOT NULL,
+                    description VARCHAR(200),
+                    file_size INTEGER,
+                    file_name VARCHAR(200),
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (customer_id) REFERENCES customers(id)
+                )
+            """)
+            print_success("成功创建award_certificate_images表")
+            table2_created = True
+
+        conn.commit()
+        return table1_created or table2_created
+
+    except Exception as e:
+        print_error(f"添加客户图片表失败: {e}")
+        conn.rollback()
+        return False
+
 def get_table_stats(conn):
     """获取表统计信息"""
     cursor = conn.cursor()
@@ -318,7 +373,7 @@ def get_table_stats(conn):
         'users', 'leads', 'customers', 'payments',
         'teachers', 'tutoring_deliveries', 'competition_deliveries',
         'communication_records', 'login_logs', 'competition_names',
-        'system_config', 'customer_payments'
+        'system_config', 'customer_payments', 'course_record_images', 'award_certificate_images'
     ]
 
     stats = {}
@@ -381,6 +436,10 @@ def main():
     # 迁移6: 为 customers 表添加 thesis_name 字段
     if migrate_add_thesis_name_to_customers(conn):
         migrations_applied.append("为 customers 表添加 thesis_name 字段")
+
+    # 迁移7: 添加客户图片表
+    if migrate_add_customer_image_tables(conn):
+        migrations_applied.append("添加 course_record_images 和 award_certificate_images 表")
 
     if migrations_applied:
         print_success(f"应用了 {len(migrations_applied)} 个迁移")

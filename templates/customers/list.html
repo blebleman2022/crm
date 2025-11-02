@@ -615,6 +615,16 @@ function openProgressModal(customerId, salesUserId) {
                 // 加载客户阶段沟通记录
                 loadCustomerCommunicationRecords(customer.lead_id, customerId);
 
+                // 加载课程记录图片（如果有课题辅导服务）
+                if (hasTutoringService) {
+                    loadCourseRecordImages(customerId);
+                }
+
+                // 加载获奖证书图片（如果有竞赛辅导服务）
+                if (hasCompetitionService) {
+                    loadAwardCertificateImages(customerId);
+                }
+
                 // 显示模态窗口
                 document.getElementById('progressModal').classList.remove('hidden');
             } else {
@@ -1000,7 +1010,7 @@ function togglePriorityCustomer() {
                         <input type="text" id="thesisName" placeholder="请输入课题名称"
                                class="block w-full px-3 py-2 border-2 border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
                     </div>
-                    <div class="grid grid-cols-2 gap-4">
+                    <div class="grid grid-cols-2 gap-4 mb-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">总课程数量</label>
                             <input type="number" id="totalSessions" min="0"
@@ -1010,6 +1020,46 @@ function togglePriorityCustomer() {
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">已完成数量</label>
                             <input type="number" id="completedSessions" min="0"
                                    class="block w-full px-3 py-2 border-2 border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+                        </div>
+                    </div>
+
+                    <!-- 课程记录图片 -->
+                    <div class="mt-4 border-t border-gray-200 pt-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="block text-sm font-medium text-gray-700">课程记录图片</label>
+                            <button type="button" onclick="showCourseRecordImageUpload()"
+                                    class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md text-blue-600 bg-blue-50 hover:bg-blue-100 transition-all">
+                                <span class="material-symbols-outlined text-sm mr-1">add_photo_alternate</span>
+                                上传图片
+                            </button>
+                        </div>
+                        <div id="courseRecordImagesList" class="grid grid-cols-3 gap-2 max-h-40 overflow-y-auto">
+                            <!-- 动态加载图片 -->
+                        </div>
+
+                        <!-- 图片上传表单（隐藏） -->
+                        <div id="courseRecordImageUploadForm" class="hidden mt-3 p-3 bg-white border border-blue-200 rounded-lg">
+                            <div class="mb-2">
+                                <label class="block text-xs font-medium text-gray-700 mb-1">选择图片</label>
+                                <input type="file" id="courseRecordImageInput" accept="image/*" multiple
+                                       class="block w-full text-xs text-gray-500 file:mr-2 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                            </div>
+                            <div class="mb-2">
+                                <label class="block text-xs font-medium text-gray-700 mb-1">图片描述</label>
+                                <input type="text" id="courseRecordImageDescription" placeholder="请输入图片描述"
+                                       class="block w-full px-2 py-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500">
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <button type="button" onclick="uploadCourseRecordImages()"
+                                        class="flex-1 inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-all">
+                                    <span class="material-symbols-outlined text-sm mr-1">cloud_upload</span>
+                                    上传
+                                </button>
+                                <button type="button" onclick="hideCourseRecordImageUpload()"
+                                        class="flex-1 inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium rounded-md text-gray-700 bg-gray-100 hover:bg-gray-200 transition-all">
+                                    取消
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1027,11 +1077,51 @@ function togglePriorityCustomer() {
                             添加赛事
                         </button>
                     </div>
-                    <div id="progressCompetitionsList" class="space-y-2 max-h-60 overflow-y-auto border border-gray-200 rounded-lg p-3 bg-white">
+                    <div id="progressCompetitionsList" class="space-y-2 max-h-60 overflow-y-auto border border-gray-200 rounded-lg p-3 bg-white mb-4">
                         <!-- 动态加载赛事列表 -->
                         <div class="text-center text-gray-500 text-sm py-4">
                             <span class="material-symbols-outlined text-2xl mb-2 text-gray-300">emoji_events</span>
                             <p>加载中...</p>
+                        </div>
+                    </div>
+
+                    <!-- 获奖证书图片 -->
+                    <div class="mt-4 border-t border-gray-200 pt-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="block text-sm font-medium text-gray-700">获奖证书图片</label>
+                            <button type="button" onclick="showAwardCertificateImageUpload()"
+                                    class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md text-blue-600 bg-blue-50 hover:bg-blue-100 transition-all">
+                                <span class="material-symbols-outlined text-sm mr-1">add_photo_alternate</span>
+                                上传图片
+                            </button>
+                        </div>
+                        <div id="awardCertificateImagesList" class="grid grid-cols-3 gap-2 max-h-40 overflow-y-auto">
+                            <!-- 动态加载图片 -->
+                        </div>
+
+                        <!-- 图片上传表单（隐藏） -->
+                        <div id="awardCertificateImageUploadForm" class="hidden mt-3 p-3 bg-white border border-blue-200 rounded-lg">
+                            <div class="mb-2">
+                                <label class="block text-xs font-medium text-gray-700 mb-1">选择图片</label>
+                                <input type="file" id="awardCertificateImageInput" accept="image/*" multiple
+                                       class="block w-full text-xs text-gray-500 file:mr-2 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                            </div>
+                            <div class="mb-2">
+                                <label class="block text-xs font-medium text-gray-700 mb-1">图片描述</label>
+                                <input type="text" id="awardCertificateImageDescription" placeholder="请输入图片描述"
+                                       class="block w-full px-2 py-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500">
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <button type="button" onclick="uploadAwardCertificateImages()"
+                                        class="flex-1 inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-all">
+                                    <span class="material-symbols-outlined text-sm mr-1">cloud_upload</span>
+                                    上传
+                                </button>
+                                <button type="button" onclick="hideAwardCertificateImageUpload()"
+                                        class="flex-1 inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium rounded-md text-gray-700 bg-gray-100 hover:bg-gray-200 transition-all">
+                                    取消
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1632,6 +1722,216 @@ function showProgressToast(message) {
     setTimeout(() => {
         toast.remove();
     }, 1000);
+}
+
+// ========== 课程记录图片上传功能 ==========
+
+// 显示课程记录图片上传表单
+function showCourseRecordImageUpload() {
+    document.getElementById('courseRecordImageUploadForm').classList.remove('hidden');
+}
+
+// 隐藏课程记录图片上传表单
+function hideCourseRecordImageUpload() {
+    document.getElementById('courseRecordImageUploadForm').classList.add('hidden');
+    document.getElementById('courseRecordImageInput').value = '';
+    document.getElementById('courseRecordImageDescription').value = '';
+}
+
+// 加载课程记录图片
+async function loadCourseRecordImages(customerId) {
+    try {
+        const response = await fetch(`/customers/${customerId}/course-record-images`);
+        const data = await response.json();
+
+        const container = document.getElementById('courseRecordImagesList');
+
+        if (data.success && data.images.length > 0) {
+            container.innerHTML = data.images.map(img => `
+                <div class="relative group">
+                    <img src="/${img.image_path}" alt="${img.description || '课程记录'}"
+                         class="w-full h-20 object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-75 transition-opacity"
+                         onclick="window.open('/${img.image_path}', '_blank')">
+                    <button type="button" onclick="deleteCourseRecordImage(${img.id})"
+                            class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span class="material-symbols-outlined text-xs">close</span>
+                    </button>
+                    ${img.description ? `<div class="text-xs text-gray-600 mt-1 truncate" title="${img.description}">${img.description}</div>` : ''}
+                </div>
+            `).join('');
+        } else {
+            container.innerHTML = '<div class="col-span-3 text-center text-gray-400 text-xs py-4">暂无图片</div>';
+        }
+    } catch (error) {
+        console.error('加载课程记录图片失败:', error);
+    }
+}
+
+// 上传课程记录图片
+async function uploadCourseRecordImages() {
+    const fileInput = document.getElementById('courseRecordImageInput');
+    const description = document.getElementById('courseRecordImageDescription').value;
+
+    if (!fileInput.files.length) {
+        alert('请选择要上传的图片');
+        return;
+    }
+
+    const formData = new FormData();
+    for (let i = 0; i < fileInput.files.length; i++) {
+        formData.append('images', fileInput.files[i]);
+        formData.append('descriptions', description);
+    }
+
+    try {
+        const response = await fetch(`/customers/${currentCustomerId}/upload-course-record-image`, {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showProgressToast(data.message);
+            await loadCourseRecordImages(currentCustomerId);
+            hideCourseRecordImageUpload();
+        } else {
+            alert('上传失败：' + data.message);
+        }
+    } catch (error) {
+        console.error('上传失败:', error);
+        alert('上传失败');
+    }
+}
+
+// 删除课程记录图片
+async function deleteCourseRecordImage(imageId) {
+    if (!confirm('确定要删除这张图片吗？')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/customers/delete-course-record-image/${imageId}`, {
+            method: 'POST'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showProgressToast(data.message);
+            await loadCourseRecordImages(currentCustomerId);
+        } else {
+            alert('删除失败：' + data.message);
+        }
+    } catch (error) {
+        console.error('删除失败:', error);
+        alert('删除失败');
+    }
+}
+
+// ========== 获奖证书图片上传功能 ==========
+
+// 显示获奖证书图片上传表单
+function showAwardCertificateImageUpload() {
+    document.getElementById('awardCertificateImageUploadForm').classList.remove('hidden');
+}
+
+// 隐藏获奖证书图片上传表单
+function hideAwardCertificateImageUpload() {
+    document.getElementById('awardCertificateImageUploadForm').classList.add('hidden');
+    document.getElementById('awardCertificateImageInput').value = '';
+    document.getElementById('awardCertificateImageDescription').value = '';
+}
+
+// 加载获奖证书图片
+async function loadAwardCertificateImages(customerId) {
+    try {
+        const response = await fetch(`/customers/${customerId}/award-certificate-images`);
+        const data = await response.json();
+
+        const container = document.getElementById('awardCertificateImagesList');
+
+        if (data.success && data.images.length > 0) {
+            container.innerHTML = data.images.map(img => `
+                <div class="relative group">
+                    <img src="/${img.image_path}" alt="${img.description || '获奖证书'}"
+                         class="w-full h-20 object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-75 transition-opacity"
+                         onclick="window.open('/${img.image_path}', '_blank')">
+                    <button type="button" onclick="deleteAwardCertificateImage(${img.id})"
+                            class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span class="material-symbols-outlined text-xs">close</span>
+                    </button>
+                    ${img.description ? `<div class="text-xs text-gray-600 mt-1 truncate" title="${img.description}">${img.description}</div>` : ''}
+                </div>
+            `).join('');
+        } else {
+            container.innerHTML = '<div class="col-span-3 text-center text-gray-400 text-xs py-4">暂无图片</div>';
+        }
+    } catch (error) {
+        console.error('加载获奖证书图片失败:', error);
+    }
+}
+
+// 上传获奖证书图片
+async function uploadAwardCertificateImages() {
+    const fileInput = document.getElementById('awardCertificateImageInput');
+    const description = document.getElementById('awardCertificateImageDescription').value;
+
+    if (!fileInput.files.length) {
+        alert('请选择要上传的图片');
+        return;
+    }
+
+    const formData = new FormData();
+    for (let i = 0; i < fileInput.files.length; i++) {
+        formData.append('images', fileInput.files[i]);
+        formData.append('descriptions', description);
+    }
+
+    try {
+        const response = await fetch(`/customers/${currentCustomerId}/upload-award-certificate-image`, {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showProgressToast(data.message);
+            await loadAwardCertificateImages(currentCustomerId);
+            hideAwardCertificateImageUpload();
+        } else {
+            alert('上传失败：' + data.message);
+        }
+    } catch (error) {
+        console.error('上传失败:', error);
+        alert('上传失败');
+    }
+}
+
+// 删除获奖证书图片
+async function deleteAwardCertificateImage(imageId) {
+    if (!confirm('确定要删除这张图片吗？')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/customers/delete-award-certificate-image/${imageId}`, {
+            method: 'POST'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showProgressToast(data.message);
+            await loadAwardCertificateImages(currentCustomerId);
+        } else {
+            alert('删除失败：' + data.message);
+        }
+    } catch (error) {
+        console.error('删除失败:', error);
+        alert('删除失败');
+    }
 }
 
 </script>

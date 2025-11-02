@@ -1,10 +1,12 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session
 from flask_login import login_required, current_user
 from functools import wraps
-from models import User, Customer, Lead, TutoringDelivery, CompetitionDelivery, CustomerCompetition, CompetitionName, db
+from models import User, Customer, Lead, TutoringDelivery, CompetitionDelivery, CustomerCompetition, CompetitionName, CourseRecordImage, AwardCertificateImage, db
 from sqlalchemy.orm import joinedload
 from datetime import datetime, date
 from decimal import Decimal
+import os
+from werkzeug.utils import secure_filename
 
 customers_bp = Blueprint('customers', __name__)
 
@@ -720,3 +722,324 @@ def get_competition_names():
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'获取赛事名称失败: {str(e)}'}), 500
+
+
+# ========== 客户图片上传相关 ==========
+
+# 图片上传相关配置
+ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5MB
+MAX_IMAGES_PER_CUSTOMER = 10  # 每个客户每种类型最多10张图片
+COURSE_RECORD_UPLOAD_FOLDER = 'static/uploads/course_records'
+AWARD_CERTIFICATE_UPLOAD_FOLDER = 'static/uploads/award_certificates'
+
+def allowed_image_file(filename):
+    """检查文件扩展名是否允许"""
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
+
+@customers_bp.route('/<int:customer_id>/upload-course-record-image', methods=['POST'])
+@login_required
+def upload_course_record_image(customer_id):
+    """上传课程记录图片"""
+    customer = Customer.query.get_or_404(customer_id)
+
+    # 权限检查：只有班主任可以上传
+    if current_user.role != 'teacher_supervisor':
+        return jsonify({'success': False, 'message': '只有班主任可以上传图片'}), 403
+
+    # 权限检查：只能为自己负责的客户上传图片
+    if customer.teacher_user_id != current_user.id:
+        return jsonify({'success': False, 'message': '您只能为自己负责的客户上传图片'}), 403
+
+    # 检查当前图片数量
+    current_image_count = CourseRecordImage.query.filter_by(customer_id=customer_id).count()
+    if current_image_count >= MAX_IMAGES_PER_CUSTOMER:
+        return jsonify({'success': False, 'message': f'最多只能上传{MAX_IMAGES_PER_CUSTOMER}张图片'}), 400
+
+    # 检查是否有文件
+    if 'images' not in request.files:
+        return jsonify({'success': False, 'message': '请选择要上传的图片'}), 400
+
+    files = request.files.getlist('images')
+    descriptions = request.form.getlist('descriptions')
+
+    if not files or files[0].filename == '':
+        return jsonify({'success': False, 'message': '请选择要上传的图片'}), 400
+
+    # 检查上传数量
+    if len(files) + current_image_count > MAX_IMAGES_PER_CUSTOMER:
+        return jsonify({'success': False, 'message': f'最多只能上传{MAX_IMAGES_PER_CUSTOMER}张图片，当前已有{current_image_count}张'}), 400
+
+    try:
+        # 确保上传目录存在
+        os.makedirs(COURSE_RECORD_UPLOAD_FOLDER, exist_ok=True)
+
+        uploaded_images = []
+
+        for idx, file in enumerate(files):
+            # 检查文件类型
+            if not allowed_image_file(file.filename):
+                continue
+
+            # 检查文件大小
+            file.seek(0, os.SEEK_END)
+            file_size = file.tell()
+            file.seek(0)
+
+            if file_size > MAX_IMAGE_SIZE:
+                return jsonify({'success': False, 'message': f'图片 {file.filename} 超过5MB限制'}), 400
+
+            # 生成安全的文件名
+            original_filename = secure_filename(file.filename)
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f"customer_{customer_id}_course_{timestamp}_{idx}_{original_filename}"
+            filepath = os.path.join(COURSE_RECORD_UPLOAD_FOLDER, filename)
+
+            # 保存文件
+            file.save(filepath)
+
+            # 获取对应的描述
+            description = descriptions[idx] if idx < len(descriptions) else ''
+
+            # 保存到数据库
+            image = CourseRecordImage(
+                customer_id=customer_id,
+                image_path=f'uploads/course_records/{filename}',
+                description=description.strip(),
+                file_size=file_size,
+                file_name=original_filename
+            )
+            db.session.add(image)
+            uploaded_images.append({
+                'id': image.id,
+                'filename': original_filename,
+                'description': description
+            })
+
+        db.session.commit()
+        return jsonify({
+            'success': True,
+            'message': f'成功上传 {len(uploaded_images)} 张图片',
+            'images': uploaded_images
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'上传失败: {str(e)}'}), 500
+
+@customers_bp.route('/<int:customer_id>/upload-award-certificate-image', methods=['POST'])
+@login_required
+def upload_award_certificate_image(customer_id):
+    """上传获奖证书图片"""
+    customer = Customer.query.get_or_404(customer_id)
+
+    # 权限检查：只有班主任可以上传
+    if current_user.role != 'teacher_supervisor':
+        return jsonify({'success': False, 'message': '只有班主任可以上传图片'}), 403
+
+    # 权限检查：只能为自己负责的客户上传图片
+    if customer.teacher_user_id != current_user.id:
+        return jsonify({'success': False, 'message': '您只能为自己负责的客户上传图片'}), 403
+
+    # 检查当前图片数量
+    current_image_count = AwardCertificateImage.query.filter_by(customer_id=customer_id).count()
+    if current_image_count >= MAX_IMAGES_PER_CUSTOMER:
+        return jsonify({'success': False, 'message': f'最多只能上传{MAX_IMAGES_PER_CUSTOMER}张图片'}), 400
+
+    # 检查是否有文件
+    if 'images' not in request.files:
+        return jsonify({'success': False, 'message': '请选择要上传的图片'}), 400
+
+    files = request.files.getlist('images')
+    descriptions = request.form.getlist('descriptions')
+
+    if not files or files[0].filename == '':
+        return jsonify({'success': False, 'message': '请选择要上传的图片'}), 400
+
+    # 检查上传数量
+    if len(files) + current_image_count > MAX_IMAGES_PER_CUSTOMER:
+        return jsonify({'success': False, 'message': f'最多只能上传{MAX_IMAGES_PER_CUSTOMER}张图片，当前已有{current_image_count}张'}), 400
+
+    try:
+        # 确保上传目录存在
+        os.makedirs(AWARD_CERTIFICATE_UPLOAD_FOLDER, exist_ok=True)
+
+        uploaded_images = []
+
+        for idx, file in enumerate(files):
+            # 检查文件类型
+            if not allowed_image_file(file.filename):
+                continue
+
+            # 检查文件大小
+            file.seek(0, os.SEEK_END)
+            file_size = file.tell()
+            file.seek(0)
+
+            if file_size > MAX_IMAGE_SIZE:
+                return jsonify({'success': False, 'message': f'图片 {file.filename} 超过5MB限制'}), 400
+
+            # 生成安全的文件名
+            original_filename = secure_filename(file.filename)
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f"customer_{customer_id}_award_{timestamp}_{idx}_{original_filename}"
+            filepath = os.path.join(AWARD_CERTIFICATE_UPLOAD_FOLDER, filename)
+
+            # 保存文件
+            file.save(filepath)
+
+            # 获取对应的描述
+            description = descriptions[idx] if idx < len(descriptions) else ''
+
+            # 保存到数据库
+            image = AwardCertificateImage(
+                customer_id=customer_id,
+                image_path=f'uploads/award_certificates/{filename}',
+                description=description.strip(),
+                file_size=file_size,
+                file_name=original_filename
+            )
+            db.session.add(image)
+            uploaded_images.append({
+                'id': image.id,
+                'filename': original_filename,
+                'description': description
+            })
+
+        db.session.commit()
+        return jsonify({
+            'success': True,
+            'message': f'成功上传 {len(uploaded_images)} 张图片',
+            'images': uploaded_images
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'上传失败: {str(e)}'}), 500
+
+@customers_bp.route('/delete-course-record-image/<int:image_id>', methods=['POST'])
+@login_required
+def delete_course_record_image(image_id):
+    """删除课程记录图片"""
+    try:
+        image = CourseRecordImage.query.get_or_404(image_id)
+        customer = Customer.query.get_or_404(image.customer_id)
+
+        # 权限检查：只有班主任可以删除
+        if current_user.role != 'teacher_supervisor':
+            return jsonify({'success': False, 'message': '只有班主任可以删除图片'}), 403
+
+        # 权限检查：只能删除自己负责的客户的图片
+        if customer.teacher_user_id != current_user.id:
+            return jsonify({'success': False, 'message': '您只能删除自己负责的客户的图片'}), 403
+
+        # 1. 先记录文件路径
+        filepath = os.path.join('static', image.image_path)
+
+        # 2. 删除数据库记录（先删除数据库，保证数据一致性）
+        db.session.delete(image)
+        db.session.commit()
+
+        # 3. 最后删除文件（即使失败也不影响数据一致性）
+        if os.path.exists(filepath):
+            try:
+                os.remove(filepath)
+            except Exception as e:
+                import logging
+                logging.warning(f"文件删除失败: {filepath}, 错误: {e}")
+
+        return jsonify({'success': True, 'message': '图片已删除'})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'删除失败: {str(e)}'}), 500
+
+@customers_bp.route('/delete-award-certificate-image/<int:image_id>', methods=['POST'])
+@login_required
+def delete_award_certificate_image(image_id):
+    """删除获奖证书图片"""
+    try:
+        image = AwardCertificateImage.query.get_or_404(image_id)
+        customer = Customer.query.get_or_404(image.customer_id)
+
+        # 权限检查：只有班主任可以删除
+        if current_user.role != 'teacher_supervisor':
+            return jsonify({'success': False, 'message': '只有班主任可以删除图片'}), 403
+
+        # 权限检查：只能删除自己负责的客户的图片
+        if customer.teacher_user_id != current_user.id:
+            return jsonify({'success': False, 'message': '您只能删除自己负责的客户的图片'}), 403
+
+        # 1. 先记录文件路径
+        filepath = os.path.join('static', image.image_path)
+
+        # 2. 删除数据库记录（先删除数据库，保证数据一致性）
+        db.session.delete(image)
+        db.session.commit()
+
+        # 3. 最后删除文件（即使失败也不影响数据一致性）
+        if os.path.exists(filepath):
+            try:
+                os.remove(filepath)
+            except Exception as e:
+                import logging
+                logging.warning(f"文件删除失败: {filepath}, 错误: {e}")
+
+        return jsonify({'success': True, 'message': '图片已删除'})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'删除失败: {str(e)}'}), 500
+
+@customers_bp.route('/<int:customer_id>/course-record-images', methods=['GET'])
+@login_required
+def get_course_record_images(customer_id):
+    """获取客户的课程记录图片列表"""
+    try:
+        customer = Customer.query.get_or_404(customer_id)
+
+        images = CourseRecordImage.query.filter_by(customer_id=customer_id).order_by(CourseRecordImage.created_at.desc()).all()
+
+        data = [{
+            'id': img.id,
+            'image_path': img.image_path,
+            'description': img.description,
+            'file_name': img.file_name,
+            'file_size': img.get_file_size_display(),
+            'created_at': img.created_at.strftime('%Y-%m-%d %H:%M:%S')
+        } for img in images]
+
+        return jsonify({
+            'success': True,
+            'images': data
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'获取图片失败: {str(e)}'}), 500
+
+@customers_bp.route('/<int:customer_id>/award-certificate-images', methods=['GET'])
+@login_required
+def get_award_certificate_images(customer_id):
+    """获取客户的获奖证书图片列表"""
+    try:
+        customer = Customer.query.get_or_404(customer_id)
+
+        images = AwardCertificateImage.query.filter_by(customer_id=customer_id).order_by(AwardCertificateImage.created_at.desc()).all()
+
+        data = [{
+            'id': img.id,
+            'image_path': img.image_path,
+            'description': img.description,
+            'file_name': img.file_name,
+            'file_size': img.get_file_size_display(),
+            'created_at': img.created_at.strftime('%Y-%m-%d %H:%M:%S')
+        } for img in images]
+
+        return jsonify({
+            'success': True,
+            'images': data
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'获取图片失败: {str(e)}'}), 500
