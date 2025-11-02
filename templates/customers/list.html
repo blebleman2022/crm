@@ -966,13 +966,13 @@ function togglePriorityCustomer() {
 <div id="progressModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
     <div class="relative top-10 mx-auto p-0 border-0 w-full max-w-2xl shadow-2xl rounded-xl bg-white mb-10">
         <!-- 弹窗头部 - 蓝色渐变背景 -->
-        <div class="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4 rounded-t-xl">
+        <div class="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-2 rounded-t-xl">
             <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-3">
-                    <span class="material-symbols-outlined text-white text-2xl">edit_note</span>
-                    <div>
-                        <h3 class="text-lg font-semibold text-white">进度更新</h3>
-                        <p class="text-sm text-blue-100 mt-0.5">学员：<span id="progressStudentName" class="font-medium"></span></p>
+                    <span class="material-symbols-outlined text-white text-xl">edit_note</span>
+                    <div class="flex items-center space-x-2">
+                        <h3 class="text-base font-semibold text-white">进度更新</h3>
+                        <span class="text-sm text-blue-100">学员：<span id="progressStudentName" class="font-medium"></span></span>
                     </div>
                 </div>
                 <div class="flex items-center space-x-2">
@@ -981,13 +981,13 @@ function togglePriorityCustomer() {
                             onclick="togglePriorityCustomer()"
                             class="focus:outline-none hover:scale-110 transition-transform duration-200 p-1"
                             title="点击标记/取消重点关注客户">
-                        <span id="priorityStarIcon" class="material-symbols-outlined text-xl text-white">star</span>
+                        <span id="priorityStarIcon" class="material-symbols-outlined text-lg text-white">star</span>
                     </button>
                     <button type="button"
                             onclick="closeProgressModal()"
                             class="focus:outline-none hover:scale-110 transition-transform duration-200 p-1"
                             title="关闭">
-                        <span class="material-symbols-outlined text-xl text-white">close</span>
+                        <span class="material-symbols-outlined text-lg text-white">close</span>
                     </button>
                 </div>
             </div>
