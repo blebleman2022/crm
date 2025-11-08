@@ -31,11 +31,15 @@ def create_app(config_name=None):
     # 初始化扩展
     from models import db
     db.init_app(app)
-    
+
     login_manager = LoginManager()
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'
     login_manager.login_message = '请先登录以访问此页面。'
+
+    # HTTPS支持 - 处理反向代理的X-Forwarded-Proto头
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
     
     @login_manager.user_loader
     def load_user(user_id):

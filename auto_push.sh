@@ -9,11 +9,26 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
+# 进程锁文件
+LOCK_FILE="/tmp/auto_push.lock"
+
+# 检查是否已有实例在运行
+if [ -f "$LOCK_FILE" ]; then
+  echo -e "${YELLOW}⚠️  已有推送脚本在运行中，退出...${NC}"
+  exit 1
+fi
+
+# 创建锁文件
+touch "$LOCK_FILE"
+
+# 确保退出时删除锁文件
+trap "rm -f $LOCK_FILE" EXIT
+
 echo -e "${GREEN}========================================${NC}"
 echo -e "${GREEN}自动推送脚本${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
-echo "目标: 推送本地 master 分支到远程 main 分支"
+echo "目标: 推送本地 master 分支到远程 master 分支"
 echo "间隔: 每10秒重试一次"
 echo "按 Ctrl+C 可随时停止"
 echo ""
@@ -28,7 +43,7 @@ while true; do
   echo -e "${YELLOW}[尝试 #$attempt] $timestamp - 正在推送到 GitHub...${NC}"
   
   # 尝试推送
-  if git push origin master:main 2>&1; then
+  if git push origin master 2>&1; then
     echo ""
     echo -e "${GREEN}========================================${NC}"
     echo -e "${GREEN}✅ 推送成功！${NC}"
@@ -37,11 +52,13 @@ while true; do
     echo "推送时间: $timestamp"
     echo "尝试次数: $attempt"
     echo ""
-    
+
     # 显示最新的提交
     echo "最新提交:"
     git log --oneline -3
-    
+    echo ""
+
+    # 立即退出
     exit 0
   else
     echo -e "${RED}❌ 推送失败${NC}"
