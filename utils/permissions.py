@@ -154,18 +154,36 @@ def require_data_access(customer_id=None, lead_id=None, target_user_id=None):
 def get_accessible_data_filter(user, model_class):
     """
     根据用户角色获取可访问数据的过滤条件
-    
+
     Args:
         user: 当前用户对象
         model_class: 模型类（Lead, Customer等）
-    
+
     Returns:
         SQLAlchemy查询过滤条件
     """
     # 管理员可以访问所有数据
     if user.role == 'admin':
         return None
-    
+
+    # 展示账号：可以访问所有数据（类似销售管理），但会进行脱敏显示
+    if user.role == 'demo':
+        # 展示账号可以看到所有销售管理和销售负责的数据
+        if model_class.__name__ == 'Lead':
+            from models import User
+            allowed_ids = User.query.filter(
+                User.role.in_(['sales_manager', 'salesperson']),
+                User.status == True
+            ).with_entities(User.id).subquery()
+            return model_class.sales_user_id.in_(allowed_ids)
+        elif model_class.__name__ == 'Customer':
+            from models import User
+            allowed_ids = User.query.filter(
+                User.role.in_(['sales_manager', 'salesperson']),
+                User.status == True
+            ).with_entities(User.id).subquery()
+            return model_class.lead.has(model_class.lead.property.mapper.class_.sales_user_id.in_(allowed_ids))
+
     # 销售管理和销售只能访问自己负责的数据
     if user.role in ['sales_manager', 'salesperson']:
         if model_class.__name__ == 'Lead':
@@ -176,7 +194,7 @@ def get_accessible_data_filter(user, model_class):
                 return (model_class.sales_user_id == user.id) & (model_class.teacher_user_id.isnot(None))
             else:  # sales_manager
                 return model_class.sales_user_id == user.id
-    
+
     # 班主任只能访问分配给自己的客户数据
     if user.role == 'teacher_supervisor':
         if model_class.__name__ == 'Customer':
@@ -191,6 +209,6 @@ def get_accessible_data_filter(user, model_class):
             return model_class.customer_id.in_(
                 Customer.query.filter_by(teacher_user_id=user.id).with_entities(Customer.id)
             )
-    
+
     # 默认返回空结果
     return model_class.id == -1

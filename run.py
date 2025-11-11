@@ -92,6 +92,26 @@ def create_app(config_name=None):
 
         return dict(get_logo_url=get_logo_url)
 
+    # 注入数据脱敏函数到所有模板
+    @app.context_processor
+    def inject_masking_functions():
+        """注入数据脱敏函数到所有模板"""
+        from utils.data_masking import (
+            mask_name, mask_wechat_name, mask_english_name,
+            mask_number, mask_teacher_name, should_mask_data
+        )
+        from flask_login import current_user
+
+        return dict(
+            mask_name=mask_name,
+            mask_wechat_name=mask_wechat_name,
+            mask_english_name=mask_english_name,
+            mask_number=mask_number,
+            mask_teacher_name=mask_teacher_name,
+            should_mask_data=should_mask_data,
+            is_demo_user=lambda: current_user.is_authenticated and current_user.is_demo()
+        )
+
     # 添加千位分隔符过滤器
     @app.template_filter('format_currency')
     def format_currency(value):

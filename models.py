@@ -49,6 +49,10 @@ class User(UserMixin, db.Model):
         """是否为辅导老师角色（实际授课，未来可能废弃此User角色）"""
         return self.role == 'teacher'
 
+    def is_demo(self):
+        """是否为展示账号角色"""
+        return self.role == 'demo'
+
 class Lead(db.Model):
     """学员线索表"""
     __tablename__ = 'leads'

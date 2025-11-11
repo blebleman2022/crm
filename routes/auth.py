@@ -34,7 +34,7 @@ def login():
         # 已登录用户根据角色重定向
         if current_user.role == 'admin':
             return redirect(url_for('admin.dashboard'))
-        elif current_user.role in ['sales_manager', 'salesperson']:
+        elif current_user.role in ['sales_manager', 'salesperson', 'demo']:
             return redirect(url_for('leads.dashboard'))
         elif current_user.role == 'teacher_supervisor':
             return redirect(url_for('delivery.dashboard'))
@@ -76,7 +76,7 @@ def login():
         
         if user.role == 'admin':
             return redirect(url_for('admin.dashboard'))
-        elif user.role in ['sales_manager', 'salesperson']:
+        elif user.role in ['sales_manager', 'salesperson', 'demo']:
             return redirect(url_for('leads.dashboard'))
         elif user.role == 'teacher_supervisor':
             return redirect(url_for('delivery.dashboard'))

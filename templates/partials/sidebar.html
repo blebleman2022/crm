@@ -36,7 +36,7 @@
             </div>
             
             <!-- 客户管理 -->
-            {% if current_user.is_sales() or current_user.is_admin() %}
+            {% if current_user.is_sales() or current_user.is_admin() or current_user.is_demo() %}
             <div class="space-y-1">
                 <div class="flex items-center px-4 py-2 text-sm font-medium text-gray-300">
                     <span class="material-symbols-outlined mr-3">groups</span>
@@ -67,8 +67,8 @@
             </div>
             {% endif %}
 
-            <!-- 老师信息（销售管理） -->
-            {% if current_user.role == 'sales_manager' %}
+            <!-- 老师信息（销售管理和展示账号） -->
+            {% if current_user.role == 'sales_manager' or current_user.is_demo() %}
             <div class="space-y-1">
                 <a href="{{ url_for('teachers.list_teachers_for_sales') }}"
                    class="flex items-center px-4 py-2 text-sm font-medium text-gray-300 rounded-md hover:bg-gray-700 hover:text-white group">

@@ -22,7 +22,7 @@ def sales_manager_required(f):
     """销售管理角色权限装饰器（只有sales_manager角色的用户可以访问）"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or current_user.role != 'sales_manager':
+        if not current_user.is_authenticated or (current_user.role != 'sales_manager' and not current_user.is_demo()):
             flash('您没有权限访问此页面，仅销售管理可访问', 'error')
             return redirect(url_for('leads.dashboard'))
         return f(*args, **kwargs)

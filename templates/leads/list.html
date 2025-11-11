@@ -165,7 +165,11 @@
                         <td class="whitespace-nowrap px-3 py-3 text-sm font-medium text-gray-900">
                             <div class="flex items-center space-x-2">
                                 <button onclick="showStudentDetailModal({{ lead.id }}, false)" class="text-blue-600 hover:text-blue-800 cursor-pointer">
-                                    {{ lead.student_name or '-' }}
+                                    {% if is_demo_user() %}
+                                        {{ mask_name(lead.student_name) if lead.student_name else '-' }}
+                                    {% else %}
+                                        {{ lead.student_name or '-' }}
+                                    {% endif %}
                                 </button>
                                 {% if lead.additional_requirements %}
                                     <span class="material-symbols-outlined text-red-600 text-sm" title="有额外要求">add_circle</span>
@@ -174,7 +178,13 @@
                         </td>
                         <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
                             {% if lead.parent_wechat_display_name %}
-                                <span class="text-sm">{{ lead.parent_wechat_display_name }}</span>
+                                <span class="text-sm">
+                                    {% if is_demo_user() %}
+                                        {{ mask_wechat_name(lead.parent_wechat_display_name) }}
+                                    {% else %}
+                                        {{ lead.parent_wechat_display_name }}
+                                    {% endif %}
+                                </span>
                             {% else %}
                                 <span class="text-gray-400">-</span>
                             {% endif %}

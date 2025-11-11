@@ -10,10 +10,10 @@ import re
 leads_bp = Blueprint('leads', __name__)
 
 def sales_required(f):
-    """销售管理权限装饰器"""
+    """销售管理权限装饰器（包括展示账号）"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or not current_user.is_sales():
+        if not current_user.is_authenticated or not (current_user.is_sales() or current_user.is_demo()):
             flash('您没有权限访问此页面', 'error')
             return redirect(url_for('auth.login'))
         return f(*args, **kwargs)
@@ -23,7 +23,7 @@ def sales_or_admin_required(f):
     """销售或管理员权限装饰器"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or not (current_user.is_sales() or current_user.is_admin()):
+        if not current_user.is_authenticated or not (current_user.is_sales() or current_user.is_admin() or current_user.is_demo()):
             flash('您没有权限访问此页面', 'error')
             return redirect(url_for('auth.login'))
         return f(*args, **kwargs)
@@ -33,6 +33,25 @@ def validate_phone(phone):
     """验证手机号格式"""
     pattern = r'^1[3-9]\d{9}$'
     return re.match(pattern, phone) is not None
+
+def apply_sales_filter(query, model_class=Lead):
+    """
+    应用销售权限过滤
+    - 销售角色：只能看到自己的数据
+    - 展示账号：可以看到所有销售管理和销售的数据
+    - 管理员：可以看到所有数据
+    """
+    if current_user.is_admin():
+        return query
+    elif current_user.is_sales() and not current_user.is_demo():
+        return query.filter(model_class.sales_user_id == current_user.id)
+    elif current_user.is_demo():
+        allowed_ids = db.session.query(User.id).filter(
+            User.role.in_(['sales_manager', 'salesperson']),
+            User.status == True
+        ).subquery()
+        return query.filter(model_class.sales_user_id.in_(allowed_ids))
+    return query
 
 def auto_update_lead_stage(lead):
     """根据线索的各种操作自动更新阶段"""
@@ -133,9 +152,16 @@ def dashboard():
             Lead.contract_amount.isnot(None)
         )
 
-        # 权限控制：销售相关角色只能看到自己的数据
-        if current_user.is_sales():
+        # 权限控制：销售相关角色只能看到自己的数据，展示账号可以看到所有销售的数据
+        if current_user.is_sales() and not current_user.is_demo():
             contract_query = contract_query.filter(Lead.sales_user_id == current_user.id)
+        elif current_user.is_demo():
+            # 展示账号可以看到所有销售管理和销售的数据
+            allowed_ids = db.session.query(User.id).filter(
+                User.role.in_(['sales_manager', 'salesperson']),
+                User.status == True
+            ).subquery()
+            contract_query = contract_query.filter(Lead.sales_user_id.in_(allowed_ids))
 
         contract_amount_result = contract_query.scalar()
         total_contract_amount = float(contract_amount_result or 0)
@@ -150,9 +176,15 @@ def dashboard():
             )
         )
 
-        # 权限控制：销售相关角色只能看到自己的数据
-        if current_user.is_sales():
+        # 权限控制：销售相关角色只能看到自己的数据，展示账号可以看到所有销售的数据
+        if current_user.is_sales() and not current_user.is_demo():
             contract_query = contract_query.filter(Lead.sales_user_id == current_user.id)
+        elif current_user.is_demo():
+            allowed_ids = db.session.query(User.id).filter(
+                User.role.in_(['sales_manager', 'salesperson']),
+                User.status == True
+            ).subquery()
+            contract_query = contract_query.filter(Lead.sales_user_id.in_(allowed_ids))
 
         contract_amount_result = contract_query.scalar()
         total_contract_amount = float(contract_amount_result or 0)

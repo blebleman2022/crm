@@ -14,7 +14,7 @@ def sales_or_admin_required(f):
     """销售管理或管理员权限装饰器"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or not (current_user.is_sales() or current_user.is_admin()):
+        if not current_user.is_authenticated or not (current_user.is_sales() or current_user.is_admin() or current_user.is_demo()):
             flash('您没有权限访问此页面', 'error')
             return redirect(url_for('auth.login'))
         return f(*args, **kwargs)
@@ -60,8 +60,8 @@ def list_customers():
             (Lead.sales_user_id == current_user.id) &
             (Customer.teacher_user_id.isnot(None))
         )
-    elif current_user.is_sales_manager():
-        # 销售管理可以看到所有销售和销售管理负责的客户（参照线索列表逻辑）
+    elif current_user.is_sales_manager() or current_user.is_demo():
+        # 销售管理和展示账号可以看到所有销售和销售管理负责的客户
         allowed_ids = db.session.query(User.id).filter(
             User.role.in_(['sales_manager', 'salesperson']),
             User.status == True

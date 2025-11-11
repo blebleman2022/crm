@@ -73,7 +73,11 @@
                                 {% endif %}
                             </td>
                             <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                                {{ teacher.english_name or '-' }}
+                                {% if is_demo_user() %}
+                                    {{ mask_english_name(teacher.english_name) if teacher.english_name else '-' }}
+                                {% else %}
+                                    {{ teacher.english_name or '-' }}
+                                {% endif %}
                             </td>
                             <td class="px-6 py-4 text-sm text-gray-500">
                                 {{ teacher.current_institution or '-' }}
@@ -85,7 +89,11 @@
                                 {{ teacher.major_direction or '-' }}
                             </td>
                             <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                                {{ teacher_customer_counts.get(teacher.id, 0) }}
+                                {% if is_demo_user() %}
+                                    {{ mask_number(teacher_customer_counts.get(teacher.id, 0)) }}
+                                {% else %}
+                                    {{ teacher_customer_counts.get(teacher.id, 0) }}
+                                {% endif %}
                             </td>
                             <td class="whitespace-nowrap px-6 py-4 text-sm">
                                 {% if teacher.status %}
