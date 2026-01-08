@@ -104,6 +104,7 @@
                 <thead class="bg-gray-50">
                     <tr>
                         <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-24">学员姓名</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">学校</th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">责任销售</th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">班主任</th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">辅导老师</th>
@@ -133,6 +134,13 @@
                                     <span class="material-symbols-outlined text-red-600 text-sm" title="有额外要求">add_circle</span>
                                 {% endif %}
                             </div>
+                        </td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                            {% if customer.lead.school %}
+                                {{ customer.lead.school }}
+                            {% else %}
+                                <span class="text-gray-400">-</span>
+                            {% endif %}
                         </td>
                         <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ customer.lead.sales_user.username }}</td>
                         <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">

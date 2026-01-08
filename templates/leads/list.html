@@ -149,6 +149,7 @@
                         <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">学员姓名</th>
                         <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">家长微信名</th>
                         <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">年级</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">学校</th>
                         <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">线索来源</th>
                         <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">合同金额</th>
                         <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">责任销售</th>
@@ -184,6 +185,13 @@
                                 <span class="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
                                     {{ lead.grade }}
                                 </span>
+                            {% else %}
+                                <span class="text-gray-400">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
+                            {% if lead.school %}
+                                {{ lead.school }}
                             {% else %}
                                 <span class="text-gray-400">-</span>
                             {% endif %}
