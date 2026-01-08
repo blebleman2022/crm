@@ -103,11 +103,25 @@
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-24">学员姓名</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-24">
+                            <div class="flex items-center gap-2">
+                                <span>学员姓名</span>
+                                <button type="button" onclick="toggleStudentNameVisibility()" class="focus:outline-none hover:scale-110 transition-transform" title="显示/隐藏学员姓名">
+                                    <span id="studentNameEyeIcon" class="material-symbols-outlined text-sm text-gray-600">visibility</span>
+                                </button>
+                            </div>
+                        </th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">学校</th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">责任销售</th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">班主任</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">辅导老师</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                            <div class="flex items-center gap-2">
+                                <span>辅导老师</span>
+                                <button type="button" onclick="toggleTeacherNameVisibility()" class="focus:outline-none hover:scale-110 transition-transform" title="显示/隐藏辅导老师姓名">
+                                    <span id="teacherNameEyeIcon" class="material-symbols-outlined text-sm text-gray-600">visibility</span>
+                                </button>
+                            </div>
+                        </th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">奖项要求</th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">中高考时间</th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">课程进度</th>
@@ -127,7 +141,7 @@
                                 {% if customer.is_priority %}
                                     <span class="material-symbols-outlined text-yellow-500 text-lg" title="重点关注客户">star</span>
                                 {% endif %}
-                                <button onclick="showStudentDetailModal({{ customer.id }}, true, {% if current_user.role == 'teacher_supervisor' %}true{% else %}false{% endif %})" class="text-blue-600 hover:text-blue-800 cursor-pointer">
+                                <button onclick="showStudentDetailModal({{ customer.id }}, true, {% if current_user.role == 'teacher_supervisor' %}true{% else %}false{% endif %})" class="text-blue-600 hover:text-blue-800 cursor-pointer student-name-cell">
                                     {{ customer.lead.student_name }}
                                 </button>
                                 {% if customer.lead.additional_requirements %}
@@ -154,18 +168,18 @@
                             {% if customer.teacher %}
                                 {% if current_user.role == 'teacher_supervisor' %}
                                     <button onclick="showChangeTeacherModal({{ customer.id }}, '{{ customer.lead.student_name }}', {{ customer.teacher.id }}, '{{ customer.teacher.chinese_name }}')"
-                                            class="text-blue-600 hover:text-blue-800 cursor-pointer">
+                                            class="text-blue-600 hover:text-blue-800 cursor-pointer teacher-name-cell">
                                         {{ customer.teacher.chinese_name }}
                                     </button>
                                 {% else %}
-                                    <span class="text-gray-900">{{ customer.teacher.chinese_name }}</span>
+                                    <span class="text-gray-900 teacher-name-cell">{{ customer.teacher.chinese_name }}</span>
                                 {% endif %}
                             {% else %}
                                 {% if current_user.role == 'teacher_supervisor' %}
                                     <button onclick="showAssignTeacherModal({{ customer.id }}, '{{ customer.lead.student_name }}')"
-                                            class="text-red-600 hover:text-red-800 cursor-pointer">待分配</button>
+                                            class="text-red-600 hover:text-red-800 cursor-pointer teacher-name-cell">待分配</button>
                                 {% else %}
-                                    <span class="text-gray-400">待分配</span>
+                                    <span class="text-gray-400 teacher-name-cell">待分配</span>
                                 {% endif %}
                             {% endif %}
                         </td>
@@ -391,6 +405,50 @@ let currentStudentName = null;
 let currentTeacherId = null;
 let currentTeacherName = null;
 let allTeachers = [];
+
+// 学员姓名和辅导老师姓名显示/隐藏功能
+let studentNameVisible = true;
+let teacherNameVisible = true;
+
+function toggleStudentNameVisibility() {
+    studentNameVisible = !studentNameVisible;
+    const eyeIcon = document.getElementById('studentNameEyeIcon');
+    const studentNameCells = document.querySelectorAll('.student-name-cell');
+
+    if (studentNameVisible) {
+        eyeIcon.textContent = 'visibility';
+        studentNameCells.forEach(cell => {
+            cell.style.filter = 'none';
+            cell.style.userSelect = 'auto';
+        });
+    } else {
+        eyeIcon.textContent = 'visibility_off';
+        studentNameCells.forEach(cell => {
+            cell.style.filter = 'blur(5px)';
+            cell.style.userSelect = 'none';
+        });
+    }
+}
+
+function toggleTeacherNameVisibility() {
+    teacherNameVisible = !teacherNameVisible;
+    const eyeIcon = document.getElementById('teacherNameEyeIcon');
+    const teacherNameCells = document.querySelectorAll('.teacher-name-cell');
+
+    if (teacherNameVisible) {
+        eyeIcon.textContent = 'visibility';
+        teacherNameCells.forEach(cell => {
+            cell.style.filter = 'none';
+            cell.style.userSelect = 'auto';
+        });
+    } else {
+        eyeIcon.textContent = 'visibility_off';
+        teacherNameCells.forEach(cell => {
+            cell.style.filter = 'blur(5px)';
+            cell.style.userSelect = 'none';
+        });
+    }
+}
 
 // 加载所有启用的老师
 function loadTeachers() {
