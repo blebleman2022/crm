@@ -43,7 +43,34 @@
                 </div>
             </div>
 
-            <!-- 第二行：时间段筛选 -->
+            <!-- 第二行：中高考时间、奖项要求 -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <select class="block w-full rounded-md border-0 py-2.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"
+                            name="exam_year">
+                        <option value="">所有中高考时间</option>
+                        {% for year in exam_years %}
+                            <option value="{{ year }}" {% if exam_year_filter == year|string %}selected{% endif %}>{{ year }}年</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <select class="block w-full rounded-md border-0 py-2.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"
+                            name="award_level">
+                        <option value="">所有奖项要求</option>
+                        <option value="无" {% if award_level_filter == '无' %}selected{% endif %}>无</option>
+                        <option value="市奖" {% if award_level_filter == '市奖' %}selected{% endif %}>市奖</option>
+                        <option value="国奖" {% if award_level_filter == '国奖' %}selected{% endif %}>国奖</option>
+                    </select>
+                </div>
+
+                <div>
+                    <!-- 占位，保持布局对齐 -->
+                </div>
+            </div>
+
+            <!-- 第三行：时间段筛选 -->
             <div class="flex items-center gap-3 bg-gray-50 p-3 rounded-md">
                 <div class="flex items-center gap-2">
                     <label for="start_date" class="text-sm font-medium text-gray-700">开始日期:</label>
@@ -220,11 +247,11 @@
         <div class="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-4">
             <div class="flex flex-1 justify-between sm:hidden">
                 {% if customers.has_prev %}
-                    <a href="{{ url_for('customers.list_customers', page=customers.prev_num, search=search, sales=sales_filter, service_type=service_type) }}"
+                    <a href="{{ url_for('customers.list_customers', page=customers.prev_num, search=search, sales=sales_filter, service_type=service_type, exam_year=exam_year_filter, award_level=award_level_filter) }}"
                        class="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">上一页</a>
                 {% endif %}
                 {% if customers.has_next %}
-                    <a href="{{ url_for('customers.list_customers', page=customers.next_num, search=search, sales=sales_filter, service_type=service_type) }}"
+                    <a href="{{ url_for('customers.list_customers', page=customers.next_num, search=search, sales=sales_filter, service_type=service_type, exam_year=exam_year_filter, award_level=award_level_filter) }}"
                        class="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">下一页</a>
                 {% endif %}
             </div>
@@ -239,7 +266,7 @@
                 <div>
                     <nav class="isolate inline-flex -space-x-px rounded-md shadow-sm">
                         {% if customers.has_prev %}
-                            <a href="{{ url_for('customers.list_customers', page=customers.prev_num, search=search, sales=sales_filter, service_type=service_type) }}"
+                            <a href="{{ url_for('customers.list_customers', page=customers.prev_num, search=search, sales=sales_filter, service_type=service_type, exam_year=exam_year_filter, award_level=award_level_filter) }}"
                                class="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
                                 <span class="material-symbols-outlined h-5 w-5">chevron_left</span>
                             </a>
@@ -248,7 +275,7 @@
                         {% for page_num in customers.iter_pages() %}
                             {% if page_num %}
                                 {% if page_num != customers.page %}
-                                    <a href="{{ url_for('customers.list_customers', page=page_num, search=search, sales=sales_filter, service_type=service_type) }}"
+                                    <a href="{{ url_for('customers.list_customers', page=page_num, search=search, sales=sales_filter, service_type=service_type, exam_year=exam_year_filter, award_level=award_level_filter) }}"
                                        class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">{{ page_num }}</a>
                                 {% else %}
                                     <span class="relative z-10 inline-flex items-center bg-blue-600 px-4 py-2 text-sm font-semibold text-white">{{ page_num }}</span>
@@ -259,7 +286,7 @@
                         {% endfor %}
 
                         {% if customers.has_next %}
-                            <a href="{{ url_for('customers.list_customers', page=customers.next_num, search=search, sales=sales_filter, service_type=service_type) }}"
+                            <a href="{{ url_for('customers.list_customers', page=customers.next_num, search=search, sales=sales_filter, service_type=service_type, exam_year=exam_year_filter, award_level=award_level_filter) }}"
                                class="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
                                 <span class="material-symbols-outlined h-5 w-5">chevron_right</span>
                             </a>
@@ -345,7 +372,7 @@
 
 <script>
 // 自动提交搜索表单
-document.querySelectorAll('select[name="service_type"], select[name="sales"]').forEach(select => {
+document.querySelectorAll('select[name="service_type"], select[name="sales"], select[name="exam_year"], select[name="award_level"]').forEach(select => {
     select.addEventListener('change', function() {
         this.form.submit();
     });

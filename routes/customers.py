@@ -36,6 +36,8 @@ def list_customers():
     sales_filter = request.args.get('sales', '', type=str)  # 销售筛选
     service_type = request.args.get('service_type', '', type=str)  # 服务类型筛选
     completed = request.args.get('completed', '', type=str)  # 已完成筛选
+    exam_year_filter = request.args.get('exam_year', '', type=str)  # 中高考时间筛选
+    award_level_filter = request.args.get('award_level', '', type=str)  # 奖项要求筛选
 
     # 时间段筛选参数（按客户新增时间）
     start_date = request.args.get('start_date', '', type=str)
@@ -99,6 +101,23 @@ def list_customers():
             (CompetitionDelivery.delivery_status == '服务完结')
         )
 
+    # 中高考时间筛选
+    if exam_year_filter:
+        query = query.filter(Customer.exam_year == int(exam_year_filter))
+
+    # 奖项要求筛选
+    if award_level_filter:
+        if award_level_filter == '无':
+            # 筛选没有奖项要求的客户
+            query = query.filter(
+                (Lead.competition_award_level.is_(None)) |
+                (Lead.competition_award_level == '') |
+                (Lead.competition_award_level == '无')
+            )
+        else:
+            # 筛选有特定奖项要求的客户（市奖或国奖）
+            query = query.filter(Lead.competition_award_level == award_level_filter)
+
     # 时间段筛选（按客户新增时间）
     if start_date:
         try:
@@ -158,6 +177,12 @@ def list_customers():
 
         competition_counts = {customer_id: count for customer_id, count in counts}
 
+    # 获取所有不同的中高考年份用于筛选
+    exam_years = db.session.query(Customer.exam_year).filter(
+        Customer.exam_year.isnot(None)
+    ).distinct().order_by(Customer.exam_year.desc()).all()
+    exam_years = [year[0] for year in exam_years]
+
     return render_template('customers/list.html',
                          customers=customers,
                          search=search,
@@ -168,7 +193,10 @@ def list_customers():
                          start_date=start_date,
                          end_date=end_date,
                          second_payments=second_payments,
-                         competition_counts=competition_counts)
+                         competition_counts=competition_counts,
+                         exam_year_filter=exam_year_filter,
+                         award_level_filter=award_level_filter,
+                         exam_years=exam_years)
 
 @customers_bp.route('/<int:customer_id>/detail')
 @login_required
