@@ -7,6 +7,7 @@ from flask_login import login_required, current_user
 from models import User, Customer, TutoringDelivery, DeliveryDocument, CustomerCompetition, db
 from functools import wraps
 from werkzeug.utils import secure_filename
+from communication_utils import CommunicationManager
 import os
 from datetime import datetime
 
@@ -319,6 +320,64 @@ def update_thesis_name(customer_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'更新失败: {str(e)}'}), 500
+
+@teacher_bp.route('/students/<int:customer_id>/communication_records', methods=['GET', 'POST'])
+@teacher_required
+def manage_communication_records(customer_id):
+    """获取/新增客户阶段沟通记录（老师端）"""
+    teacher = current_user.teacher_profile
+    if not teacher:
+        return jsonify({'success': False, 'message': '未找到老师信息'}), 403
+
+    student = Customer.query.get_or_404(customer_id)
+    if student.teacher_id != teacher.user_id:
+        return jsonify({'success': False, 'message': '您无权查看此学生信息'}), 403
+
+    if request.method == 'GET':
+        records = CommunicationManager.get_customer_communications(customer_id)
+        data = []
+        for record in records:
+            data.append({
+                'id': record.id,
+                'content': record.content,
+                'created_at': record.created_at.isoformat() if record.created_at else None,
+                'user_name': record.user.username if record.user else None
+            })
+
+        lead = student.lead
+        return jsonify({
+            'success': True,
+            'student': {
+                'name': lead.student_name if lead else '未知学员',
+                'grade': lead.grade if lead else ''
+            },
+            'communication_records': data
+        })
+
+    # POST - add communication record
+    content = request.form.get('content', '').strip()
+    communication_time = request.form.get('communication_time', '').strip()
+    if not content:
+        return jsonify({'success': False, 'message': '沟通内容不能为空'}), 400
+
+    created_at = datetime.utcnow()
+    if communication_time:
+        try:
+            created_at = datetime.fromisoformat(communication_time.replace('T', ' '))
+        except ValueError:
+            created_at = datetime.utcnow()
+
+    try:
+        CommunicationManager.add_customer_communication(
+            lead_id=student.lead_id,
+            customer_id=customer_id,
+            content=content,
+            user_id=current_user.id,
+            created_at=created_at
+        )
+        return jsonify({'success': True, 'message': '沟通记录添加成功'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'添加失败: {str(e)}'}), 500
 
 # ==================== 文档上传管理 ====================
 

@@ -27,7 +27,10 @@
                 {% for student in students %}
                 <tr class="hover:bg-gray-50">
                     <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="text-sm font-medium text-gray-900">{{ student.lead.student_name }}</div>
+                        <div class="text-sm font-medium text-blue-600 cursor-pointer hover:text-blue-900 hover:underline"
+                             onclick="openStudentDetailModal({{ student.id }})">
+                            {{ student.lead.student_name }}
+                        </div>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {% if student.exam_year %}
@@ -210,6 +213,107 @@
     </div>
 </div>
 
+<!-- 学员详情弹窗 -->
+<div id="studentDetailModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+    <div class="relative top-10 mx-auto p-0 border-0 w-full max-w-2xl shadow-2xl rounded-xl bg-white mb-10">
+        <div class="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-2 rounded-t-xl">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <span class="material-symbols-outlined text-white text-xl">person</span>
+                    <div class="flex items-center space-x-2">
+                        <h3 class="text-base font-semibold text-white">学员详情</h3>
+                        <span class="text-sm text-blue-100">学员：<span id="detailStudentName" class="font-medium"></span></span>
+                    </div>
+                </div>
+                <button type="button" onclick="closeStudentDetailModal()"
+                        class="focus:outline-none hover:scale-110 transition-transform duration-200 p-1"
+                        title="关闭">
+                    <span class="material-symbols-outlined text-lg text-white">close</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="p-6 space-y-6">
+            <!-- 基本信息 -->
+            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <div class="flex items-center mb-3">
+                    <span class="material-symbols-outlined text-blue-600 mr-2">badge</span>
+                    <h4 class="text-sm font-semibold text-gray-900">基本信息</h4>
+                </div>
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <span class="text-gray-500">学员姓名：</span>
+                        <span id="detailStudentNameInline" class="text-gray-900 font-medium"></span>
+                    </div>
+                    <div>
+                        <span class="text-gray-500">年级：</span>
+                        <span id="detailStudentGrade" class="text-gray-900 font-medium"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 客户阶段沟通记录 -->
+            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center">
+                        <span class="material-symbols-outlined text-blue-600 mr-2">chat</span>
+                        <h4 class="text-sm font-semibold text-gray-900">客户阶段沟通记录</h4>
+                    </div>
+                    <button type="button" onclick="showAddTeacherCommunicationModal()"
+                            class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700">
+                        <span class="material-symbols-outlined text-sm mr-1">add</span>
+                        新增记录
+                    </button>
+                </div>
+                <div id="teacherCommunicationRecords" class="max-h-60 overflow-y-auto border border-gray-200 rounded-lg bg-white">
+                    <div class="text-center text-gray-500 text-sm py-4">
+                        <span class="material-symbols-outlined text-2xl mb-2 text-gray-300">inbox</span>
+                        <p>暂无沟通记录</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 新增沟通记录弹窗（老师端） -->
+<div id="addTeacherCommunicationModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+    <div class="relative top-20 mx-auto p-0 border-0 w-full max-w-md shadow-2xl rounded-xl bg-white">
+        <div class="bg-blue-600 px-5 py-3 rounded-t-xl">
+            <div class="flex items-center justify-between">
+                <h3 class="text-base font-semibold text-white">新增沟通记录</h3>
+                <button onclick="closeAddTeacherCommunicationModal()" class="text-white hover:text-blue-100">
+                    <span class="material-symbols-outlined text-lg">close</span>
+                </button>
+            </div>
+        </div>
+        <form id="addTeacherCommunicationForm" onsubmit="submitTeacherCommunicationRecord(event)" class="p-5 space-y-4">
+            <input type="hidden" id="teacherCommunicationCustomerId">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">沟通内容</label>
+                <textarea id="teacherCommunicationContent" rows="4" required
+                          class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="请输入客户阶段沟通内容..."></textarea>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">沟通时间</label>
+                <input type="datetime-local" id="teacherCommunicationTime"
+                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="flex justify-end space-x-3">
+                <button type="button" onclick="closeAddTeacherCommunicationModal()"
+                        class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    取消
+                </button>
+                <button type="submit"
+                        class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
+                    保存
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- 添加赛事弹窗（复用班主任版本） -->
 <div id="addCompetitionModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50 flex items-center justify-center">
     <div class="relative mx-auto p-0 border-0 w-full max-w-sm shadow-2xl rounded-xl bg-white">
@@ -273,6 +377,7 @@ const now = new Date();
 let currentCustomerId = null;
 let customerData = null;
 let progressCompetitionNames = [];
+let currentDetailCustomerId = null;
 
 // ========== 进度更新弹窗 ==========
 
@@ -328,6 +433,170 @@ function closeProgressModal() {
     document.getElementById('progressModal').classList.add('hidden');
     currentCustomerId = null;
     customerData = null;
+}
+
+// ========== 学员详情（老师端） ==========
+function openStudentDetailModal(customerId) {
+    currentDetailCustomerId = customerId;
+    const modal = document.getElementById('studentDetailModal');
+    if (!modal) return;
+
+    // 默认占位
+    document.getElementById('detailStudentName').textContent = '';
+    document.getElementById('detailStudentNameInline').textContent = '';
+    document.getElementById('detailStudentGrade').textContent = '';
+    document.getElementById('teacherCommunicationRecords').innerHTML = `
+        <div class="text-center text-gray-500 text-sm py-4">
+            <span class="material-symbols-outlined text-2xl mb-2 text-gray-300">hourglass_empty</span>
+            <p>加载中...</p>
+        </div>
+    `;
+
+    fetch(`/teacher/students/${customerId}/communication_records`)
+        .then(res => res.json())
+        .then(data => {
+            if (!data.success) {
+                throw new Error(data.message || '获取失败');
+            }
+            const student = data.student || {};
+            const name = student.name || '未知学员';
+            const grade = student.grade || '-';
+            document.getElementById('detailStudentName').textContent = name;
+            document.getElementById('detailStudentNameInline').textContent = name;
+            document.getElementById('detailStudentGrade').textContent = grade;
+
+            renderTeacherCommunicationRecords(data.communication_records || []);
+        })
+        .catch(error => {
+            document.getElementById('teacherCommunicationRecords').innerHTML = `
+                <div class="text-center text-red-500 text-sm py-4">
+                    <span class="material-symbols-outlined mr-2">error</span>
+                    加载沟通记录失败
+                </div>
+            `;
+        });
+
+    modal.classList.remove('hidden');
+}
+
+function closeStudentDetailModal() {
+    const modal = document.getElementById('studentDetailModal');
+    if (modal) modal.classList.add('hidden');
+    currentDetailCustomerId = null;
+}
+
+function formatTeacherName(name) {
+    if (!name) return '-';
+    return `${name.trim()[0]}老师`;
+}
+
+function renderTeacherCommunicationRecords(records) {
+    const container = document.getElementById('teacherCommunicationRecords');
+    if (!container) return;
+
+    if (!records.length) {
+        container.innerHTML = `
+            <div class="text-center text-gray-500 text-sm py-4">
+                <span class="material-symbols-outlined text-2xl mb-2 text-gray-300">inbox</span>
+                <p>暂无沟通记录</p>
+            </div>
+        `;
+        return;
+    }
+
+    records.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    const rows = records.map(record => `
+        <tr class="hover:bg-gray-50">
+            <td class="px-3 py-2 whitespace-nowrap text-xs text-gray-500">
+                ${record.created_at ? new Date(record.created_at).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-'}
+            </td>
+            <td class="px-3 py-2 text-sm text-gray-900">
+                <div class="max-w-xs" title="${record.content}">${record.content}</div>
+            </td>
+            <td class="px-3 py-2 text-xs text-gray-500 whitespace-nowrap">
+                ${formatTeacherName(record.user_name)}
+            </td>
+        </tr>
+    `).join('');
+
+    container.innerHTML = `
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">时间</th>
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">沟通内容</th>
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">填写人</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                ${rows}
+            </tbody>
+        </table>
+    `;
+}
+
+function showAddTeacherCommunicationModal() {
+    if (!currentDetailCustomerId) return;
+    document.getElementById('teacherCommunicationCustomerId').value = currentDetailCustomerId;
+
+    const timeInput = document.getElementById('teacherCommunicationTime');
+    if (timeInput) {
+        const now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        timeInput.value = now.toISOString().slice(0, 16);
+    }
+
+    const modal = document.getElementById('addTeacherCommunicationModal');
+    if (modal) modal.classList.remove('hidden');
+    const contentInput = document.getElementById('teacherCommunicationContent');
+    if (contentInput) {
+        setTimeout(() => contentInput.focus(), 100);
+    }
+}
+
+function closeAddTeacherCommunicationModal() {
+    const modal = document.getElementById('addTeacherCommunicationModal');
+    if (modal) modal.classList.add('hidden');
+    const form = document.getElementById('addTeacherCommunicationForm');
+    if (form) form.reset();
+}
+
+function submitTeacherCommunicationRecord(event) {
+    event.preventDefault();
+    const customerId = document.getElementById('teacherCommunicationCustomerId').value;
+    const content = document.getElementById('teacherCommunicationContent').value.trim();
+    const communicationTime = document.getElementById('teacherCommunicationTime').value;
+    if (!content) {
+        alert('沟通内容不能为空');
+        return;
+    }
+    const formData = new FormData();
+    formData.append('content', content);
+    if (communicationTime) {
+        formData.append('communication_time', communicationTime);
+    }
+
+    fetch(`/teacher/students/${customerId}/communication_records`, {
+        method: 'POST',
+        body: formData
+    })
+        .then(res => res.json())
+        .then(data => {
+            if (!data.success) {
+                throw new Error(data.message || '添加失败');
+            }
+            closeAddTeacherCommunicationModal();
+            return fetch(`/teacher/students/${customerId}/communication_records`);
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                renderTeacherCommunicationRecords(data.communication_records || []);
+            }
+        })
+        .catch(error => {
+            alert('添加沟通记录失败：' + error.message);
+        });
 }
 
 // ========== 赛事管理功能（复用班主任版本） ==========
@@ -1218,7 +1487,7 @@ async function loadCompetitionNames() {
             <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-2">
                     <span class="material-symbols-outlined text-white text-2xl">emoji_events</span>
-                    <div>
+                    <div class="flex items-center space-x-2">
                         <h3 class="text-lg font-semibold text-white">赛事进展管理</h3>
                         <span class="text-sm text-blue-100">学员：<span id="competitionProgressStudentName"></span></span>
                     </div>

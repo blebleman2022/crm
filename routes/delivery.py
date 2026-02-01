@@ -3,6 +3,7 @@ from flask_login import login_required, current_user
 from functools import wraps
 from models import User, Customer, Lead, TutoringDelivery, CustomerCompetition, Payment, DeliveryDocument, db
 from datetime import datetime, date
+from werkzeug.utils import secure_filename
 from sqlalchemy import and_, func
 import os
 
@@ -414,27 +415,178 @@ def view_customer_documents(customer_id):
     if customer.teacher_user_id != current_user.id:
         return jsonify({'success': False, 'message': '您无权查看此客户的文档'}), 403
 
-    # 获取所有最新版本的文档
+    # 获取所有文档（其他材料允许多份）
     documents = DeliveryDocument.query.filter_by(
-        customer_id=customer_id,
-        is_latest=True
-    ).all()
+        customer_id=customer_id
+    ).order_by(DeliveryDocument.created_at.desc()).all()
 
     # 按文档类型分组并转换为字典
     docs_by_type = {}
     for doc in documents:
-        docs_by_type[doc.doc_type] = {
+        payload = {
             'id': doc.id,
             'file_name': doc.file_name,
             'version': doc.version,
             'created_at': doc.created_at.isoformat(),
             'uploaded_by_name': doc.uploaded_by_name
         }
+        if doc.doc_type == 'other_materials':
+            docs_by_type.setdefault(doc.doc_type, []).append(payload)
+        else:
+            if doc.is_latest or doc.doc_type not in docs_by_type:
+                docs_by_type[doc.doc_type] = payload
 
     return jsonify({
         'success': True,
         'documents': docs_by_type
     })
+
+
+# ==================== 班主任文档上传/删除 ====================
+
+ALLOWED_DOC_EXTENSIONS = {'doc', 'docx', 'pdf', 'ppt', 'pptx'}
+MAX_DOC_SIZE = 10 * 1024 * 1024  # 10MB
+
+DOC_TYPE_NAMES = {
+    'thesis_draft': '课题初稿',
+    'thesis_final': '终稿',
+    'presentation': '演示方案',
+    'novelty_report': '查新报告',
+    'plagiarism_report': '查重报告',
+    'evaluation_material': '综评材料',
+    'preview_material': '预习材料',
+    'other_materials': '其他材料'
+}
+
+def allowed_doc_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_DOC_EXTENSIONS
+
+def get_doc_upload_folder():
+    upload_folder = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads', 'documents')
+    if not os.path.exists(upload_folder):
+        os.makedirs(upload_folder)
+    return upload_folder
+
+@delivery_bp.route('/customers/<int:customer_id>/upload/<doc_type>', methods=['POST'])
+@login_required
+@teacher_supervisor_required
+def upload_customer_document(customer_id, doc_type):
+    """班主任上传文档"""
+    customer = Customer.query.get_or_404(customer_id)
+    if customer.teacher_user_id != current_user.id:
+        return jsonify({'success': False, 'message': '您无权为此客户上传文档'}), 403
+
+    if doc_type not in DOC_TYPE_NAMES:
+        return jsonify({'success': False, 'message': '无效的文档类型'}), 400
+
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'message': '未选择文件'}), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'success': False, 'message': '未选择文件'}), 400
+
+    if not allowed_doc_file(file.filename):
+        return jsonify({'success': False, 'message': '不支持的文件格式，仅支持: doc, docx, pdf, ppt, pptx'}), 400
+
+    file.seek(0, os.SEEK_END)
+    file_size = file.tell()
+    file.seek(0)
+    if file_size > MAX_DOC_SIZE:
+        return jsonify({'success': False, 'message': f'文件大小超过限制（最大{MAX_DOC_SIZE // 1024 // 1024}MB）'}), 400
+
+    try:
+        original_filename = secure_filename(file.filename)
+        file_ext = original_filename.rsplit('.', 1)[1].lower()
+
+        if doc_type == 'other_materials':
+            latest_doc = DeliveryDocument.query.filter_by(
+                customer_id=customer_id,
+                doc_type=doc_type
+            ).order_by(DeliveryDocument.version.desc()).first()
+        else:
+            latest_doc = DeliveryDocument.query.filter_by(
+                customer_id=customer_id,
+                doc_type=doc_type,
+                is_latest=True
+            ).first()
+
+        if doc_type != 'other_materials' and latest_doc:
+            old_file_path = latest_doc.file_path
+            if os.path.exists(old_file_path):
+                try:
+                    os.remove(old_file_path)
+                except Exception:
+                    pass
+
+        timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S')
+        new_filename = f"{customer_id}_{doc_type}_{timestamp}.{file_ext}"
+        upload_folder = get_doc_upload_folder()
+        file_path = os.path.join(upload_folder, new_filename)
+        file.save(file_path)
+
+        if doc_type != 'other_materials' and latest_doc:
+            db.session.delete(latest_doc)
+
+        next_version = 1
+        if doc_type == 'other_materials' and latest_doc:
+            next_version = (latest_doc.version or 1) + 1
+
+        new_doc = DeliveryDocument(
+            customer_id=customer_id,
+            doc_type=doc_type,
+            file_name=original_filename,
+            file_path=file_path,
+            file_size=file_size,
+            file_ext=file_ext,
+            uploaded_by_type='teacher_supervisor',
+            uploaded_by_id=current_user.id,
+            uploaded_by_name=current_user.username,
+            version=next_version,
+            is_latest=True,
+            description=''
+        )
+
+        db.session.add(new_doc)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'{DOC_TYPE_NAMES[doc_type]}上传成功',
+            'document': {
+                'id': new_doc.id,
+                'file_name': new_doc.file_name,
+                'version': new_doc.version,
+                'file_size': new_doc.file_size,
+                'created_at': new_doc.created_at.strftime('%Y-%m-%d %H:%M:%S')
+            }
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'上传失败: {str(e)}'}), 500
+
+@delivery_bp.route('/documents/<int:doc_id>/delete', methods=['POST'])
+@login_required
+@teacher_supervisor_required
+def delete_customer_document(doc_id):
+    """班主任删除文档（仅删除自己上传的）"""
+    doc = DeliveryDocument.query.get_or_404(doc_id)
+    customer = Customer.query.get_or_404(doc.customer_id)
+    if customer.teacher_user_id != current_user.id:
+        return jsonify({'success': False, 'message': '您无权删除此文档'}), 403
+    if doc.uploaded_by_type != 'teacher_supervisor' or doc.uploaded_by_id != current_user.id:
+        return jsonify({'success': False, 'message': '您无权删除该文档'}), 403
+
+    try:
+        if os.path.exists(doc.file_path):
+            os.remove(doc.file_path)
+        doc_type_name = DOC_TYPE_NAMES.get(doc.doc_type, '文档')
+        db.session.delete(doc)
+        db.session.commit()
+        return jsonify({'success': True, 'message': f'{doc_type_name}删除成功'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'删除失败: {str(e)}'}), 500
 
 @delivery_bp.route('/documents/<int:doc_id>/download')
 @login_required

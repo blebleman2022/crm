@@ -497,6 +497,7 @@ def customer_api(customer_id):
 
     customer_data = {
         'id': customer.id,
+        'lead_id': customer.lead_id,
         'student_name': customer.lead.student_name,
         'parent_wechat_display_name': customer.lead.parent_wechat_display_name,
         'parent_wechat_name': customer.lead.parent_wechat_name,

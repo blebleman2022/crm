@@ -331,9 +331,11 @@
         <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
         <div class="inline-block transform overflow-hidden rounded-lg bg-white text-left align-bottom shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:align-middle">
             <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <h3 class="text-lg font-medium leading-6 text-gray-900 mb-4">分配辅导老师</h3>
+                <div class="flex items-center space-x-2 mb-4">
+                    <h3 class="text-lg font-medium leading-6 text-gray-900">分配辅导老师</h3>
+                    <span class="text-sm text-gray-600">学员：<span id="assignStudentName" class="font-medium"></span></span>
+                </div>
                 <div class="mb-4">
-                    <p class="text-sm text-gray-600 mb-3">学员：<span id="assignStudentName" class="font-medium"></span></p>
                     <label class="block text-sm font-medium text-gray-700 mb-2">选择辅导老师</label>
                     <select id="teacherSelect" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                         <option value="">请选择辅导老师</option>
@@ -360,9 +362,11 @@
         <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
         <div class="inline-block transform overflow-hidden rounded-lg bg-white text-left align-bottom shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:align-middle">
             <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <h3 class="text-lg font-medium leading-6 text-gray-900 mb-4">更换辅导老师</h3>
+                <div class="flex items-center space-x-2 mb-4">
+                    <h3 class="text-lg font-medium leading-6 text-gray-900">更换辅导老师</h3>
+                    <span class="text-sm text-gray-600">学员：<span id="changeStudentName" class="font-medium"></span></span>
+                </div>
                 <div class="mb-4">
-                    <p class="text-sm text-gray-600 mb-3">学员：<span id="changeStudentName" class="font-medium"></span></p>
                     <p class="text-sm text-gray-600 mb-3">当前辅导老师：<span id="currentTeacherName" class="font-medium text-blue-600"></span></p>
                     <label class="block text-sm font-medium text-gray-700 mb-2">选择新辅导老师</label>
                     <select id="newTeacherSelect" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
@@ -670,7 +674,6 @@ function openProgressModal(customerId, salesUserId) {
                 const customer = data.customer;
 
                 // 设置全局变量
-                currentCustomerLeadId = customer.lead_id;
                 currentCustomerId = customerId;
 
                 // 填充表单数据
@@ -712,9 +715,6 @@ function openProgressModal(customerId, salesUserId) {
                 // 设置星标状态
                 updatePriorityStarDisplay(customer.is_priority);
 
-                // 加载客户阶段沟通记录
-                loadCustomerCommunicationRecords(customer.lead_id, customerId);
-
                 // 加载课程记录图片（如果有课题辅导服务）
                 if (hasTutoringService) {
                     loadCourseRecordImages(customerId);
@@ -724,6 +724,9 @@ function openProgressModal(customerId, salesUserId) {
                 if (hasCompetitionService) {
                     loadAwardCertificateImages(customerId);
                 }
+
+                // 加载文档列表
+                loadProgressDocuments(customerId);
 
                 // 显示模态窗口
                 document.getElementById('progressModal').classList.remove('hidden');
@@ -739,7 +742,6 @@ function openProgressModal(customerId, salesUserId) {
 function closeProgressModal() {
     document.getElementById('progressModal').classList.add('hidden');
     // 清理全局变量
-    currentCustomerLeadId = null;
     currentCustomerId = null;
 }
 
@@ -781,187 +783,6 @@ function updateProgress() {
     });
 }
 {% endif %}
-
-// 加载客户阶段沟通记录
-function loadCustomerCommunicationRecords(leadId, customerId) {
-    const container = document.getElementById('customerCommunicationRecords');
-    const statsContainer = document.getElementById('customerCommunicationStats');
-
-    // 显示加载状态
-    container.innerHTML = `
-        <div class="text-center text-gray-500 text-sm py-4">
-            <span class="material-symbols-outlined text-2xl mb-2 text-gray-300">hourglass_empty</span>
-            <p>加载中...</p>
-        </div>
-    `;
-
-    // 获取客户阶段沟通记录
-    fetch(`/consultations/details_data/${leadId}?customer_only=true`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success && data.data && data.data.communication_records) {
-                const records = data.data.communication_records;
-                const stats = data.data.stats || {};
-
-                // 更新统计信息
-                if (statsContainer) {
-                    statsContainer.textContent = `客户阶段: ${stats.customer_stage_count || 0} 条记录`;
-                }
-
-                if (records.length > 0) {
-                    // 按时间倒序排列
-                    records.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
-                    // 创建表格形式显示
-                    const recordsHtml = `
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">时间</th>
-                                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">沟通内容</th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
-                                ${records.map(record => `
-                                    <tr class="hover:bg-gray-50">
-                                        <td class="px-3 py-2 whitespace-nowrap text-xs text-gray-500">
-                                            ${new Date(record.created_at).toLocaleString('zh-CN', {
-                                                month: '2-digit',
-                                                day: '2-digit',
-                                                hour: '2-digit',
-                                                minute: '2-digit'
-                                            })}
-                                        </td>
-                                        <td class="px-3 py-2 text-sm text-gray-900">
-                                            <div class="max-w-xs" title="${record.content}">
-                                                ${record.content}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    `;
-
-                    container.innerHTML = recordsHtml;
-                } else {
-                    container.innerHTML = `
-                        <div class="text-center text-gray-500 text-sm py-8">
-                            <span class="material-symbols-outlined text-3xl mb-3 text-gray-300">inbox</span>
-                            <p class="text-lg font-medium mb-1">暂无沟通记录</p>
-                            <p class="text-sm">点击上方按钮添加第一条沟通记录</p>
-                        </div>
-                    `;
-                }
-            } else {
-                container.innerHTML = `
-                    <div class="text-center text-red-500 text-sm py-4">
-                        <span class="material-symbols-outlined mr-2">error</span>
-                        加载沟通记录失败
-                    </div>
-                `;
-            }
-        })
-        .catch(error => {
-            console.error('Error loading communication records:', error);
-            container.innerHTML = `
-                <div class="text-center text-red-500 text-sm py-4">
-                    <span class="material-symbols-outlined mr-2">error</span>
-                    网络错误，请稍后重试
-                </div>
-            `;
-        });
-}
-
-// 全局变量存储当前客户信息
-let currentCustomerLeadId = null;
-
-// 显示新增客户沟通记录表单
-function showAddCustomerCommunicationForm() {
-    const modal = document.getElementById('addCustomerCommunicationModal');
-    if (modal && currentCustomerLeadId) {
-        // 设置lead_id
-        document.getElementById('customerCommunicationLeadId').value = currentCustomerLeadId;
-
-        // 设置默认时间为当前时间
-        const timeInput = document.getElementById('customerCommunicationTime');
-        if (timeInput) {
-            const now = new Date();
-            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-            timeInput.value = now.toISOString().slice(0, 16);
-        }
-
-        modal.classList.remove('hidden');
-
-        // 聚焦到内容输入框
-        const contentInput = document.getElementById('customerCommunicationContent');
-        if (contentInput) {
-            setTimeout(() => contentInput.focus(), 100);
-        }
-    }
-}
-
-// 关闭新增客户沟通记录表单
-function closeAddCustomerCommunicationModal() {
-    const modal = document.getElementById('addCustomerCommunicationModal');
-    if (modal) {
-        modal.classList.add('hidden');
-
-        // 清空表单
-        const form = document.getElementById('addCustomerCommunicationForm');
-        if (form) {
-            form.reset();
-        }
-    }
-}
-
-// 提交客户沟通记录
-function submitCustomerCommunicationRecord(event) {
-    event.preventDefault();
-
-    const form = event.target;
-    const formData = new FormData(form);
-    const leadId = document.getElementById('customerCommunicationLeadId').value;
-    const submitBtn = form.querySelector('button[type="submit"]');
-    const originalText = submitBtn.innerHTML;
-
-    // 禁用提交按钮
-    submitBtn.innerHTML = '<span class="material-symbols-outlined text-sm mr-1 animate-spin">hourglass_empty</span>保存中...';
-    submitBtn.disabled = true;
-
-    fetch(`/consultations/add_communication/${leadId}`, {
-        method: 'POST',
-        body: formData,
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'Accept': 'application/json'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // 关闭表单
-            closeAddCustomerCommunicationModal();
-
-            // 重新加载沟通记录
-            loadCustomerCommunicationRecords(leadId, currentCustomerId);
-
-            // 显示成功提示
-            showCustomerNotification('沟通记录添加成功！', 'success');
-        } else {
-            throw new Error(data.message || '添加失败');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showCustomerNotification('添加沟通记录失败：' + error.message, 'error');
-    })
-    .finally(() => {
-        // 恢复按钮状态
-        submitBtn.innerHTML = originalText;
-        submitBtn.disabled = false;
-    });
-}
 
 // 显示通知
 function showCustomerNotification(message, type = 'info') {
@@ -1148,7 +969,7 @@ function togglePriorityCustomer() {
                     <!-- 获奖证书图片 -->
                     <div class="mt-4 border-t border-gray-200 pt-4">
                         <div class="flex items-center justify-between mb-2">
-                            <label class="block text-sm font-medium text-gray-700">获奖证书图片</label>
+                            <label class="block text-sm font-medium text-gray-700">获奖证书图片/好评截图</label>
                             <button type="button" onclick="showAwardCertificateImageUpload()"
                                     class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md text-blue-600 bg-blue-50 hover:bg-blue-100 transition-all">
                                 <span class="material-symbols-outlined text-sm mr-1">add_photo_alternate</span>
@@ -1186,33 +1007,19 @@ function togglePriorityCustomer() {
                     </div>
                 </div>
 
-                <!-- 客户阶段沟通记录 -->
+                <!-- 文档管理 -->
                 <div class="mb-6 bg-gray-50 p-4 rounded-lg border border-gray-200">
                     <div class="flex items-center justify-between mb-3">
                         <div class="flex items-center">
-                            <span class="material-symbols-outlined text-blue-600 mr-2">chat</span>
-                            <h4 class="text-sm font-semibold text-gray-900">客户阶段沟通记录</h4>
+                            <span class="material-symbols-outlined text-blue-600 mr-2">description</span>
+                            <h4 class="text-sm font-semibold text-gray-900">文档上传</h4>
                         </div>
-                        <button type="button" onclick="showAddCustomerCommunicationForm()"
-                                class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-all">
-                            <span class="material-symbols-outlined text-sm mr-1">add</span>
-                            新增记录
-                        </button>
+                        <span class="text-xs text-gray-500">可拖拽文件到对应材料框上传</span>
                     </div>
-
-                    <!-- 沟通记录表格 -->
-                    <div id="customerCommunicationRecords" class="max-h-60 overflow-y-auto border border-gray-200 rounded-lg bg-white">
-                        <div class="text-center text-gray-500 text-sm py-4">
-                            <span class="material-symbols-outlined text-2xl mb-2 text-gray-300">inbox</span>
-                            <p>暂无沟通记录</p>
-                            <p class="text-xs mt-1">点击上方按钮添加第一条沟通记录</p>
-                        </div>
+                    <div id="documentsList" class="grid grid-cols-2 gap-3">
+                        <!-- 文档上传项将动态生成 -->
                     </div>
-
-                    <!-- 统计信息 -->
-                    <div id="customerCommunicationStats" class="mt-2 text-xs text-gray-500 text-center">
-                        客户阶段: 0 条记录
-                    </div>
+                    <div class="mt-2 text-xs text-gray-500">可选格式：doc、docx、pdf、ppt、pptx</div>
                 </div>
 
                 <!-- 按钮组 -->
@@ -1324,57 +1131,6 @@ function togglePriorityCustomer() {
 }
 </style>
 
-<!-- 新增客户沟通记录模态框 -->
-<div id="addCustomerCommunicationModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
-    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-        <div class="mt-3">
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="text-lg font-semibold text-gray-900">新增客户沟通记录</h3>
-                <button onclick="closeAddCustomerCommunicationModal()" class="text-gray-400 hover:text-gray-600">
-                    <span class="material-symbols-outlined">close</span>
-                </button>
-            </div>
-
-            <form id="addCustomerCommunicationForm" onsubmit="submitCustomerCommunicationRecord(event)" class="space-y-4">
-                <input type="hidden" id="customerCommunicationLeadId">
-
-                <div>
-                    <label for="customerCommunicationContent" class="block text-sm font-medium text-gray-700 mb-2">
-                        <span class="material-symbols-outlined text-sm mr-1">edit</span>沟通内容
-                    </label>
-                    <textarea id="customerCommunicationContent"
-                              name="content"
-                              rows="4"
-                              required
-                              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                              placeholder="请输入客户阶段的沟通内容或反馈信息..."></textarea>
-                </div>
-
-                <div>
-                    <label for="customerCommunicationTime" class="block text-sm font-medium text-gray-700 mb-2">
-                        <span class="material-symbols-outlined text-sm mr-1">schedule</span>沟通时间
-                    </label>
-                    <input type="datetime-local"
-                           id="customerCommunicationTime"
-                           name="communication_time"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                </div>
-
-                <div class="flex justify-end space-x-3 pt-4">
-                    <button type="button"
-                            onclick="closeAddCustomerCommunicationModal()"
-                            class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
-                        取消
-                    </button>
-                    <button type="submit"
-                            class="px-4 py-2 bg-blue-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-blue-700">
-                        <span class="material-symbols-outlined text-sm mr-1">save</span>保存记录
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
 {% endif %}
 
 <!-- 包含学员详情弹窗组件 -->
@@ -1477,6 +1233,217 @@ function renderCompetitions(competitions) {
             </div>
         </div>
     `).join('');
+}
+
+// ========== 文档管理功能（进度更新弹窗） ==========
+function renderDocuments(customerId, uploadedDocs = {}) {
+    const container = document.getElementById('documentsList');
+    const docTypes = [
+        { key: 'preview_material', name: '预习材料' },
+        { key: 'thesis_draft', name: '课题初稿' },
+        { key: 'thesis_final', name: '终稿' },
+        { key: 'presentation', name: '演示方案' },
+        { key: 'novelty_report', name: '查新报告' },
+        { key: 'plagiarism_report', name: '查重报告' },
+        { key: 'evaluation_material', name: '综评材料' },
+        { key: 'other_materials', name: '其他材料' }
+    ];
+
+    container.innerHTML = docTypes.map(doc => {
+        const uploaded = uploadedDocs[doc.key];
+        if (doc.key === 'other_materials') {
+            const files = Array.isArray(uploaded) ? uploaded : [];
+            const listHtml = files.length
+                ? files.map(file => `
+                    <div class="flex items-start justify-between gap-2 py-1">
+                        <span class="text-xs text-gray-600 truncate flex-1 min-w-0">${file.file_name}</span>
+                        <div class="flex items-center gap-1.5 shrink-0">
+                            <a href="/delivery/documents/${file.id}/download"
+                               class="inline-flex items-center px-2.5 py-1 border border-green-600 text-sm font-medium rounded text-green-700 bg-white hover:bg-green-50"
+                               title="下载">
+                                <span class="material-symbols-outlined text-sm">download</span>
+                            </a>
+                            <button type="button" onclick="deleteDocument(${file.id}, '${doc.key}')"
+                                    class="inline-flex items-center px-2.5 py-1 border border-red-600 text-sm font-medium rounded text-red-700 bg-white hover:bg-red-50"
+                                    title="删除">
+                                <span class="material-symbols-outlined text-sm">delete</span>
+                            </button>
+                        </div>
+                    </div>
+                `).join('')
+                : '<div class="text-xs text-gray-400">暂无已上传文件</div>';
+
+            return `
+                <div id="doc-${doc.key}" class="doc-dropzone bg-white p-2.5 border border-gray-200 rounded min-h-[42px]" data-doc-key="${doc.key}" data-customer-id="${customerId}">
+                    <div class="flex items-start justify-between gap-2 mb-2">
+                        <span class="text-sm text-gray-900 font-medium">${doc.name}</span>
+                        <label class="cursor-pointer inline-flex items-center px-2.5 py-1.5 border border-blue-600 text-sm font-medium rounded text-blue-600 bg-white hover:bg-blue-50">
+                            <span class="material-symbols-outlined text-sm">upload</span>
+                            <input type="file" class="hidden" accept=".doc,.docx,.pdf,.ppt,.pptx"
+                                   onchange="uploadDocument(this, ${customerId}, '${doc.key}')">
+                        </label>
+                    </div>
+                    <div class="space-y-1">
+                        ${listHtml}
+                    </div>
+                </div>
+            `;
+        }
+        if (uploaded) {
+            return `
+                <div id="doc-${doc.key}" class="doc-dropzone flex items-start justify-between gap-2 p-2.5 border border-green-200 rounded bg-green-50" style="min-height: 42px;" data-doc-key="${doc.key}" data-customer-id="${customerId}">
+                    <div class="flex items-start flex-1 min-w-0">
+                        <span class="material-symbols-outlined text-green-600 mr-1.5">check_circle</span>
+                        <span class="text-sm text-gray-900 truncate flex-1">${doc.name}</span>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-1.5 ml-2 shrink-0">
+                        <a href="/delivery/documents/${uploaded.id}/download"
+                           class="inline-flex items-center px-2.5 py-1 border border-green-600 text-sm font-medium rounded text-green-700 bg-white hover:bg-green-50"
+                           title="下载">
+                            <span class="material-symbols-outlined text-sm">download</span>
+                        </a>
+                        <label class="cursor-pointer inline-flex items-center px-2.5 py-1 border border-blue-600 text-sm font-medium rounded text-blue-600 bg-white hover:bg-blue-50"
+                               title="替换">
+                            <span class="material-symbols-outlined text-sm">upload</span>
+                            <input type="file" class="hidden" accept=".doc,.docx,.pdf,.ppt,.pptx"
+                                   onchange="uploadDocument(this, ${customerId}, '${doc.key}')">
+                        </label>
+                        <button type="button" onclick="deleteDocument(${uploaded.id}, '${doc.key}')"
+                            class="inline-flex items-center px-2.5 py-1 border border-red-600 text-sm font-medium rounded text-red-700 bg-white hover:bg-red-50"
+                            title="删除">
+                            <span class="material-symbols-outlined text-sm">delete</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+        } else {
+            return `
+                <div id="doc-${doc.key}" class="doc-dropzone bg-white flex items-start justify-between gap-2 p-2.5 border border-gray-200 rounded" style="min-height: 42px;" data-doc-key="${doc.key}" data-customer-id="${customerId}">
+                    <span class="text-sm text-gray-900 font-medium truncate flex-1 min-w-0">${doc.name}</span>
+                    <label class="cursor-pointer inline-flex items-center px-2.5 py-1.5 border border-blue-600 text-sm font-medium rounded text-blue-600 bg-white hover:bg-blue-50">
+                        <span class="material-symbols-outlined text-sm">upload</span>
+                        <input type="file" class="hidden" accept=".doc,.docx,.pdf,.ppt,.pptx"
+                               onchange="uploadDocument(this, ${customerId}, '${doc.key}')">
+                    </label>
+                </div>
+            `;
+        }
+    }).join('');
+
+    initDocDropzones();
+}
+
+function updateDocUploadStatus(docKey, status, message = '') {
+    const container = document.getElementById(`doc-${docKey}`);
+    if (!container) return;
+
+    if (status === 'uploading') {
+        container.className = 'flex items-center justify-between p-2.5 border border-blue-300 rounded bg-blue-50';
+        container.innerHTML = `
+            <div class="flex items-center flex-1">
+                <span class="material-symbols-outlined text-blue-600 mr-1.5 animate-spin">sync</span>
+                <span class="text-sm text-blue-600 truncate flex-1">上传中...</span>
+            </div>
+            <span class="text-xs text-blue-500">请稍候</span>
+        `;
+    } else if (status === 'error') {
+        container.className = 'flex items-center justify-between p-2.5 border border-red-300 rounded bg-red-50';
+        container.innerHTML = `
+            <div class="flex items-center flex-1">
+                <span class="material-symbols-outlined text-red-600 mr-1.5">error</span>
+                <span class="text-sm text-red-600 truncate flex-1">${message || '上传失败'}</span>
+            </div>
+            <button onclick="resetDocUpload('${docKey}')" class="text-xs text-blue-600 hover:underline">重试</button>
+        `;
+    }
+}
+
+function resetDocUpload(docKey) {
+    refreshDocumentsList(currentCustomerId);
+}
+
+async function uploadDocument(input, customerId, docType) {
+    const file = input.files[0];
+    if (!file) return;
+    await uploadDocumentFile(file, customerId, docType);
+    input.value = '';
+}
+
+async function uploadDocumentFile(file, customerId, docType) {
+    if (!file) return;
+    updateDocUploadStatus(docType, 'uploading');
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+        const response = await fetch(`/delivery/customers/${customerId}/upload/${docType}`, {
+            method: 'POST',
+            body: formData
+        });
+        const data = await response.json();
+        if (data.success) {
+            await refreshDocumentsList(customerId);
+        } else {
+            updateDocUploadStatus(docType, 'error', data.message);
+        }
+    } catch (error) {
+        updateDocUploadStatus(docType, 'error', error.message);
+    }
+}
+
+async function refreshDocumentsList(customerId) {
+    try {
+        const response = await fetch(`/delivery/customers/${customerId}/documents`);
+        const data = await response.json();
+        if (data.success) {
+            renderDocuments(customerId, data.documents || {});
+        }
+    } catch (error) {
+        console.error('刷新文档列表失败:', error);
+    }
+}
+
+async function deleteDocument(documentId, docType) {
+    if (!confirm('确定要删除这个文档吗？')) return;
+    try {
+        const response = await fetch(`/delivery/documents/${documentId}/delete`, { method: 'POST' });
+        const data = await response.json();
+        if (data.success) {
+            showCustomerNotification('文档已删除', 'success');
+            await refreshDocumentsList(currentCustomerId);
+        } else {
+            alert('删除失败：' + data.message);
+        }
+    } catch (error) {
+        console.error('删除失败:', error);
+        alert('删除失败');
+    }
+}
+
+function initDocDropzones() {
+    document.querySelectorAll('.doc-dropzone').forEach(zone => {
+        zone.ondragover = (e) => {
+            e.preventDefault();
+            zone.classList.add('ring-2', 'ring-blue-400', 'bg-blue-50');
+        };
+        zone.ondragleave = () => {
+            zone.classList.remove('ring-2', 'ring-blue-400', 'bg-blue-50');
+        };
+        zone.ondrop = async (e) => {
+            e.preventDefault();
+            zone.classList.remove('ring-2', 'ring-blue-400', 'bg-blue-50');
+            const file = e.dataTransfer.files && e.dataTransfer.files[0];
+            if (!file) return;
+            const docType = zone.dataset.docKey;
+            const customerId = zone.dataset.customerId;
+            if (!docType || !customerId) return;
+            await uploadDocumentFile(file, customerId, docType);
+        };
+    });
+}
+
+function loadProgressDocuments(customerId) {
+    renderDocuments(customerId, {});
+    refreshDocumentsList(customerId);
 }
 
 // ========== 赛事管理功能（在进度更新弹窗中） ==========
