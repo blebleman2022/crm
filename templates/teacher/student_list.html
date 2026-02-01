@@ -1,0 +1,1299 @@
+{% extends "teacher/base.html" %}
+
+{% block title %}我的学生 - EduConnect CRM{% endblock %}
+{% block page_title %}我的学生{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-lg shadow overflow-hidden">
+    <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+        <h2 class="text-lg font-medium text-gray-900">学生列表</h2>
+        <span class="text-sm text-gray-500">共 {{ students|length }} 名学生</span>
+    </div>
+
+    {% if students %}
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">学生姓名</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">中高考时间</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">课程名称</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">课程进度</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">赛事进展</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">文档</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for student in students %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm font-medium text-gray-900">{{ student.lead.student_name }}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {% if student.exam_year %}
+                            {{ student.exam_year }}年
+                        {% else %}
+                            <span class="text-gray-400">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="text-sm text-blue-600 cursor-pointer hover:text-blue-900 hover:underline"
+                             onclick="editThesisName({{ student.id }}, '{{ student.thesis_name or '' }}')">
+                            {{ student.thesis_name or '点击添加课程名称' }}
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        {% set service_types = student.lead.get_service_types_list() %}
+                        {% if 'tutoring' in service_types %}
+                            {% set delivery = student.tutoring_delivery %}
+                            {% if delivery %}
+                                {% set completed = delivery.completed_sessions or 0 %}
+                                {% set total = delivery.total_sessions or 0 %}
+                                <div class="course-progress-wrap flex items-center gap-2"
+                                     data-customer-id="{{ student.id }}"
+                                     data-thesis-name="{{ student.thesis_name or '' }}"
+                                     data-completed="{{ completed }}"
+                                     data-total="{{ total }}">
+                                    <div class="course-progress-view flex-1 cursor-pointer text-blue-600 hover:text-blue-900 hover:opacity-80"
+                                         onclick="startCourseProgressEdit({{ student.id }})">
+                                        <div class="text-sm font-medium">
+                                            <span class="course-progress-text">{{ completed }}/{{ total }}</span>
+                                        </div>
+                                        <div class="course-progress-bar-wrap hidden"></div>
+                                    </div>
+                                    <div class="course-progress-edit hidden flex-1">
+                                        <div class="flex items-center gap-2">
+                                            <input type="number" min="0"
+                                                   class="course-progress-completed w-16 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            <span class="text-xs text-gray-400">已完</span>
+                                            <input type="number" min="0"
+                                                   class="course-progress-total w-16 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            <span class="text-xs text-gray-400">总</span>
+                                        </div>
+                                        <div class="mt-2 flex items-center gap-2">
+                                            <button type="button"
+                                                    class="px-3 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-700"
+                                                    onclick="saveCourseProgressInline({{ student.id }})">保存</button>
+                                            <button type="button"
+                                                    class="px-3 py-1 text-xs rounded border border-gray-300 text-gray-600 hover:bg-gray-50"
+                                                    onclick="cancelCourseProgressEdit({{ student.id }})">取消</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="course-progress-wrap flex items-center gap-2"
+                                     data-customer-id="{{ student.id }}"
+                                     data-thesis-name="{{ student.thesis_name or '' }}"
+                                     data-completed="0"
+                                     data-total="6">
+                                    <div class="course-progress-view flex-1 cursor-pointer text-blue-600 hover:text-blue-900 hover:opacity-80"
+                                         onclick="startCourseProgressEdit({{ student.id }})">
+                                        <div class="text-sm font-medium text-blue-600">
+                                            <span class="course-progress-text">0/6</span>
+                                        </div>
+                                        <div class="course-progress-bar-wrap hidden"></div>
+                                    </div>
+                                    <div class="course-progress-edit hidden flex-1">
+                                        <div class="flex items-center gap-2">
+                                            <input type="number" min="0"
+                                                   class="course-progress-completed w-16 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            <span class="text-xs text-gray-400">已完</span>
+                                            <input type="number" min="0"
+                                                   class="course-progress-total w-16 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            <span class="text-xs text-gray-400">总</span>
+                                        </div>
+                                        <div class="mt-2 flex items-center gap-2">
+                                            <button type="button"
+                                                    class="px-3 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-700"
+                                                    onclick="saveCourseProgressInline({{ student.id }})">保存</button>
+                                            <button type="button"
+                                                    class="px-3 py-1 text-xs rounded border border-gray-300 text-gray-600 hover:bg-gray-50"
+                                                    onclick="cancelCourseProgressEdit({{ student.id }})">取消</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        {% else %}
+                            <span class="text-gray-400">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        {% set service_types = student.lead.get_service_types_list() %}
+                        {% if 'competition' in service_types %}
+                            {% set registered_count = competition_registered_counts.get(student.id, 0) %}
+                            {% set total_count = student.lead.competition_count or 0 %}
+                            {% set award_achieved = competition_award_achieved.get(student.id, False) %}
+                            <div class="flex items-center gap-2 cursor-pointer text-blue-600 hover:text-blue-900 hover:opacity-80"
+                                 onclick="editCompetitionProgress({{ student.id }}, '{{ student.lead.student_name }}')">
+                                <div class="flex-1">
+                                    <div class="text-sm font-medium">
+                                        {{ registered_count }}/{{ total_count }}
+                                    </div>
+                                    {% set progress = (registered_count / total_count * 100) if total_count > 0 else 0 %}
+                                </div>
+                            </div>
+                        {% else %}
+                            <span class="text-gray-400">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <button onclick="openProgressModal({{ student.id }})"
+                                class="text-blue-600 hover:text-blue-900">更新</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="px-6 py-12 text-center">
+        <span class="material-symbols-outlined text-6xl text-gray-300">group_off</span>
+        <h3 class="mt-2 text-sm font-medium text-gray-900">暂无学生</h3>
+        <p class="mt-1 text-sm text-gray-500">您还没有被分配任何学生</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- 进度更新弹窗 -->
+<div id="progressModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+    <div class="relative top-4 mx-auto p-0 border-0 w-full max-w-2xl shadow-2xl rounded-xl bg-white mb-4">
+        <!-- 弹窗头部 -->
+        <div class="bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-2 rounded-t-xl">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <span class="material-symbols-outlined text-white text-2xl">edit_note</span>
+                    <div>
+                        <h3 class="text-base font-semibold text-white">进度更新</h3>
+                        <span class="text-sm text-blue-100">学员：<span id="progressStudentName" class="font-medium"></span></span>
+                    </div>
+                </div>
+                <button type="button" onclick="closeProgressModal()"
+                        class="focus:outline-none hover:scale-110 transition-transform duration-200 p-1">
+                    <span class="material-symbols-outlined text-xl text-white">close</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 弹窗内容 -->
+        <div class="p-6">
+            <form onsubmit="event.preventDefault(); saveProgress();">
+                <input type="hidden" id="progressCustomerId">
+
+                <!-- 文档管理 -->
+                <div class="mb-6 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center">
+                            <span class="material-symbols-outlined text-blue-600 mr-2">description</span>
+                            <h4 class="text-sm font-semibold text-gray-900">文档上传</h4>
+                        </div>
+                        <span class="text-xs text-gray-500">可拖拽文件到对应材料框上传</span>
+                    </div>
+                    <div id="documentsList" class="grid grid-cols-2 gap-3">
+                        <!-- 文档上传项将动态生成 -->
+                    </div>
+                    <div class="mt-2 text-xs text-gray-500">可选格式：doc、docx、pdf、ppt、pptx</div>
+                </div>
+
+                <!-- 按钮组 -->
+                <div class="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+                    <button type="button" onclick="closeProgressModal()"
+                            class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        取消
+                    </button>
+                    <button type="submit"
+                            class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
+                        保存
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 添加赛事弹窗（复用班主任版本） -->
+<div id="addCompetitionModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50 flex items-center justify-center">
+    <div class="relative mx-auto p-0 border-0 w-full max-w-sm shadow-2xl rounded-xl bg-white">
+        <div class="bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3 rounded-t-xl">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <span class="material-symbols-outlined text-white text-2xl">emoji_events</span>
+                    <h3 class="text-lg font-semibold text-white">添加赛事</h3>
+                </div>
+                <button onclick="closeAddCompetitionModal()" class="text-white hover:text-blue-100">
+                    <span class="material-symbols-outlined text-xl">close</span>
+                </button>
+            </div>
+        </div>
+        <form id="addCompetitionForm" onsubmit="submitAddCompetition(event)" class="p-4 space-y-4">
+            <div class="bg-blue-50 border-l-4 border-blue-500 p-3 rounded">
+                <p class="text-base text-blue-700">请选择要添加的赛事及初始状态</p>
+            </div>
+            <div>
+                <label class="block text-base font-medium text-gray-700 mb-1">赛事名称</label>
+                <select id="competitionSelect" required
+                        class="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">请选择赛事...</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-base font-medium text-gray-700 mb-1">赛事状态</label>
+                <select id="statusSelect" required
+                        class="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="未报名">未报名</option>
+                    <option value="已报名">已报名</option>
+                    <option value="国家一等奖">国家一等奖</option>
+                    <option value="国家二等奖">国家二等奖</option>
+                    <option value="国家三等奖">国家三等奖</option>
+                    <option value="市级一等奖">市级一等奖</option>
+                    <option value="市级二等奖">市级二等奖</option>
+                    <option value="市级三等奖">市级三等奖</option>
+                    <option value="区级一等奖">区级一等奖</option>
+                    <option value="区级二等奖">区级二等奖</option>
+                    <option value="区级三等奖">区级三等奖</option>
+                </select>
+            </div>
+            <div class="flex justify-end space-x-3 pt-2">
+                <button type="button" onclick="closeAddCompetitionModal()"
+                        class="px-5 py-2.5 border border-gray-300 rounded-lg text-base font-medium text-gray-700 hover:bg-gray-50">
+                    取消
+                </button>
+                <button type="submit"
+                        class="px-5 py-2.5 bg-blue-600 text-white rounded-lg text-base font-medium hover:bg-blue-700">
+                    添加
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// 赛事进展弹窗（添加赛事）不再支持自定义奖项
+// ========== 全局变量 ==========
+const now = new Date();
+let currentCustomerId = null;
+let customerData = null;
+let progressCompetitionNames = [];
+
+// ========== 进度更新弹窗 ==========
+
+// 打开进度更新弹窗
+async function openProgressModal(customerId) {
+    currentCustomerId = customerId;
+
+    // 先渲染文档占位，确保始终显示6项
+    renderDocuments(customerId, {});
+
+    // 获取客户信息
+    try {
+        const response = await fetch(`/teacher/students/${customerId}/api`);
+        const data = await response.json();
+
+        if (data.success) {
+            customerData = data;
+            document.getElementById('progressCustomerId').value = customerId;
+            const studentName = data.student?.lead?.student_name || data.student_name || '未知学员';
+            document.getElementById('progressStudentName').textContent = studentName;
+
+            // 显示弹窗
+            document.getElementById('progressModal').classList.remove('hidden');
+
+            // 加载赛事列表（使用班主任版本）
+            try {
+                await loadProgressCompetitions(customerId);
+            } catch (error) {
+                console.error('加载赛事列表失败:', error);
+            }
+
+            // 加载课程记录图片
+            try {
+                await loadCourseRecordImages(customerId);
+            } catch (error) {
+                console.error('加载课程记录图片失败:', error);
+            }
+
+            // 加载文档列表（传入已上传文档状态）
+            const docs = data.student && data.student.documents ? data.student.documents : {};
+            renderDocuments(customerId, docs);
+        } else {
+            alert('获取学生信息失败：' + (data.message || '未知错误'));
+        }
+    } catch (error) {
+        console.error('获取进度弹窗数据失败:', error);
+        alert('获取学生信息失败');
+    }
+}
+
+// 关闭弹窗
+function closeProgressModal() {
+    document.getElementById('progressModal').classList.add('hidden');
+    currentCustomerId = null;
+    customerData = null;
+}
+
+// ========== 赛事管理功能（复用班主任版本） ==========
+
+// 加载进度更新弹窗中的赛事列表
+async function loadProgressCompetitions(customerId) {
+    try {
+        const response = await fetch(`/customers/api/${customerId}/competitions`);
+        const data = await response.json();
+
+        if (data.success) {
+            renderProgressCompetitions(data.competitions);
+        } else {
+            document.getElementById('progressCompetitionsList').innerHTML = `
+                <div class="text-center text-gray-500 text-xs py-2">
+                    <p>加载失败</p>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('加载赛事列表失败:', error);
+        document.getElementById('progressCompetitionsList').innerHTML = `
+            <div class="text-center text-gray-500 text-xs py-2">
+                <p>加载失败</p>
+            </div>
+        `;
+    }
+}
+
+// 渲染进度更新弹窗中的赛事列表
+function renderProgressCompetitions(competitions) {
+    const container = document.getElementById('progressCompetitionsList');
+
+    if (competitions.length === 0) {
+        container.innerHTML = `
+            <div class="text-center text-gray-500 text-sm py-3">
+                <span class="material-symbols-outlined text-2xl mb-1 text-gray-300">emoji_events</span>
+                <p>暂无赛事记录</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = competitions.map(comp => `
+        <div class="border rounded-md p-2 bg-white" id="competition-item-${comp.id}">
+            <div class="flex items-center justify-between mb-2">
+                <div class="font-medium text-gray-900 text-sm">🏆 ${comp.competition_name}</div>
+                <button onclick="deleteProgressCompetition(${comp.id}, '${comp.competition_name}')"
+                        class="text-red-600 hover:text-red-800 text-xs">
+                    删除
+                </button>
+            </div>
+            <div class="flex items-center space-x-2">
+                <select onchange="updateProgressCompetitionStatus(${comp.id}, this.value)"
+                        id="progressStatusSelect_${comp.id}"
+                        data-comp-id="${comp.id}"
+                        class="text-xs rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${comp.status_color} flex-1">
+                    <option value="未报名" ${comp.status === '未报名' ? 'selected' : ''}>未报名</option>
+                    <option value="已报名" ${comp.status === '已报名' ? 'selected' : ''}>已报名</option>
+                    <option value="国家一等奖" ${comp.status === '国家一等奖' ? 'selected' : ''}>国家一等奖</option>
+                    <option value="国家二等奖" ${comp.status === '国家二等奖' ? 'selected' : ''}>国家二等奖</option>
+                    <option value="国家三等奖" ${comp.status === '国家三等奖' ? 'selected' : ''}>国家三等奖</option>
+                    <option value="市级一等奖" ${comp.status === '市级一等奖' ? 'selected' : ''}>市级一等奖</option>
+                    <option value="市级二等奖" ${comp.status === '市级二等奖' ? 'selected' : ''}>市级二等奖</option>
+                    <option value="市级三等奖" ${comp.status === '市级三等奖' ? 'selected' : ''}>市级三等奖</option>
+                    <option value="区级一等奖" ${comp.status === '区级一等奖' ? 'selected' : ''}>区级一等奖</option>
+                    <option value="区级二等奖" ${comp.status === '区级二等奖' ? 'selected' : ''}>区级二等奖</option>
+                    <option value="区级三等奖" ${comp.status === '区级三等奖' ? 'selected' : ''}>区级三等奖</option>
+                </select>
+            </div>
+        </div>
+    `).join('');
+}
+
+// 更新赛事状态
+async function updateProgressCompetitionStatus(competitionId, newStatus) {
+    try {
+        const response = await fetch(`/customers/api/competitions/${competitionId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                status: newStatus
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showProgressToast('状态已更新');
+            await loadProgressCompetitions(currentCustomerId);
+        } else {
+            alert('更新失败：' + data.message);
+            await loadProgressCompetitions(currentCustomerId);
+        }
+    } catch (error) {
+        console.error('更新状态失败:', error);
+        alert('更新状态失败');
+        await loadProgressCompetitions(currentCustomerId);
+    }
+}
+
+// 显示进度更新提示
+function showProgressToast(message) {
+    // 创建提示元素
+    const toast = document.createElement('div');
+    toast.className = 'fixed top-20 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 transition-opacity duration-300';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    // 3秒后自动消失
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => {
+            document.body.removeChild(toast);
+        }, 300);
+    }, 3000);
+}
+
+// 删除赛事
+async function deleteProgressCompetition(competitionId, competitionName) {
+    if (!confirm(`确定要删除赛事"${competitionName}"吗？`)) return;
+    try {
+        const response = await fetch(`/customers/api/competitions/${competitionId}`, { method: 'DELETE' });
+        const data = await response.json();
+        if (data.success) {
+            await loadProgressCompetitions(currentCustomerId);
+        } else {
+            alert('删除失败：' + data.message);
+        }
+    } catch (error) {
+        console.error('删除失败:', error);
+        alert('删除失败');
+    }
+}
+
+// 加载赛事名称列表
+async function loadProgressCompetitionNames() {
+    if (progressCompetitionNames.length > 0) return;
+    try {
+        const response = await fetch('/config/competitions/names');
+        const data = await response.json();
+        if (data.success) {
+            progressCompetitionNames = data.competitions;
+        }
+    } catch (error) {
+        console.error('加载赛事名称失败:', error);
+    }
+}
+
+// 显示添加赛事弹窗
+async function showAddCompetitionInProgress() {
+    await loadProgressCompetitionNames();
+    const competitionSelect = document.getElementById('competitionSelect');
+    competitionSelect.innerHTML = '<option value="">请选择赛事...</option>';
+    progressCompetitionNames.forEach(cn => {
+        const option = document.createElement('option');
+        option.value = cn.id;
+        option.textContent = cn.name;
+        competitionSelect.appendChild(option);
+    });
+    document.getElementById('addCompetitionForm').reset();
+    document.getElementById('addCompetitionModal').classList.remove('hidden');
+}
+
+// 关闭添加赛事弹窗
+function closeAddCompetitionModal() {
+    document.getElementById('addCompetitionModal').classList.add('hidden');
+}
+
+// 处理状态选择变化
+// 已移除自定义奖项输入
+
+// 提交添加赛事表单
+async function submitAddCompetition(event) {
+    event.preventDefault();
+    const competitionNameId = document.getElementById('competitionSelect').value;
+    const status = document.getElementById('statusSelect').value;
+    if (!competitionNameId) {
+        alert('请选择赛事');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/customers/api/${currentCustomerId}/competitions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                competition_name_id: parseInt(competitionNameId),
+                status: status
+            })
+        });
+        const data = await response.json();
+        if (data.success) {
+            closeAddCompetitionModal();
+            await loadProgressCompetitions(currentCustomerId);
+            showToast('赛事添加成功');
+        } else {
+            alert('添加失败：' + data.message);
+        }
+    } catch (error) {
+        console.error('添加赛事失败:', error);
+        alert('添加赛事失败');
+    }
+}
+
+// 显示提示消息
+function showToast(message) {
+    const toast = document.createElement('div');
+    toast.className = 'fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded-lg text-sm z-50';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2000);
+}
+
+// ========== 文档上传功能 ==========
+
+// 渲染文档列表（两列布局，显示已上传状态和下载按钮）
+function renderDocuments(customerId, uploadedDocs = {}) {
+    const container = document.getElementById('documentsList');
+    const docTypes = [
+        { key: 'preview_material', name: '预习材料' },
+        { key: 'thesis_draft', name: '课题初稿' },
+        { key: 'thesis_final', name: '终稿' },
+        { key: 'presentation', name: '演示方案' },
+        { key: 'novelty_report', name: '查新报告' },
+        { key: 'plagiarism_report', name: '查重报告' },
+        { key: 'evaluation_material', name: '综评材料' },
+        { key: 'other_materials', name: '其他材料' }
+    ];
+
+    container.innerHTML = docTypes.map(doc => {
+        const uploaded = uploadedDocs[doc.key];
+        if (doc.key === 'other_materials') {
+            const files = Array.isArray(uploaded) ? uploaded : [];
+            const listHtml = files.length
+                ? files.map(file => `
+                    <div class="flex items-start justify-between gap-2 py-1">
+                        <span class="text-xs text-gray-600 truncate flex-1 min-w-0">${file.file_name}</span>
+                        <div class="flex items-center gap-1.5 shrink-0">
+                            <a href="/teacher/documents/${file.id}/download"
+                               class="inline-flex items-center px-2.5 py-1 border border-green-600 text-sm font-medium rounded text-green-700 bg-white hover:bg-green-50"
+                               title="下载">
+                                <span class="material-symbols-outlined text-sm">download</span>
+                            </a>
+                            <button type="button" onclick="deleteDocument(${file.id}, '${doc.key}')"
+                                    class="inline-flex items-center px-2.5 py-1 border border-red-600 text-sm font-medium rounded text-red-700 bg-white hover:bg-red-50"
+                                    title="删除">
+                                <span class="material-symbols-outlined text-sm">delete</span>
+                            </button>
+                        </div>
+                    </div>
+                `).join('')
+                : '<div class="text-xs text-gray-400">暂无已上传文件</div>';
+
+            return `
+                <div id="doc-${doc.key}" class="doc-dropzone bg-white p-2.5 border border-gray-200 rounded min-h-[42px]" data-doc-key="${doc.key}" data-customer-id="${customerId}">
+                    <div class="flex items-start justify-between gap-2 mb-2">
+                        <span class="text-sm text-gray-900 font-medium">${doc.name}</span>
+                        <label class="cursor-pointer inline-flex items-center px-2.5 py-1.5 border border-blue-600 text-sm font-medium rounded text-blue-600 bg-white hover:bg-blue-50">
+                            <span class="material-symbols-outlined text-sm">upload</span>
+                            <input type="file" class="hidden" accept=".doc,.docx,.pdf,.ppt,.pptx"
+                                   onchange="uploadDocument(this, ${customerId}, '${doc.key}')">
+                        </label>
+                    </div>
+                    <div class="space-y-1">
+                        ${listHtml}
+                    </div>
+                </div>
+            `;
+        }
+        if (uploaded) {
+            return `
+                <div id="doc-${doc.key}" class="doc-dropzone flex items-start justify-between gap-2 p-2.5 border border-green-200 rounded bg-green-50" style="min-height: 42px;" data-doc-key="${doc.key}" data-customer-id="${customerId}">
+                    <div class="flex items-start flex-1 min-w-0">
+                        <span class="material-symbols-outlined text-green-600 mr-1.5">check_circle</span>
+                        <span class="text-sm text-gray-900 truncate flex-1">${doc.name}</span>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-1.5 ml-2 shrink-0">
+                        <a href="/teacher/documents/${uploaded.id}/download"
+                           class="inline-flex items-center px-2.5 py-1 border border-green-600 text-sm font-medium rounded text-green-700 bg-white hover:bg-green-50"
+                           title="下载">
+                            <span class="material-symbols-outlined text-sm">download</span>
+                        </a>
+                        <label class="cursor-pointer inline-flex items-center px-2.5 py-1 border border-blue-600 text-sm font-medium rounded text-blue-600 bg-white hover:bg-blue-50"
+                               title="替换">
+                            <span class="material-symbols-outlined text-sm">upload</span>
+                            <input type="file" class="hidden" accept=".doc,.docx,.pdf,.ppt,.pptx"
+                                   onchange="uploadDocument(this, ${customerId}, '${doc.key}')">
+                        </label>
+                        <button type="button" onclick="deleteDocument(${uploaded.id}, '${doc.key}')"
+                            class="inline-flex items-center px-2.5 py-1 border border-red-600 text-sm font-medium rounded text-red-700 bg-white hover:bg-red-50"
+                            title="删除">
+                            <span class="material-symbols-outlined text-sm">delete</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+        } else {
+            return `
+                <div id="doc-${doc.key}" class="doc-dropzone bg-white flex items-start justify-between gap-2 p-2.5 border border-gray-200 rounded" style="min-height: 42px;" data-doc-key="${doc.key}" data-customer-id="${customerId}">
+                    <span class="text-sm text-gray-900 font-medium truncate flex-1 min-w-0">${doc.name}</span>
+                    <label class="cursor-pointer inline-flex items-center px-2.5 py-1.5 border border-blue-600 text-sm font-medium rounded text-blue-600 bg-white hover:bg-blue-50">
+                        <span class="material-symbols-outlined text-sm">upload</span>
+                        <input type="file" class="hidden" accept=".doc,.docx,.pdf,.ppt,.pptx"
+                               onchange="uploadDocument(this, ${customerId}, '${doc.key}')">
+                    </label>
+                </div>
+            `;
+        }
+    }).join('');
+
+    initDocDropzones();
+}
+
+// 更新单个文档项的上传状态
+function updateDocUploadStatus(docKey, status, message = '') {
+    const container = document.getElementById(`doc-${docKey}`);
+    if (!container) return;
+
+    if (status === 'uploading') {
+        container.className = 'flex items-center justify-between p-2.5 border border-blue-300 rounded bg-blue-50';
+        container.innerHTML = `
+            <div class="flex items-center flex-1">
+                <span class="material-symbols-outlined text-blue-600 mr-1.5 animate-spin">sync</span>
+                <span class="text-sm text-blue-600 truncate flex-1">上传中...</span>
+            </div>
+            <span class="text-xs text-blue-500">请稍候</span>
+        `;
+    } else if (status === 'success') {
+        container.outerHTML = ''; // 移除该元素，刷新时会重新渲染
+    } else if (status === 'error') {
+        container.className = 'flex items-center justify-between p-2.5 border border-red-300 rounded bg-red-50';
+        container.innerHTML = `
+            <div class="flex items-center flex-1">
+                <span class="material-symbols-outlined text-red-600 mr-1.5">error</span>
+                <span class="text-sm text-red-600 truncate flex-1">${message || '上传失败'}</span>
+            </div>
+            <button onclick="resetDocUpload('${docKey}')" class="text-xs text-blue-600 hover:underline">重试</button>
+        `;
+    }
+}
+
+// 重置文档上传状态（用于错误后重试）
+function resetDocUpload(docKey) {
+    // 刷新整个文档列表
+    refreshDocumentsList(currentCustomerId);
+}
+
+// 上传文档
+async function uploadDocument(input, customerId, docType) {
+    const file = input.files[0];
+    if (!file) return;
+
+    await uploadDocumentFile(file, customerId, docType);
+
+    input.value = '';
+}
+
+async function uploadDocumentFile(file, customerId, docType) {
+    if (!file) return;
+
+    updateDocUploadStatus(docType, 'uploading');
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        const response = await fetch(`/teacher/students/${customerId}/upload/${docType}`, {
+            method: 'POST',
+            body: formData
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            await refreshDocumentsList(customerId);
+        } else {
+            updateDocUploadStatus(docType, 'error', data.message);
+        }
+    } catch (error) {
+        updateDocUploadStatus(docType, 'error', error.message);
+    }
+}
+
+function initDocDropzones() {
+    document.querySelectorAll('.doc-dropzone').forEach(zone => {
+            zone.ondragover = (e) => {
+                e.preventDefault();
+                zone.classList.add('ring-2', 'ring-blue-400', 'bg-blue-50');
+            };
+            zone.ondragleave = () => {
+                zone.classList.remove('ring-2', 'ring-blue-400', 'bg-blue-50');
+            };
+            zone.ondrop = async (e) => {
+                e.preventDefault();
+                zone.classList.remove('ring-2', 'ring-blue-400', 'bg-blue-50');
+            const file = e.dataTransfer.files && e.dataTransfer.files[0];
+            if (!file) return;
+            const docType = zone.dataset.docKey;
+            const customerId = zone.dataset.customerId;
+            if (!docType || !customerId) return;
+            await uploadDocumentFile(file, customerId, docType);
+        };
+    });
+}
+
+// 刷新文档列表
+async function refreshDocumentsList(customerId) {
+    try {
+        const response = await fetch(`/teacher/students/${customerId}/api`);
+        const data = await response.json();
+        if (data.success) {
+            renderDocuments(customerId, data.student.documents);
+        }
+    } catch (error) {
+        console.error('刷新文档列表失败:', error);
+    }
+}
+
+// 删除文档
+async function deleteDocument(documentId, docType) {
+    if (!confirm('确定要删除这个文档吗？')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/teacher/documents/${documentId}/delete`, {
+            method: 'POST'
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            showToast('文档已删除');
+            await refreshDocumentsList(currentCustomerId);
+        } else {
+            alert('删除失败：' + data.message);
+        }
+    } catch (error) {
+        console.error('删除失败:', error);
+        alert('删除失败');
+    }
+}
+
+// ========== 保存进度 ==========
+
+async function saveProgress() {
+    if (!currentCustomerId) return;
+
+    const thesisInput = document.getElementById('thesisName');
+    if (!thesisInput) {
+        closeProgressModal();
+        return;
+    }
+    const thesisName = thesisInput.value;
+
+    try {
+        // 更新课题名称
+        await fetch(`/teacher/students/${currentCustomerId}/update_thesis_name`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `thesis_name=${encodeURIComponent(thesisName)}`
+        });
+
+        showToast('保存成功');
+        closeProgressModal();
+        location.reload();
+    } catch (error) {
+        alert('保存失败：' + error.message);
+    }
+}
+
+// ========== 课程记录图片上传功能 ==========
+
+// 显示课程记录图片上传表单
+function showCourseRecordImageUpload() {
+    document.getElementById('courseRecordImageUploadForm').classList.remove('hidden');
+}
+
+// 隐藏课程记录图片上传表单
+function hideCourseRecordImageUpload() {
+    document.getElementById('courseRecordImageUploadForm').classList.add('hidden');
+    document.getElementById('courseRecordImageInput').value = '';
+    document.getElementById('courseRecordImageDescription').value = '';
+}
+
+// 加载课程记录图片
+async function loadCourseRecordImages(customerId) {
+    try {
+        const response = await fetch(`/customers/${customerId}/course-record-images`);
+        const data = await response.json();
+
+        const container = document.getElementById('courseRecordImagesList');
+
+        if (data.success && data.images.length > 0) {
+            container.innerHTML = data.images.map(img => `
+                <div class="relative group">
+                    <img src="/static/${img.image_path}" alt="${img.description || '课程记录'}"
+                         class="w-full h-20 object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-75 transition-opacity"
+                         onclick="window.open('/static/${img.image_path}', '_blank')">
+                    <button type="button" onclick="deleteCourseRecordImage(${img.id})"
+                            class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span class="material-symbols-outlined text-xs">close</span>
+                    </button>
+                    ${img.description ? `<div class="text-xs text-gray-600 mt-1 truncate" title="${img.description}">${img.description}</div>` : ''}
+                </div>
+            `).join('');
+        } else {
+            container.innerHTML = '<div class="col-span-3 text-center text-gray-400 text-xs py-4">暂无图片</div>';
+        }
+    } catch (error) {
+        console.error('加载课程记录图片失败:', error);
+    }
+}
+
+// 上传课程记录图片
+async function uploadCourseRecordImages() {
+    const fileInput = document.getElementById('courseRecordImageInput');
+    const description = document.getElementById('courseRecordImageDescription').value;
+
+    if (!fileInput.files.length) {
+        alert('请选择要上传的图片');
+        return;
+    }
+
+    const formData = new FormData();
+    for (let i = 0; i < fileInput.files.length; i++) {
+        formData.append('images', fileInput.files[i]);
+        formData.append('descriptions', description);
+    }
+
+    try {
+        const response = await fetch(`/customers/${currentCustomerId}/upload-course-record-image`, {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showProgressToast(data.message);
+            await loadCourseRecordImages(currentCustomerId);
+            hideCourseRecordImageUpload();
+        } else {
+            alert('上传失败：' + data.message);
+        }
+    } catch (error) {
+        console.error('上传失败:', error);
+        alert('上传失败');
+    }
+}
+
+// 删除课程记录图片
+async function deleteCourseRecordImage(imageId) {
+    if (!confirm('确定要删除这张图片吗？')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/customers/delete-course-record-image/${imageId}`, {
+            method: 'POST'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showProgressToast(data.message);
+            await loadCourseRecordImages(currentCustomerId);
+        } else {
+            alert('删除失败：' + data.message);
+        }
+    } catch (error) {
+        console.error('删除失败:', error);
+        alert('删除失败');
+    }
+}
+
+// ========== 事件绑定 ==========
+
+// 点击弹窗外部关闭
+document.addEventListener('click', function(e) {
+    const modal = document.getElementById('progressModal');
+    if (e.target === modal) {
+        closeProgressModal();
+    }
+});
+
+// ========== 课程进度编辑（行内） ==========
+function startCourseProgressEdit(customerId) {
+    const wrapper = document.querySelector(`.course-progress-wrap[data-customer-id="${customerId}"]`);
+    if (!wrapper) return;
+
+    const view = wrapper.querySelector('.course-progress-view');
+    const edit = wrapper.querySelector('.course-progress-edit');
+    const totalInput = wrapper.querySelector('.course-progress-total');
+    const completedInput = wrapper.querySelector('.course-progress-completed');
+
+    totalInput.value = wrapper.dataset.total || 0;
+    completedInput.value = wrapper.dataset.completed || 0;
+
+    view.classList.add('hidden');
+    edit.classList.remove('hidden');
+    totalInput.focus();
+}
+
+function cancelCourseProgressEdit(customerId) {
+    const wrapper = document.querySelector(`.course-progress-wrap[data-customer-id="${customerId}"]`);
+    if (!wrapper) return;
+
+    wrapper.querySelector('.course-progress-view').classList.remove('hidden');
+    wrapper.querySelector('.course-progress-edit').classList.add('hidden');
+}
+
+async function saveCourseProgressInline(customerId) {
+    const wrapper = document.querySelector(`.course-progress-wrap[data-customer-id="${customerId}"]`);
+    if (!wrapper) return;
+
+    const totalInput = wrapper.querySelector('.course-progress-total');
+    const completedInput = wrapper.querySelector('.course-progress-completed');
+    const totalSessions = parseInt(totalInput.value || '0', 10);
+    const completedSessions = parseInt(completedInput.value || '0', 10);
+
+    if (totalSessions < 0 || completedSessions < 0) {
+        alert('课时数不能为负数');
+        return;
+    }
+    if (completedSessions > totalSessions) {
+        alert('已完成课时不能超过总课时');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/teacher/students/${customerId}/update-course-progress`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                thesis_name: wrapper.dataset.thesisName || '',
+                total_sessions: totalSessions,
+                completed_sessions: completedSessions
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            wrapper.dataset.total = String(totalSessions);
+            wrapper.dataset.completed = String(completedSessions);
+
+            const textEl = wrapper.querySelector('.course-progress-text');
+            const barWrap = wrapper.querySelector('.course-progress-bar-wrap');
+            const bar = wrapper.querySelector('.course-progress-bar');
+            const progress = totalSessions > 0 ? Math.min(100, (completedSessions / totalSessions) * 100) : 0;
+
+            if (textEl) {
+                textEl.textContent = `${completedSessions}/${totalSessions}`;
+                textEl.parentElement.classList.toggle('text-gray-400', totalSessions === 0 && completedSessions === 0);
+                textEl.parentElement.classList.toggle('text-gray-900', !(totalSessions === 0 && completedSessions === 0));
+            }
+
+            if (barWrap) {
+                barWrap.classList.add('hidden');
+            }
+
+            cancelCourseProgressEdit(customerId);
+        } else {
+            alert('保存失败：' + data.message);
+        }
+    } catch (error) {
+        console.error('保存失败:', error);
+        alert('保存失败');
+    }
+}
+
+// ========== 课程名称编辑 ==========
+async function editThesisName(customerId, currentName) {
+    const newName = prompt('请输入课程名称：', currentName);
+    if (newName === null || newName === currentName) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/teacher/students/${customerId}/update_thesis_name`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                thesis_name: newName
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('保存失败：' + data.message);
+        }
+    } catch (error) {
+        console.error('保存失败:', error);
+        alert('保存失败');
+    }
+}
+
+// ========== 赛事进展编辑 ==========
+let currentCompetitionCustomerId = null;
+let currentCompetitionStudentName = '';
+
+async function editCompetitionProgress(customerId, studentName) {
+    currentCompetitionCustomerId = customerId;
+    currentCompetitionStudentName = studentName;
+
+    document.getElementById('competitionProgressStudentName').textContent = studentName;
+
+    await loadCompetitionProgressList(customerId);
+
+    document.getElementById('competitionProgressModal').classList.remove('hidden');
+}
+
+function closeCompetitionProgressModal() {
+    document.getElementById('competitionProgressModal').classList.add('hidden');
+    location.reload();
+}
+
+async function loadCompetitionProgressList(customerId) {
+    try {
+        const response = await fetch(`/customers/api/${customerId}/competitions`);
+        const data = await response.json();
+
+        const container = document.getElementById('competitionProgressList');
+
+        if (data.competitions && data.competitions.length > 0) {
+            container.innerHTML = data.competitions.map(comp => `
+                <div class="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:shadow-sm transition-shadow">
+                    <div class="flex-1">
+                        <div class="font-medium text-gray-900">${comp.competition_name}</div>
+                        <div class="text-sm text-gray-500 mt-1">
+                            <select onchange="updateCompetitionStatus(${comp.id}, this.value)"
+                                    class="text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                                ${getStatusOptions(comp.status)}
+                            </select>
+                        </div>
+                    </div>
+                    <button onclick="deleteCompetitionInProgress(${comp.id})"
+                            class="ml-3 text-red-600 hover:text-red-800">
+                        <span class="material-symbols-outlined text-lg">delete</span>
+                    </button>
+                </div>
+            `).join('');
+        } else {
+            container.innerHTML = `
+                <div class="text-center text-gray-500 text-sm py-8">
+                    <span class="material-symbols-outlined text-3xl mb-2 text-gray-300">emoji_events</span>
+                    <p>暂无赛事信息</p>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('加载赛事列表失败:', error);
+    }
+}
+
+function getStatusOptions(currentStatus) {
+    const statuses = [
+        '已报名', '国家一等奖', '国家二等奖', '国家三等奖',
+        '市级一等奖', '市级二等奖', '市级三等奖',
+        '区级一等奖', '区级二等奖', '区级三等奖'
+    ];
+
+    return statuses.map(status =>
+        `<option value="${status}" ${status === currentStatus ? 'selected' : ''}>${status}</option>`
+    ).join('');
+}
+
+async function updateCompetitionStatus(competitionId, newStatus) {
+    try {
+        const response = await fetch(`/customers/api/competitions/${competitionId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                status: newStatus
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            await loadCompetitionProgressList(currentCompetitionCustomerId);
+        } else {
+            alert('更新失败：' + data.message);
+        }
+    } catch (error) {
+        console.error('更新失败:', error);
+        alert('更新失败');
+    }
+}
+
+async function deleteCompetitionInProgress(competitionId) {
+    if (!confirm('确定要删除这个赛事吗？')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/customers/api/competitions/${competitionId}`, {
+            method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            await loadCompetitionProgressList(currentCompetitionCustomerId);
+        } else {
+            alert('删除失败：' + data.message);
+        }
+    } catch (error) {
+        console.error('删除失败:', error);
+        alert('删除失败');
+    }
+}
+
+function showAddCompetitionForProgress() {
+    document.getElementById('addCompetitionForProgressModal').classList.remove('hidden');
+    loadCompetitionNames();
+}
+
+function closeAddCompetitionForProgressModal() {
+    document.getElementById('addCompetitionForProgressModal').classList.add('hidden');
+}
+
+async function submitAddCompetitionForProgress(event) {
+    event.preventDefault();
+
+    const competitionNameId = document.getElementById('competitionSelectForProgress').value;
+    const status = document.getElementById('statusSelectForProgress').value;
+
+    if (!competitionNameId) {
+        alert('请选择赛事');
+        return;
+    }
+    try {
+        const response = await fetch(`/customers/api/${currentCompetitionCustomerId}/competitions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                competition_name_id: parseInt(competitionNameId),
+                status: status
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            closeAddCompetitionForProgressModal();
+            await loadCompetitionProgressList(currentCompetitionCustomerId);
+        } else {
+            alert('添加失败：' + data.message);
+        }
+    } catch (error) {
+        console.error('添加失败:', error);
+        alert('添加失败');
+    }
+}
+
+async function loadCompetitionNames() {
+    try {
+        const response = await fetch('/config/competitions/names');
+        const data = await response.json();
+
+        const select = document.getElementById('competitionSelectForProgress');
+        select.innerHTML = '<option value="">请选择赛事...</option>';
+
+        data.competitions.forEach(comp => {
+            const option = document.createElement('option');
+            option.value = comp.id;
+            option.textContent = comp.name;
+            select.appendChild(option);
+        });
+    } catch (error) {
+        console.error('加载赛事列表失败:', error);
+    }
+}
+</script>
+
+<!-- 赛事进展编辑弹窗 -->
+<div id="competitionProgressModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+    <div class="relative top-4 mx-auto p-0 border-0 w-full max-w-2xl shadow-2xl rounded-xl bg-white mb-4">
+        <div class="bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3 rounded-t-xl">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <span class="material-symbols-outlined text-white text-2xl">emoji_events</span>
+                    <div>
+                        <h3 class="text-lg font-semibold text-white">赛事进展管理</h3>
+                        <span class="text-sm text-blue-100">学员：<span id="competitionProgressStudentName"></span></span>
+                    </div>
+                </div>
+                <button onclick="closeCompetitionProgressModal()" class="text-white hover:text-blue-100">
+                    <span class="material-symbols-outlined text-xl">close</span>
+                </button>
+            </div>
+        </div>
+        <div class="p-4">
+            <div class="flex justify-between items-center mb-3">
+                <h4 class="text-sm font-semibold text-gray-900">赛事列表</h4>
+                <button onclick="showAddCompetitionForProgress()"
+                        class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700">
+                    <span class="material-symbols-outlined text-sm mr-1">add</span>
+                    添加赛事
+                </button>
+            </div>
+            <div id="competitionProgressList" class="space-y-2 max-h-96 overflow-y-auto">
+                <!-- 动态加载赛事列表 -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 添加赛事弹窗（用于赛事进展） -->
+<div id="addCompetitionForProgressModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 overflow-y-auto h-full w-full hidden z-[60] flex items-center justify-center">
+    <div class="relative mx-auto p-0 border-0 w-full max-w-sm shadow-2xl rounded-xl bg-white">
+        <div class="bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3 rounded-t-xl">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <span class="material-symbols-outlined text-white text-2xl">emoji_events</span>
+                    <h3 class="text-lg font-semibold text-white">添加赛事</h3>
+                </div>
+                <button onclick="closeAddCompetitionForProgressModal()" class="text-white hover:text-blue-100">
+                    <span class="material-symbols-outlined text-xl">close</span>
+                </button>
+            </div>
+        </div>
+        <form onsubmit="submitAddCompetitionForProgress(event)" class="p-4 space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">赛事名称</label>
+                <select id="competitionSelectForProgress" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">请选择赛事...</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">赛事状态</label>
+                <select id="statusSelectForProgress" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="已报名">已报名</option>
+                    <option value="国家一等奖">国家一等奖</option>
+                    <option value="国家二等奖">国家二等奖</option>
+                    <option value="国家三等奖">国家三等奖</option>
+                    <option value="市级一等奖">市级一等奖</option>
+                    <option value="市级二等奖">市级二等奖</option>
+                    <option value="市级三等奖">市级三等奖</option>
+                    <option value="区级一等奖">区级一等奖</option>
+                    <option value="区级二等奖">区级二等奖</option>
+                    <option value="区级三等奖">区级三等奖</option>
+                </select>
+            </div>
+            <div class="flex justify-end space-x-3 pt-2">
+                <button type="button" onclick="closeAddCompetitionForProgressModal()"
+                        class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    取消
+                </button>
+                <button type="submit"
+                        class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
+                    添加
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}

@@ -150,6 +150,20 @@ def api_competitions():
         'description': comp.description
     } for comp in competitions])
 
+@config_bp.route('/competitions/names')
+@login_required
+def get_competition_names():
+    """获取赛事名称列表（用于下拉选择）"""
+    try:
+        competitions = CompetitionName.query.order_by(CompetitionName.name).all()
+
+        return jsonify({
+            'success': True,
+            'competitions': [{'id': comp.id, 'name': comp.name} for comp in competitions]
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'获取赛事名称失败: {str(e)}'}), 500
+
 
 # ==================== 付款锁定管理 ====================
 

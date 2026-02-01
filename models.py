@@ -9,7 +9,7 @@ db = SQLAlchemy()
 class User(UserMixin, db.Model):
     """用户账号表"""
     __tablename__ = 'users'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), nullable=False, comment='用户名')
     phone = db.Column(db.String(11), unique=True, nullable=False, comment='手机号')
@@ -18,11 +18,16 @@ class User(UserMixin, db.Model):
     status = db.Column(db.Boolean, default=True, comment='账号状态：True启用/False禁用')
     created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
+    # 辅导老师关联：role='teacher' 时使用
+    created_by_user_id = db.Column(db.Integer, comment='创建人ID（班主任）')
+
     # 关联关系
     leads_as_sales = db.relationship('Lead', foreign_keys='Lead.sales_user_id', backref='sales_user', lazy='dynamic')
     customers_as_teacher_user = db.relationship('Customer', foreign_keys='Customer.teacher_user_id', backref='teacher_user', lazy='dynamic')
-    
+    # 辅导老师信息（一对一）
+    teacher_profile = db.relationship('Teacher', back_populates='user', uselist=False)
+
     def __repr__(self):
         return f'<User {self.username}>'
     
@@ -93,6 +98,7 @@ class Lead(db.Model):
     # 服务内容
     service_types = db.Column(db.Text, comment='服务类型JSON：["tutoring", "competition", "upgrade_guidance"]')
     competition_award_level = db.Column(db.String(20), comment='竞赛奖项等级：市奖/国奖')
+    competition_count = db.Column(db.Integer, comment='申报赛事数量')
     additional_requirements = db.Column(db.Text, comment='额外要求')
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -143,7 +149,7 @@ class Customer(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     lead_id = db.Column(db.Integer, db.ForeignKey('leads.id'), nullable=False, comment='关联线索ID')
     teacher_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), comment='责任班主任ID（User表，role=teacher_supervisor）')
-    teacher_id = db.Column(db.Integer, db.ForeignKey('teachers.id'), comment='辅导老师ID（Teacher表）')
+    teacher_id = db.Column(db.Integer, db.ForeignKey('teachers.user_id'), comment='辅导老师ID（User表ID）')
 
     payment_amount = db.Column(Numeric(10, 2), nullable=False, comment='支付金额')
 
@@ -158,16 +164,22 @@ class Customer(db.Model):
     converted_at = db.Column(db.DateTime, comment='线索转客户时间')
     is_priority = db.Column(db.Boolean, default=False, comment='是否重点关注客户')
 
+    # 新增字段 - 交付管理增强
+    thesis_deadline = db.Column(db.Date, comment='课题完成截止时间')
+    first_competition_id = db.Column(db.Integer, db.ForeignKey('competition_names.id'),
+                                     comment='首个参赛赛事ID')
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # 关联关系（添加级联删除保护）
     tutoring_delivery = db.relationship('TutoringDelivery', backref='customer', uselist=False,
                                        cascade='all, delete-orphan')
-    competition_delivery = db.relationship('CompetitionDelivery', backref='customer', uselist=False,
-                                          cascade='all, delete-orphan')
     customer_communication_records = db.relationship('CommunicationRecord', back_populates='customer',
                                                      cascade='all, delete-orphan')
+
+    # 辅导老师关联：关联到 Teacher 表
+    teacher = db.relationship('Teacher', backref=db.backref('customers', lazy='dynamic'))
 
     # ✨ 通过 @property 从线索表读取合同内容（单一数据源）
     @property
@@ -242,26 +254,6 @@ class TutoringDelivery(db.Model):
     def __repr__(self):
         return f'<TutoringDelivery {self.customer.lead.student_name}>'
 
-class CompetitionDelivery(db.Model):
-    """竞赛奖项获取交付表"""
-    __tablename__ = 'competition_deliveries'
-
-    id = db.Column(db.Integer, primary_key=True)
-    customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'), nullable=False, comment='关联客户ID')
-    competition_name_id = db.Column(db.Integer, db.ForeignKey('competition_names.id'), comment='竞赛名称ID')
-
-    delivery_status = db.Column(db.String(30), default='未报名', comment='交付状态')
-    award_obtained_at = db.Column(db.DateTime, comment='奖项获取时间')
-
-    delivery_notes = db.Column(db.Text, comment='交付备注')
-    notes_history = db.Column(db.JSON, comment='备注历史版本')
-
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    def __repr__(self):
-        return f'<CompetitionDelivery {self.customer.lead.student_name}>'
-
 class CompetitionName(db.Model):
     """竞赛名称配置表"""
     __tablename__ = 'competition_names'
@@ -271,7 +263,6 @@ class CompetitionName(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # 关联关系
-    competition_deliveries = db.relationship('CompetitionDelivery', backref='competition_name', lazy='dynamic')
     customer_competitions = db.relationship('CustomerCompetition', backref='competition_name', lazy='dynamic')
 
     def __repr__(self):
@@ -284,9 +275,9 @@ class CustomerCompetition(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'), nullable=False, comment='关联客户ID')
     competition_name_id = db.Column(db.Integer, db.ForeignKey('competition_names.id'), nullable=False, comment='赛事ID')
-    status = db.Column(db.String(50), nullable=False, default='未报名', comment='状态')
-    custom_award = db.Column(db.String(100), comment='自定义奖项名称（当status=其他奖项时使用）')
-    created_by_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, comment='创建人（班主任）')
+    status = db.Column(db.String(50), nullable=False, default='未报名', comment='状态：未报名/已报名/已结束-未获奖/各类奖项')
+    notes = db.Column(db.Text, comment='备注')
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, comment='创建人')
     created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
 
@@ -294,24 +285,21 @@ class CustomerCompetition(db.Model):
     customer = db.relationship('Customer', backref=db.backref('competitions', lazy='dynamic'))
     created_by = db.relationship('User', foreign_keys=[created_by_user_id])
 
-    def get_display_status(self):
-        """获取显示用的状态文本"""
-        if self.status == '其他奖项' and self.custom_award:
-            return self.custom_award
-        return self.status
-
     def get_status_color(self):
         """获取状态对应的颜色样式"""
         color_map = {
             '未报名': 'bg-gray-100 text-gray-800',
             '已报名': 'bg-blue-100 text-blue-800',
+            '已结束-未获奖': 'bg-gray-50 text-gray-600',
             '国家一等奖': 'bg-red-100 text-red-800',
             '国家二等奖': 'bg-red-50 text-red-700',
             '国家三等奖': 'bg-red-50 text-red-600',
             '市级一等奖': 'bg-green-100 text-green-800',
             '市级二等奖': 'bg-green-50 text-green-700',
             '市级三等奖': 'bg-green-50 text-green-600',
-            '其他奖项': 'bg-orange-100 text-orange-800'
+            '区级一等奖': 'bg-purple-100 text-purple-800',
+            '区级二等奖': 'bg-purple-50 text-purple-700',
+            '区级三等奖': 'bg-purple-50 text-purple-600'
         }
         return color_map.get(self.status, 'bg-gray-100 text-gray-800')
 
@@ -380,12 +368,15 @@ class CustomerPayment(db.Model):
         return f'<CustomerPayment Customer#{self.customer_id}>'
 
 class Teacher(db.Model):
-    """老师信息表"""
+    """老师信息表 - 通过 user_id 与 User 表一对一关联
+
+    登录信息在 User 表，专业信息在此表。
+    user_id 作为主键,与 User.id 一致,消除ID混淆问题。
+    """
     __tablename__ = 'teachers'
 
-    id = db.Column(db.Integer, primary_key=True)
-    chinese_name = db.Column(db.String(50), nullable=False, comment='中文名')
-    english_name = db.Column(db.String(100), comment='英文名')
+    # user_id 作为主键,删除原来的 id 字段
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), primary_key=True, comment='用户ID(主键)')
     current_institution = db.Column(db.String(200), comment='现单位')
     major_direction = db.Column(db.String(200), comment='专业方向')
     highest_degree = db.Column(db.String(50), comment='最高学历')
@@ -393,35 +384,23 @@ class Teacher(db.Model):
     research_achievements = db.Column(db.Text, comment='科研成果')
     innovation_coaching_achievements = db.Column(db.Text, comment='科创辅导成果')
     social_roles = db.Column(db.Text, comment='个人荣誉')
+    email = db.Column(db.String(100), comment='邮箱')
+    subject = db.Column(db.String(50), comment='擅长学科')
     status = db.Column(db.Boolean, default=True, comment='状态：True启用/False禁用')
-    created_by_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, comment='创建人ID（班主任）')
     created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
 
     # 关联关系
-    customers = db.relationship('Customer', foreign_keys='Customer.teacher_id', backref='teacher', lazy='dynamic')
-    created_by = db.relationship('User', foreign_keys=[created_by_user_id], backref='created_teachers')
+    user = db.relationship('User', back_populates='teacher_profile')
+
+    @property
+    def name(self):
+        """返回用户名作为name"""
+        return self.user.username if self.user else None
 
     def __repr__(self):
-        return f'<Teacher {self.chinese_name}>'
+        return f'<Teacher {self.user.username if self.user else self.user_id}>'
 
-    def to_dict(self):
-        """转换为字典格式"""
-        return {
-            'id': self.id,
-            'chinese_name': self.chinese_name,
-            'english_name': self.english_name,
-            'current_institution': self.current_institution,
-            'major_direction': self.major_direction,
-            'highest_degree': self.highest_degree,
-            'degree_description': self.degree_description,
-            'research_achievements': self.research_achievements,
-            'innovation_coaching_achievements': self.innovation_coaching_achievements,
-            'social_roles': self.social_roles,
-            'status': self.status,
-            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else None,
-            'updated_at': self.updated_at.strftime('%Y-%m-%d %H:%M:%S') if self.updated_at else None
-        }
 
 class LoginLog(db.Model):
     """登录日志表"""
@@ -472,7 +451,7 @@ class TeacherImage(db.Model):
     __tablename__ = 'teacher_images'
 
     id = db.Column(db.Integer, primary_key=True)
-    teacher_id = db.Column(db.Integer, db.ForeignKey('teachers.id'), nullable=False, comment='老师ID')
+    teacher_id = db.Column(db.Integer, db.ForeignKey('teachers.user_id'), nullable=False, comment='老师ID（User表ID）')
     image_path = db.Column(db.String(500), nullable=False, comment='图片路径')
     description = db.Column(db.String(200), comment='图片描述')
     file_size = db.Column(db.Integer, comment='文件大小(字节)')
@@ -480,7 +459,9 @@ class TeacherImage(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='上传时间')
 
     # 关联关系
-    teacher = db.relationship('Teacher', backref=db.backref('images', lazy='dynamic', cascade='all, delete-orphan'))
+    teacher = db.relationship('Teacher', foreign_keys=[teacher_id],
+                             primaryjoin='TeacherImage.teacher_id==Teacher.user_id',
+                             backref=db.backref('images', lazy='dynamic', cascade='all, delete-orphan'))
 
     def __repr__(self):
         return f'<TeacherImage {self.teacher_id} - {self.file_name}>'
@@ -574,3 +555,96 @@ class SystemConfig(db.Model):
 
     def __repr__(self):
         return f'<SystemConfig {self.config_key}={self.config_value}>'
+
+
+# ==================== 新增：交付文档管理 ====================
+
+class DeliveryDocument(db.Model):
+    """交付文档表 - 统一管理各类文档"""
+    __tablename__ = 'delivery_documents'
+
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'), nullable=False, comment='客户ID')
+
+    # 文档类型
+    doc_type = db.Column(db.String(50), nullable=False, comment='文档类型')
+    # 枚举值：
+    # - thesis_draft: 课题初稿
+    # - thesis_final: 终稿
+    # - presentation: 演示方案
+    # - novelty_report: 查新报告
+    # - plagiarism_report: 查重报告
+    # - evaluation_material: 高三综评材料
+    # - preview_material: 预习材料
+    # - other_materials: 其他材料（可多份）
+
+    file_name = db.Column(db.String(200), nullable=False, comment='文件名')
+    file_path = db.Column(db.String(500), nullable=False, comment='文件存储路径')
+    file_size = db.Column(db.Integer, comment='文件大小（字节）')
+    file_ext = db.Column(db.String(10), comment='文件扩展名')
+
+    # 上传者信息
+    uploaded_by_type = db.Column(db.String(20), nullable=False,
+                                 comment='上传者类型：teacher_supervisor/teacher')
+    uploaded_by_id = db.Column(db.Integer, nullable=False, comment='上传者ID')
+    uploaded_by_name = db.Column(db.String(50), comment='上传者姓名')
+
+    # 版本管理
+    version = db.Column(db.Integer, default=1, comment='版本号')
+    is_latest = db.Column(db.Boolean, default=True, comment='是否最新版本')
+
+    description = db.Column(db.String(500), comment='文档说明')
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
+
+    # 关联关系
+    customer = db.relationship('Customer', backref=db.backref('delivery_documents',
+                                                              lazy='dynamic',
+                                                              cascade='all, delete-orphan'))
+
+    def get_file_size_display(self):
+        """返回格式化的文件大小"""
+        if not self.file_size:
+            return '-'
+        size_kb = self.file_size / 1024
+        if size_kb < 1024:
+            return f'{size_kb:.1f} KB'
+        else:
+            size_mb = size_kb / 1024
+            return f'{size_mb:.1f} MB'
+
+    def __repr__(self):
+        return f'<DeliveryDocument {self.customer_id} - {self.doc_type} v{self.version}>'
+
+
+class CustomerReviewImage(db.Model):
+    """客户好评图片表"""
+    __tablename__ = 'customer_review_images'
+
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'), nullable=False, comment='客户ID')
+    image_path = db.Column(db.String(500), nullable=False, comment='图片路径')
+    description = db.Column(db.String(200), comment='图片描述')
+    file_size = db.Column(db.Integer, comment='文件大小(字节)')
+    file_name = db.Column(db.String(200), comment='原始文件名')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='上传时间')
+
+    # 关联关系
+    customer = db.relationship('Customer', backref=db.backref('review_images',
+                                                              lazy='dynamic',
+                                                              cascade='all, delete-orphan'))
+
+    def get_file_size_display(self):
+        """返回格式化的文件大小"""
+        if not self.file_size:
+            return '-'
+        size_kb = self.file_size / 1024
+        if size_kb < 1024:
+            return f'{size_kb:.1f} KB'
+        else:
+            size_mb = size_kb / 1024
+            return f'{size_mb:.1f} MB'
+
+    def __repr__(self):
+        return f'<CustomerReviewImage {self.customer_id} - {self.file_name}>'

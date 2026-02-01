@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block title %}{{ customer.lead.student_name }} - 客户详情 - {{ config.APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50">
+    <!-- 侧边栏 -->
+    {% include 'partials/sidebar.html' %}
+    
+    <!-- 主内容区域 -->
+    <div class="lg:pl-64">
+        <!-- 顶部导航 -->
+        {% include 'partials/header.html' %}
+        
+        <!-- 页面内容 -->
+        <main class="py-6">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <!-- 页面标题 -->
+                <div class="mb-6 flex justify-between items-center">
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-900">{{ customer.lead.student_name }} - 客户详情</h1>
+                        <p class="mt-1 text-sm text-gray-600">查看客户的详细信息和交付文档</p>
+                    </div>
+                    <div class="flex space-x-3">
+                        <a href="{{ url_for('customers.list_customers') }}" 
+                           class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                            返回列表
+                        </a>
+                        {% if current_user.role in ['admin', 'sales_manager', 'salesperson'] %}
+                        <a href="{{ url_for('customers.edit_customer', customer_id=customer.id) }}" 
+                           class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
+                            编辑客户
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- 基本信息 -->
+                <div class="bg-white shadow rounded-lg mb-6">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h2 class="text-lg font-medium text-gray-900">基本信息</h2>
+                    </div>
+                    <div class="px-6 py-4">
+                        <dl class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div>
+                                <dt class="text-sm font-medium text-gray-500">学生姓名</dt>
+                                <dd class="mt-1 text-sm text-gray-900">{{ customer.lead.student_name }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-sm font-medium text-gray-500">年级</dt>
+                                <dd class="mt-1 text-sm text-gray-900">{{ customer.lead.grade }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-sm font-medium text-gray-500">联系电话</dt>
+                                <dd class="mt-1 text-sm text-gray-900">{{ customer.lead.contact_info }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-sm font-medium text-gray-500">辅导老师</dt>
+                                <dd class="mt-1 text-sm text-gray-900">
+                                    {% if customer.teacher %}
+                                        {{ customer.teacher.user.username if customer.teacher and customer.teacher.user else '-' }}
+                                    {% else %}
+                                        <span class="text-gray-400">未分配</span>
+                                    {% endif %}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt class="text-sm font-medium text-gray-500">课题名称</dt>
+                                <dd class="mt-1 text-sm text-gray-900">{{ customer.thesis_name or '未设置' }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-sm font-medium text-gray-500">课题截止时间</dt>
+                                <dd class="mt-1 text-sm text-gray-900">
+                                    {% if customer.thesis_deadline %}
+                                        {{ customer.thesis_deadline.strftime('%Y-%m-%d') }}
+                                    {% else %}
+                                        <span class="text-gray-400">未设置</span>
+                                    {% endif %}
+                                </dd>
+                            </div>
+                        </dl>
+                    </div>
+                </div>
+
+                <!-- 文档管理区域 (班主任只读) -->
+                <div class="bg-white shadow rounded-lg mb-6">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h2 class="text-lg font-medium text-gray-900">交付文档</h2>
+                        <p class="mt-1 text-sm text-gray-500">查看老师上传的各类文档</p>
+                    </div>
+                    <div class="px-6 py-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="documentsContainer">
+                            <!-- 文档将通过JavaScript动态加载 -->
+                            <div class="text-center py-8 col-span-full">
+                                <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                                <p class="mt-2 text-sm text-gray-500">加载文档中...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 权限说明 -->
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-sm font-medium text-blue-800">权限说明</h3>
+                            <div class="mt-2 text-sm text-blue-700">
+                                <ul class="list-disc list-inside space-y-1">
+                                    <li>您可以查看和下载老师上传的所有文档</li>
+                                    <li>文档的上传和删除由辅导老师负责</li>
+                                    <li>如需修改文档,请联系对应的辅导老师</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<script>
+// 文档类型映射
+const DOC_TYPE_NAMES = {
+    'thesis_draft': '课题初稿',
+    'thesis_final': '终稿',
+    'presentation': '演示方案',
+    'novelty_report': '查新报告',
+    'plagiarism_report': '查重报告',
+    'evaluation_material': '高三综评材料'
+};
+
+// 页面加载时获取文档列表
+document.addEventListener('DOMContentLoaded', function() {
+    loadDocuments();
+});
+
+// 加载文档列表
+function loadDocuments() {
+    const customerId = {{ customer.id }};
+    const container = document.getElementById('documentsContainer');
+
+    fetch(`/delivery/customers/${customerId}/documents`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayDocuments(data.documents);
+            } else {
+                container.innerHTML = '<div class="col-span-full text-center py-8 text-red-600">加载文档失败</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading documents:', error);
+            container.innerHTML = '<div class="col-span-full text-center py-8 text-red-600">加载文档失败</div>';
+        });
+}
+
+// 显示文档列表
+function displayDocuments(documents) {
+    const container = document.getElementById('documentsContainer');
+    const docTypes = ['thesis_draft', 'thesis_final', 'presentation', 'novelty_report', 'plagiarism_report', 'evaluation_material'];
+
+    let html = '';
+    docTypes.forEach(docType => {
+        const doc = documents[docType];
+        const typeName = DOC_TYPE_NAMES[docType];
+
+        html += `
+            <div class="border border-gray-200 rounded-lg p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-sm font-medium text-gray-900">${typeName}</h3>
+                    ${doc ? '<span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">已上传</span>' : '<span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800">未上传</span>'}
+                </div>
+                ${doc ? `
+                    <div class="space-y-2 text-sm text-gray-600">
+                        <p><span class="font-medium">文件名：</span>${doc.file_name}</p>
+                        <p><span class="font-medium">版本：</span>v${doc.version}</p>
+                        <p><span class="font-medium">上传时间：</span>${new Date(doc.created_at).toLocaleString('zh-CN')}</p>
+                        <p><span class="font-medium">上传者：</span>${doc.uploaded_by_name}</p>
+                    </div>
+                    <div class="mt-4">
+                        <a href="/delivery/documents/${doc.id}/download"
+                           class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                            </svg>
+                            下载
+                        </a>
+                    </div>
+                ` : '<p class="text-sm text-gray-500">暂无文档</p>'}
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+</script>
+{% endblock %}
+

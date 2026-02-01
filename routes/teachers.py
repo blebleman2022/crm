@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from functools import wraps
-from models import Teacher, Customer, Lead, TeacherImage, db
+from models import User, Customer, Lead, Teacher, TeacherImage, db
 from datetime import datetime
 import os
 from werkzeug.utils import secure_filename
@@ -32,43 +32,50 @@ def sales_manager_required(f):
 @login_required
 @teacher_supervisor_required
 def list_teachers():
-    """老师列表页"""
+    """辅导老师列表页（role='teacher'）"""
     page = request.args.get('page', 1, type=int)
     search = request.args.get('search', '', type=str)
     status_filter = request.args.get('status', '', type=str)
 
-    # 数据隔离：只查询当前班主任创建的老师
-    query = Teacher.query.filter(Teacher.created_by_user_id == current_user.id)
+    # 数据隔离：只查询当前班主任创建的辅导老师（通过 Teacher 表的 created_by 关系）
+    # 先查询所有 role='teacher' 且 created_by_user_id 匹配的用户
+    user_query = User.query.filter(
+        User.role == 'teacher',
+        User.created_by_user_id == current_user.id
+    ).all()
+    user_ids = [u.id for u in user_query]
+
+    # 再查询 Teacher 表
+    teacher_query = Teacher.query.filter(Teacher.user_id.in_(user_ids))
 
     # 搜索过滤
     if search:
-        query = query.filter(
-            (Teacher.chinese_name.contains(search)) |
-            (Teacher.english_name.contains(search)) |
+        teacher_query = teacher_query.join(User).filter(
+            (User.username.contains(search)) |
             (Teacher.current_institution.contains(search)) |
             (Teacher.major_direction.contains(search))
         )
 
     # 状态筛选
     if status_filter == 'active':
-        query = query.filter(Teacher.status == True)
+        teacher_query = teacher_query.filter(User.status == True)
     elif status_filter == 'inactive':
-        query = query.filter(Teacher.status == False)
+        teacher_query = teacher_query.filter(User.status == False)
 
     # 按创建时间倒序排列
-    query = query.order_by(Teacher.created_at.desc())
-    
+    teacher_query = teacher_query.join(User).order_by(User.created_at.desc())
+
     # 分页
     per_page = 20
-    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    pagination = teacher_query.paginate(page=page, per_page=per_page, error_out=False)
     teachers = pagination.items
-    
+
     # 统计每个老师负责的客户数量
     teacher_customer_counts = {}
     for teacher in teachers:
-        count = Customer.query.filter(Customer.teacher_id == teacher.id).count()
-        teacher_customer_counts[teacher.id] = count
-    
+        count = Customer.query.filter(Customer.teacher_id == teacher.user_id).count()
+        teacher_customer_counts[teacher.user_id] = count
+
     return render_template('teachers/list.html',
                          teachers=teachers,
                          pagination=pagination,
@@ -80,12 +87,48 @@ def list_teachers():
 @login_required
 @teacher_supervisor_required
 def add_teacher():
-    """添加老师"""
+    """添加辅导老师（User 表存储登录信息，Teacher 表存储专业信息）"""
     if request.method == 'POST':
         try:
+            # 获取手机号
+            phone = request.form.get('phone', '').strip()
+
+            if not phone:
+                flash('手机号为必填项', 'error')
+                return render_template('teachers/add.html')
+
+            # 验证手机号格式
+            import re
+            if not re.match(r'^1[3-9]\d{9}$', phone):
+                flash('手机号格式不正确', 'error')
+                return render_template('teachers/add.html')
+
+            # 检查手机号是否已存在
+            existing = User.query.filter_by(phone=phone).first()
+            if existing:
+                flash('该手机号已被使用', 'error')
+                return render_template('teachers/add.html')
+
+            # 获取表单数据
+            name = request.form.get('chinese_name', '').strip()
+            if not name:
+                flash('中文名为必填项', 'error')
+                return render_template('teachers/add.html')
+
+            # 创建用户（role='teacher'）
+            user = User(
+                username=name,
+                phone=phone,
+                role='teacher',
+                status=True,
+                created_by_user_id=current_user.id
+            )
+            db.session.add(user)
+            db.session.flush()  # 获取 user.id
+
+            # 创建老师专业信息
             teacher = Teacher(
-                chinese_name=request.form.get('chinese_name', '').strip(),
-                english_name=request.form.get('english_name', '').strip(),
+                user_id=user.id,
                 current_institution=request.form.get('current_institution', '').strip(),
                 major_direction=request.form.get('major_direction', '').strip(),
                 highest_degree=request.form.get('highest_degree', '').strip(),
@@ -93,44 +136,50 @@ def add_teacher():
                 research_achievements=request.form.get('research_achievements', '').strip(),
                 innovation_coaching_achievements=request.form.get('innovation_coaching_achievements', '').strip(),
                 social_roles=request.form.get('social_roles', '').strip(),
-                status=True,
-                created_by_user_id=current_user.id  # 记录创建人
+                email=request.form.get('email', '').strip(),
+                subject=request.form.get('subject', '').strip()
             )
-            
-            # 验证必填字段
-            if not teacher.chinese_name:
-                flash('中文名为必填项', 'error')
-                return render_template('teachers/add.html', teacher=teacher)
-            
             db.session.add(teacher)
             db.session.commit()
-            
-            flash(f'老师 {teacher.chinese_name} 添加成功', 'success')
+
+            flash(f'辅导老师 {name} 添加成功', 'success')
             return redirect(url_for('teachers.list_teachers'))
-            
+
         except Exception as e:
             db.session.rollback()
             flash(f'添加老师失败：{str(e)}', 'error')
             return render_template('teachers/add.html')
-    
+
     return render_template('teachers/add.html')
 
 @teachers_bp.route('/edit/<int:teacher_id>', methods=['GET', 'POST'])
 @login_required
 @teacher_supervisor_required
 def edit_teacher(teacher_id):
-    """编辑老师"""
-    teacher = Teacher.query.get_or_404(teacher_id)
+    """编辑辅导老师"""
+    # teacher_id 实际是 User.id
+    user = User.query.get_or_404(teacher_id)
 
-    # 权限检查：只能编辑自己创建的老师
-    if teacher.created_by_user_id != current_user.id:
-        flash('您只能编辑自己创建的老师信息', 'error')
+    # 权限检查：只能编辑自己创建的老师，且必须是 role='teacher'
+    if user.created_by_user_id != current_user.id or user.role != 'teacher':
+        flash('您只能编辑自己创建的辅导老师信息', 'error')
+        return redirect(url_for('teachers.list_teachers'))
+
+    # 获取关联的 Teacher 记录
+    teacher = Teacher.query.filter_by(user_id=teacher_id).first()
+    if not teacher:
+        flash('老师信息不存在', 'error')
         return redirect(url_for('teachers.list_teachers'))
 
     if request.method == 'POST':
         try:
-            teacher.chinese_name = request.form.get('chinese_name', '').strip()
-            teacher.english_name = request.form.get('english_name', '').strip()
+            name = request.form.get('chinese_name', '').strip()
+            if not name:
+                flash('中文名为必填项', 'error')
+                return render_template('teachers/edit.html', teacher=teacher, user=user)
+
+            # 更新 User 表
+            user.username = name
             teacher.current_institution = request.form.get('current_institution', '').strip()
             teacher.major_direction = request.form.get('major_direction', '').strip()
             teacher.highest_degree = request.form.get('highest_degree', '').strip()
@@ -138,125 +187,138 @@ def edit_teacher(teacher_id):
             teacher.research_achievements = request.form.get('research_achievements', '').strip()
             teacher.innovation_coaching_achievements = request.form.get('innovation_coaching_achievements', '').strip()
             teacher.social_roles = request.form.get('social_roles', '').strip()
-            
-            # 验证必填字段
-            if not teacher.chinese_name:
-                flash('中文名为必填项', 'error')
-                return render_template('teachers/edit.html', teacher=teacher)
-            
+            teacher.email = request.form.get('email', '').strip()
+            teacher.subject = request.form.get('subject', '').strip()
             teacher.updated_at = datetime.utcnow()
+
             db.session.commit()
-            
-            flash(f'老师 {teacher.chinese_name} 更新成功', 'success')
+
+            flash(f'辅导老师 {name} 更新成功', 'success')
             return redirect(url_for('teachers.list_teachers'))
-            
+
         except Exception as e:
             db.session.rollback()
             flash(f'更新老师失败：{str(e)}', 'error')
-    
-    return render_template('teachers/edit.html', teacher=teacher)
+
+    return render_template('teachers/edit.html', teacher=teacher, user=user)
 
 @teachers_bp.route('/detail/<int:teacher_id>')
 @login_required
 @teacher_supervisor_required
 def detail_teacher(teacher_id):
-    """老师详情页"""
-    teacher = Teacher.query.get_or_404(teacher_id)
+    """辅导老师详情页"""
+    # teacher_id 实际是 User.id
+    user = User.query.get_or_404(teacher_id)
 
-    # 权限检查：只能查看自己创建的老师
-    if teacher.created_by_user_id != current_user.id:
-        flash('您只能查看自己创建的老师信息', 'error')
+    # 权限检查：只能查看自己创建的辅导老师
+    if user.created_by_user_id != current_user.id or user.role != 'teacher':
+        flash('您只能查看自己创建的辅导老师信息', 'error')
         return redirect(url_for('teachers.list_teachers'))
+
+    # 获取关联的 Teacher 记录
+    teacher = Teacher.query.filter_by(user_id=teacher_id).first()
 
     # 获取该老师负责的客户列表
     customers = Customer.query.filter(Customer.teacher_id == teacher_id).join(Lead).all()
-    
-    return render_template('teachers/detail.html', 
+
+    return render_template('teachers/detail.html',
                          teacher=teacher,
+                         user=user,
                          customers=customers)
 
 @teachers_bp.route('/delete/<int:teacher_id>', methods=['POST'])
 @login_required
 @teacher_supervisor_required
 def delete_teacher(teacher_id):
-    """删除老师（软删除，设置status=False）"""
+    """删除辅导老师（软删除，设置status=False）"""
     try:
-        teacher = Teacher.query.get_or_404(teacher_id)
+        user = User.query.get_or_404(teacher_id)
 
-        # 权限检查：只能删除自己创建的老师
-        if teacher.created_by_user_id != current_user.id:
-            flash('您只能删除自己创建的老师', 'error')
+        # 权限检查：只能删除自己创建的辅导老师，且必须是 role='teacher'
+        if user.created_by_user_id != current_user.id or user.role != 'teacher':
+            flash('您只能删除自己创建的辅导老师', 'error')
             return redirect(url_for('teachers.list_teachers'))
+
+        # 获取 Teacher 记录
+        teacher = Teacher.query.filter_by(user_id=teacher_id).first()
 
         # 检查是否有客户关联
         customer_count = Customer.query.filter(Customer.teacher_id == teacher_id).count()
         if customer_count > 0:
-            flash(f'无法删除老师 {teacher.chinese_name}，该老师还负责 {customer_count} 位客户', 'error')
+            teacher_name = teacher.user.username if teacher and teacher.user else user.username
+            flash(f'无法删除辅导老师 {teacher_name}，该老师还负责 {customer_count} 位客户', 'error')
             return redirect(url_for('teachers.list_teachers'))
-        
+
         # 软删除
-        teacher.status = False
-        teacher.updated_at = datetime.utcnow()
+        user.status = False
         db.session.commit()
-        
-        flash(f'老师 {teacher.chinese_name} 已禁用', 'success')
-        
+
+        teacher_name = teacher.user.username if teacher and teacher.user else user.username
+        flash(f'辅导老师 {teacher_name} 已禁用', 'success')
+
     except Exception as e:
         db.session.rollback()
         flash(f'删除老师失败：{str(e)}', 'error')
-    
+
     return redirect(url_for('teachers.list_teachers'))
 
 @teachers_bp.route('/activate/<int:teacher_id>', methods=['POST'])
 @login_required
 @teacher_supervisor_required
 def activate_teacher(teacher_id):
-    """启用老师"""
+    """启用辅导老师"""
     try:
-        teacher = Teacher.query.get_or_404(teacher_id)
+        user = User.query.get_or_404(teacher_id)
 
-        # 权限检查：只能启用自己创建的老师
-        if teacher.created_by_user_id != current_user.id:
-            flash('您只能启用自己创建的老师', 'error')
+        # 权限检查：只能启用自己创建的辅导老师，且必须是 role='teacher'
+        if user.created_by_user_id != current_user.id or user.role != 'teacher':
+            flash('您只能启用自己创建的辅导老师', 'error')
             return redirect(url_for('teachers.list_teachers'))
 
-        teacher.status = True
-        teacher.updated_at = datetime.utcnow()
+        user.status = True
         db.session.commit()
-        
-        flash(f'老师 {teacher.chinese_name} 已启用', 'success')
-        
+
+        # 获取 Teacher 记录
+        teacher = Teacher.query.filter_by(user_id=teacher_id).first()
+        teacher_name = teacher.user.username if teacher and teacher.user else user.username
+        flash(f'辅导老师 {teacher_name} 已启用', 'success')
+
     except Exception as e:
         db.session.rollback()
         flash(f'启用老师失败：{str(e)}', 'error')
-    
+
     return redirect(url_for('teachers.list_teachers'))
 
 @teachers_bp.route('/get_active_teachers', methods=['GET'])
 @login_required
 def get_active_teachers():
-    """获取所有启用的老师（用于分配老师的下拉列表）"""
-    # 数据隔离：只返回当前班主任创建的启用老师
+    """获取所有启用的辅导老师（用于分配老师的下拉列表）"""
+    # 数据隔离：只返回当前班主任创建的启用辅导老师
     if current_user.role == 'teacher_supervisor':
-        teachers = Teacher.query.filter(
-            Teacher.status == True,
-            Teacher.created_by_user_id == current_user.id
-        ).order_by(Teacher.chinese_name).all()
+        # 获取符合条件的用户
+        users = User.query.filter(
+            User.role == 'teacher',
+            User.status == True,
+            User.created_by_user_id == current_user.id
+        ).all()
+        user_ids = [u.id for u in users]
+
+        # 获取 Teacher 记录
+        teachers = Teacher.query.filter(Teacher.user_id.in_(user_ids)).all()
     else:
         # 非班主任角色返回空列表
         teachers = []
 
     return jsonify([{
-        'id': t.id,
-        'chinese_name': t.chinese_name,
-        'english_name': t.english_name,
+        'id': t.user_id,
+        'username': t.user.username if t.user else '',
         'major_direction': t.major_direction
     } for t in teachers])
 
 @teachers_bp.route('/assign/<int:customer_id>', methods=['POST'])
 @login_required
 def assign_teacher(customer_id):
-    """分配老师给客户"""
+    """分配辅导老师给客户"""
     try:
         customer = Customer.query.get_or_404(customer_id)
         teacher_id = request.form.get('teacher_id', type=int)
@@ -264,30 +326,37 @@ def assign_teacher(customer_id):
         if not teacher_id:
             return jsonify({'success': False, 'message': '请选择老师'}), 400
 
-        teacher = Teacher.query.get_or_404(teacher_id)
+        user = User.query.get_or_404(teacher_id)
 
-        if not teacher.status:
+        # 验证是辅导老师且已启用
+        if user.role != 'teacher':
+            return jsonify({'success': False, 'message': '无效的老师'}), 400
+        if not user.status:
             return jsonify({'success': False, 'message': '该老师已被禁用'}), 400
 
         # 检查权限：只有班主任角色可以分配老师
         if current_user.role != 'teacher_supervisor':
             return jsonify({'success': False, 'message': '只有班主任可以分配老师'}), 403
 
-        # 权限检查：只能分配自己创建的老师
-        if teacher.created_by_user_id != current_user.id:
-            return jsonify({'success': False, 'message': '您只能分配自己创建的老师'}), 403
-        
-        old_teacher_name = customer.teacher.chinese_name if customer.teacher else '未分配'
+        # 权限检查：只能分配自己创建的辅导老师
+        if user.created_by_user_id != current_user.id:
+            return jsonify({'success': False, 'message': '您只能分配自己创建的辅导老师'}), 403
+
+        # 获取老师信息
+        teacher = Teacher.query.filter_by(user_id=teacher_id).first()
+        teacher_name = teacher.user.username if teacher and teacher.user else user.username
+
+        old_teacher_name = customer.teacher.user.username if customer.teacher and customer.teacher.user else '未分配'
         customer.teacher_id = teacher_id
         customer.updated_at = datetime.utcnow()
         db.session.commit()
-        
+
         return jsonify({
             'success': True,
-            'message': f'已将老师从 {old_teacher_name} 更换为 {teacher.chinese_name}',
-            'teacher_name': teacher.chinese_name
+            'message': f'已将老师从 {old_teacher_name} 更换为 {teacher_name}',
+            'teacher_name': teacher_name
         })
-        
+
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'分配老师失败：{str(e)}'}), 500
@@ -295,7 +364,7 @@ def assign_teacher(customer_id):
 @teachers_bp.route('/change/<int:customer_id>', methods=['POST'])
 @login_required
 def change_teacher(customer_id):
-    """更换客户的老师（需要二次确认）"""
+    """更换客户的辅导老师（需要二次确认）"""
     try:
         customer = Customer.query.get_or_404(customer_id)
 
@@ -316,38 +385,45 @@ def change_teacher(customer_id):
         except (ValueError, TypeError):
             return jsonify({'success': False, 'message': '无效的老师ID'}), 400
 
-        teacher = Teacher.query.get_or_404(teacher_id)
+        user = User.query.get_or_404(teacher_id)
 
-        if not teacher.status:
+        # 验证是辅导老师且已启用
+        if user.role != 'teacher':
+            return jsonify({'success': False, 'message': '无效的老师'}), 400
+        if not user.status:
             return jsonify({'success': False, 'message': '该老师已被禁用'}), 400
 
         # 检查权限：只有班主任角色可以更换老师
         if current_user.role != 'teacher_supervisor':
             return jsonify({'success': False, 'message': '只有班主任可以更换老师'}), 403
 
-        # 权限检查：只能分配自己创建的老师
-        if teacher.created_by_user_id != current_user.id:
-            return jsonify({'success': False, 'message': '您只能分配自己创建的老师'}), 403
+        # 权限检查：只能分配自己创建的辅导老师
+        if user.created_by_user_id != current_user.id:
+            return jsonify({'success': False, 'message': '您只能分配自己创建的辅导老师'}), 403
+
+        # 获取老师信息
+        teacher = Teacher.query.filter_by(user_id=teacher_id).first()
+        teacher_name = teacher.user.username if teacher and teacher.user else user.username
 
         # 如果未确认，返回需要确认的信息
         if not confirmed:
-            old_teacher_name = customer.teacher.chinese_name if customer.teacher else '未分配'
+            old_teacher_name = customer.teacher.user.username if customer.teacher and customer.teacher.user else '未分配'
             return jsonify({
                 'success': False,
                 'need_confirm': True,
-                'message': f'确定要将老师从 {old_teacher_name} 更换为 {teacher.chinese_name} 吗？'
+                'message': f'确定要将老师从 {old_teacher_name} 更换为 {teacher_name} 吗？'
             })
 
         # 已确认，执行更换
-        old_teacher_name = customer.teacher.chinese_name if customer.teacher else '未分配'
+        old_teacher_name = customer.teacher.user.username if customer.teacher and customer.teacher.user else '未分配'
         customer.teacher_id = teacher_id
         customer.updated_at = datetime.utcnow()
         db.session.commit()
 
         return jsonify({
             'success': True,
-            'message': f'已将老师从 {old_teacher_name} 更换为 {teacher.chinese_name}',
-            'teacher_name': teacher.chinese_name
+            'message': f'已将老师从 {old_teacher_name} 更换为 {teacher_name}',
+            'teacher_name': teacher_name
         })
 
     except Exception as e:
@@ -370,12 +446,12 @@ def allowed_image_file(filename):
 @login_required
 @teacher_supervisor_required
 def upload_teacher_image(teacher_id):
-    """上传老师图片"""
-    teacher = Teacher.query.get_or_404(teacher_id)
+    """上传辅导老师图片"""
+    teacher = User.query.get_or_404(teacher_id)
 
-    # 权限检查：只能为自己创建的老师上传图片
-    if teacher.created_by_user_id != current_user.id:
-        return jsonify({'success': False, 'message': '您只能为自己创建的老师上传图片'}), 403
+    # 权限检查：只能为自己创建的辅导老师上传图片，且必须是 role='teacher'
+    if teacher.created_by_user_id != current_user.id or teacher.role != 'teacher':
+        return jsonify({'success': False, 'message': '您只能为自己创建的辅导老师上传图片'}), 403
 
     # 检查当前图片数量
     current_image_count = TeacherImage.query.filter_by(teacher_id=teacher_id).count()
@@ -458,14 +534,14 @@ def upload_teacher_image(teacher_id):
 @login_required
 @teacher_supervisor_required
 def delete_teacher_image(image_id):
-    """删除老师图片"""
+    """删除辅导老师图片"""
     try:
         image = TeacherImage.query.get_or_404(image_id)
-        teacher = Teacher.query.get_or_404(image.teacher_id)
+        teacher = User.query.get_or_404(image.teacher_id)
 
-        # 权限检查：只能删除自己创建的老师的图片
-        if teacher.created_by_user_id != current_user.id:
-            return jsonify({'success': False, 'message': '您只能删除自己创建的老师的图片'}), 403
+        # 权限检查：只能删除自己创建的辅导老师的图片，且必须是 role='teacher'
+        if teacher.created_by_user_id != current_user.id or teacher.role != 'teacher':
+            return jsonify({'success': False, 'message': '您只能删除自己创建的辅导老师的图片'}), 403
 
         # 1. 先记录文件路径
         filepath = os.path.join('static', image.image_path)
@@ -493,14 +569,14 @@ def delete_teacher_image(image_id):
 @login_required
 @teacher_supervisor_required
 def update_image_description(image_id):
-    """更新图片描述"""
+    """更新辅导老师图片描述"""
     try:
         image = TeacherImage.query.get_or_404(image_id)
-        teacher = Teacher.query.get_or_404(image.teacher_id)
+        teacher = User.query.get_or_404(image.teacher_id)
 
-        # 权限检查：只能更新自己创建的老师的图片描述
-        if teacher.created_by_user_id != current_user.id:
-            return jsonify({'success': False, 'message': '您只能更新自己创建的老师的图片描述'}), 403
+        # 权限检查：只能更新自己创建的辅导老师的图片描述，且必须是 role='teacher'
+        if teacher.created_by_user_id != current_user.id or teacher.role != 'teacher':
+            return jsonify({'success': False, 'message': '您只能更新自己创建的辅导老师的图片描述'}), 403
 
         data = request.get_json()
         if not data:
@@ -524,19 +600,18 @@ def update_image_description(image_id):
 @login_required
 @sales_manager_required
 def list_teachers_for_sales():
-    """销售管理角色的老师列表页（只读）"""
+    """销售管理角色的辅导老师列表页（只读，role='teacher'）"""
     page = request.args.get('page', 1, type=int)
     search = request.args.get('search', '', type=str)
     status_filter = request.args.get('status', '', type=str)
 
-    # 销售管理可以查看所有老师
+    # 销售管理可以查看所有辅导老师
     query = Teacher.query
 
     # 搜索过滤
     if search:
-        query = query.filter(
-            (Teacher.chinese_name.contains(search)) |
-            (Teacher.english_name.contains(search)) |
+        query = query.join(User).filter(
+            (User.username.contains(search)) |
             (Teacher.current_institution.contains(search)) |
             (Teacher.major_direction.contains(search))
         )
@@ -558,8 +633,8 @@ def list_teachers_for_sales():
     # 统计每个老师负责的客户数量
     teacher_customer_counts = {}
     for teacher in teachers:
-        count = Customer.query.filter(Customer.teacher_id == teacher.id).count()
-        teacher_customer_counts[teacher.id] = count
+        count = Customer.query.filter(Customer.teacher_id == teacher.user_id).count()
+        teacher_customer_counts[teacher.user_id] = count
 
     return render_template('teachers/list_for_sales.html',
                          teachers=teachers,
@@ -582,4 +657,3 @@ def detail_teacher_for_sales(teacher_id):
                          teacher=teacher,
                          customers=customers,
                          is_sales_manager_view=True)  # 标记为销售管理视图
-

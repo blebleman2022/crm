@@ -1,0 +1,470 @@
+{% extends "teacher/base.html" %}
+
+{% block title %}{{ student.lead.student_name }} - 学生详情 - EduConnect CRM{% endblock %}
+{% block page_title %}{{ student.lead.student_name }} - {{ page_title_suffix|default('学生详情')}}{% endblock %}
+
+{% block content %}
+<div class="bg-white shadow rounded-lg mb-6">
+    <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+        <h2 class="text-lg font-medium text-gray-900">基本信息</h2>
+        <a href="{{ url_for('teacher.student_list') }}" class="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
+            <span class="material-symbols-outlined text-sm">arrow_back</span>
+            返回列表
+        </a>
+    </div>
+
+        <!-- 学生基本信息 -->
+        <div class="bg-white shadow rounded-lg mb-6">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-medium text-gray-900">基本信息</h2>
+            </div>
+            <div class="px-6 py-4">
+                <dl class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">学生姓名</dt>
+                        <dd class="mt-1 text-sm text-gray-900">{{ student.lead.student_name }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">年级</dt>
+                        <dd class="mt-1 text-sm text-gray-900">{{ student.lead.grade }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">联系电话</dt>
+                        <dd class="mt-1 text-sm text-gray-900">{{ student.lead.contact_info }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">课题名称</dt>
+                        <dd class="mt-1">
+                            <div class="flex items-center gap-2">
+                                <span id="thesisNameDisplay" class="text-sm text-gray-900">{{ student.thesis_name or '未设置' }}</span>
+                                <button onclick="editThesisName()" class="text-blue-600 hover:text-blue-800 text-sm">
+                                    <span class="material-icons text-base">edit</span>
+                                </button>
+                            </div>
+                            <div id="thesisNameEdit" class="hidden mt-2">
+                                <div class="flex gap-2">
+                                    <input type="text" id="thesisNameInput"
+                                           value="{{ student.thesis_name or '' }}"
+                                           class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                           placeholder="请输入课题名称"
+                                           maxlength="200">
+                                    <button onclick="saveThesisName()" class="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm">
+                                        保存
+                                    </button>
+                                    <button onclick="cancelEditThesisName()" class="px-3 py-1 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 text-sm">
+                                        取消
+                                    </button>
+                                </div>
+                            </div>
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">课题截止时间</dt>
+                        <dd class="mt-1 text-sm text-gray-900">
+                            {% if student.thesis_deadline %}
+                                {{ student.thesis_deadline.strftime('%Y-%m-%d') }}
+                            {% else %}
+                                <span class="text-gray-400">未设置</span>
+                            {% endif %}
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">首个参赛赛事</dt>
+                        <dd class="mt-1 text-sm text-gray-900">
+                            {% if student.first_competition %}
+                                {{ student.first_competition.name }}
+                            {% else %}
+                                <span class="text-gray-400">未设置</span>
+                            {% endif %}
+                        </dd>
+                    </div>
+                </dl>
+            </div>
+        </div>
+
+        <!-- 文档管理 -->
+        <div class="bg-white shadow rounded-lg mb-6">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-medium text-gray-900">文档管理</h2>
+                <p class="mt-1 text-sm text-gray-500">您可以上传和管理学生的各类文档</p>
+            </div>
+            <div class="px-6 py-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- 课题初稿 -->
+                    <div class="border border-gray-200 rounded-lg p-4" id="doc-thesis_draft">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-sm font-medium text-gray-900">课题初稿</h3>
+                            <span class="doc-status px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">未上传</span>
+                        </div>
+                        <div class="doc-info hidden text-sm text-gray-600 space-y-1 mb-3">
+                            <p class="doc-filename"></p>
+                            <p class="doc-version"></p>
+                            <p class="doc-time"></p>
+                        </div>
+                        <div class="doc-actions hidden space-x-2 mb-3">
+                            <a href="#" class="doc-download text-sm text-blue-600 hover:text-blue-800">下载</a>
+                            <button class="doc-delete text-sm text-red-600 hover:text-red-800">删除</button>
+                        </div>
+                        <div class="doc-upload-form">
+                            <input type="file" class="hidden" id="file-thesis_draft" accept=".doc,.docx,.pdf">
+                            <button onclick="document.getElementById('file-thesis_draft').click()" class="w-full px-4 py-2 border border-blue-600 text-sm font-medium rounded-md text-blue-600 bg-white hover:bg-blue-50">
+                                上传初稿
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 终稿 -->
+                    <div class="border border-gray-200 rounded-lg p-4" id="doc-thesis_final">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-sm font-medium text-gray-900">终稿</h3>
+                            <span class="doc-status px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">未上传</span>
+                        </div>
+                        <div class="doc-info hidden text-sm text-gray-600 space-y-1 mb-3">
+                            <p class="doc-filename"></p>
+                            <p class="doc-version"></p>
+                            <p class="doc-time"></p>
+                        </div>
+                        <div class="doc-actions hidden space-x-2 mb-3">
+                            <a href="#" class="doc-download text-sm text-blue-600 hover:text-blue-800">下载</a>
+                            <button class="doc-delete text-sm text-red-600 hover:text-red-800">删除</button>
+                        </div>
+                        <div class="doc-upload-form">
+                            <input type="file" class="hidden" id="file-thesis_final" accept=".doc,.docx,.pdf">
+                            <button onclick="document.getElementById('file-thesis_final').click()" class="w-full px-4 py-2 border border-blue-600 text-sm font-medium rounded-md text-blue-600 bg-white hover:bg-blue-50">
+                                上传终稿
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 演示方案 -->
+                    <div class="border border-gray-200 rounded-lg p-4" id="doc-presentation">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-sm font-medium text-gray-900">演示方案</h3>
+                            <span class="doc-status px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">未上传</span>
+                        </div>
+                        <div class="doc-info hidden text-sm text-gray-600 space-y-1 mb-3">
+                            <p class="doc-filename"></p>
+                            <p class="doc-version"></p>
+                            <p class="doc-time"></p>
+                        </div>
+                        <div class="doc-actions hidden space-x-2 mb-3">
+                            <a href="#" class="doc-download text-sm text-blue-600 hover:text-blue-800">下载</a>
+                            <button class="doc-delete text-sm text-red-600 hover:text-red-800">删除</button>
+                        </div>
+                        <div class="doc-upload-form">
+                            <input type="file" class="hidden" id="file-presentation" accept=".doc,.docx,.pdf,.ppt,.pptx">
+                            <button onclick="document.getElementById('file-presentation').click()" class="w-full px-4 py-2 border border-blue-600 text-sm font-medium rounded-md text-blue-600 bg-white hover:bg-blue-50">
+                                上传演示方案
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 查新报告 -->
+                    <div class="border border-gray-200 rounded-lg p-4" id="doc-novelty_report">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-sm font-medium text-gray-900">查新报告</h3>
+                            <span class="doc-status px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">未上传</span>
+                        </div>
+                        <div class="doc-info hidden text-sm text-gray-600 space-y-1 mb-3">
+                            <p class="doc-filename"></p>
+                            <p class="doc-version"></p>
+                            <p class="doc-time"></p>
+                        </div>
+                        <div class="doc-actions hidden space-x-2 mb-3">
+                            <a href="#" class="doc-download text-sm text-blue-600 hover:text-blue-800">下载</a>
+                            <button class="doc-delete text-sm text-red-600 hover:text-red-800">删除</button>
+                        </div>
+                        <div class="doc-upload-form">
+                            <input type="file" class="hidden" id="file-novelty_report" accept=".doc,.docx,.pdf">
+                            <button onclick="document.getElementById('file-novelty_report').click()" class="w-full px-4 py-2 border border-blue-600 text-sm font-medium rounded-md text-blue-600 bg-white hover:bg-blue-50">
+                                上传查新报告
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 查重报告 -->
+                    <div class="border border-gray-200 rounded-lg p-4" id="doc-plagiarism_report">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-sm font-medium text-gray-900">查重报告</h3>
+                            <span class="doc-status px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">未上传</span>
+                        </div>
+                        <div class="doc-info hidden text-sm text-gray-600 space-y-1 mb-3">
+                            <p class="doc-filename"></p>
+                            <p class="doc-version"></p>
+                            <p class="doc-time"></p>
+                        </div>
+                        <div class="doc-actions hidden space-x-2 mb-3">
+                            <a href="#" class="doc-download text-sm text-blue-600 hover:text-blue-800">下载</a>
+                            <button class="doc-delete text-sm text-red-600 hover:text-red-800">删除</button>
+                        </div>
+                        <div class="doc-upload-form">
+                            <input type="file" class="hidden" id="file-plagiarism_report" accept=".doc,.docx,.pdf">
+                            <button onclick="document.getElementById('file-plagiarism_report').click()" class="w-full px-4 py-2 border border-blue-600 text-sm font-medium rounded-md text-blue-600 bg-white hover:bg-blue-50">
+                                上传查重报告
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 高三综评材料 -->
+                    <div class="border border-gray-200 rounded-lg p-4" id="doc-evaluation_material">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-sm font-medium text-gray-900">高三综评材料</h3>
+                            <span class="doc-status px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">未上传</span>
+                        </div>
+                        <div class="doc-info hidden text-sm text-gray-600 space-y-1 mb-3">
+                            <p class="doc-filename"></p>
+                            <p class="doc-version"></p>
+                            <p class="doc-time"></p>
+                        </div>
+                        <div class="doc-actions hidden space-x-2 mb-3">
+                            <a href="#" class="doc-download text-sm text-blue-600 hover:text-blue-800">下载</a>
+                            <button class="doc-delete text-sm text-red-600 hover:text-red-800">删除</button>
+                        </div>
+                        <div class="doc-upload-form">
+                            <input type="file" class="hidden" id="file-evaluation_material" accept=".doc,.docx,.pdf,.zip,.rar">
+                            <button onclick="document.getElementById('file-evaluation_material').click()" class="w-full px-4 py-2 border border-blue-600 text-sm font-medium rounded-md text-blue-600 bg-white hover:bg-blue-50">
+                                上传综评材料
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 text-sm text-gray-500">
+                    <p>💡 提示：点击"上传"按钮可以上传新文档，支持 .doc、.docx、.pdf 等格式，最大10MB</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 提示信息 -->
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-blue-800">权限说明</h3>
+                    <div class="mt-2 text-sm text-blue-700">
+                        <ul class="list-disc list-inside space-y-1">
+                            <li>您可以上传和删除所有文档（初稿、终稿、演示方案、报告等）</li>
+                            <li>班主任可以查看和下载您上传的文档，但不能修改</li>
+                            <li>课题名称可由您编辑，其他基本信息由班主任管理</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// 文档类型列表
+const docTypes = ['thesis_draft', 'thesis_final', 'presentation', 'novelty_report', 'plagiarism_report', 'evaluation_material'];
+const customerId = {{ student.id }};
+
+// 页面加载时获取所有文档状态
+document.addEventListener('DOMContentLoaded', function() {
+    docTypes.forEach(docType => {
+        loadDocumentStatus(docType);
+
+        // 绑定文件选择事件
+        const fileInput = document.getElementById(`file-${docType}`);
+        if (fileInput) {
+            fileInput.addEventListener('change', function(e) {
+                if (e.target.files.length > 0) {
+                    uploadDocument(docType, e.target.files[0]);
+                }
+            });
+        }
+    });
+});
+
+// 加载文档状态
+function loadDocumentStatus(docType) {
+    fetch(`/teacher/students/${customerId}/documents/${docType}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.documents.length > 0) {
+                const latestDoc = data.documents[0]; // 第一个是最新版本
+                updateDocumentUI(docType, latestDoc);
+            }
+        })
+        .catch(error => console.error('Error loading document:', error));
+}
+
+// 更新文档UI
+function updateDocumentUI(docType, doc) {
+    const container = document.getElementById(`doc-${docType}`);
+    if (!container) return;
+
+    // 更新状态标签
+    const status = container.querySelector('.doc-status');
+    status.textContent = '已上传';
+    status.className = 'doc-status px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800';
+
+    // 显示文档信息
+    const info = container.querySelector('.doc-info');
+    info.classList.remove('hidden');
+    info.querySelector('.doc-filename').textContent = `文件名：${doc.file_name}`;
+    info.querySelector('.doc-version').textContent = `版本：v${doc.version}`;
+    info.querySelector('.doc-time').textContent = `上传时间：${doc.created_at}`;
+
+    // 显示操作按钮
+    const actions = container.querySelector('.doc-actions');
+    actions.classList.remove('hidden');
+
+    // 设置下载链接
+    const downloadLink = actions.querySelector('.doc-download');
+    downloadLink.href = `/teacher/documents/${doc.id}/download`;
+
+    // 绑定删除按钮
+    const deleteBtn = actions.querySelector('.doc-delete');
+    deleteBtn.onclick = () => deleteDocument(docType, doc.id);
+
+    // 更新上传按钮文本
+    const uploadBtn = container.querySelector('.doc-upload-form button');
+    uploadBtn.textContent = '上传新版本';
+}
+
+// 上传文档
+function uploadDocument(docType, file) {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    // 显示上传中状态
+    const container = document.getElementById(`doc-${docType}`);
+    const uploadBtn = container.querySelector('.doc-upload-form button');
+    const originalText = uploadBtn.textContent;
+    uploadBtn.disabled = true;
+    uploadBtn.textContent = '上传中...';
+
+    fetch(`/teacher/students/${customerId}/upload/${docType}`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            updateDocumentUI(docType, data.document);
+        } else {
+            alert('上传失败：' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('上传失败：' + error.message);
+    })
+    .finally(() => {
+        uploadBtn.disabled = false;
+        uploadBtn.textContent = originalText;
+        // 清空文件选择
+        document.getElementById(`file-${docType}`).value = '';
+    });
+}
+
+// 删除文档
+function deleteDocument(docType, docId) {
+    if (!confirm('确定要删除这个文档吗？此操作不可恢复。')) {
+        return;
+    }
+
+    fetch(`/teacher/documents/${docId}/delete`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            // 重置UI
+            resetDocumentUI(docType);
+        } else {
+            alert('删除失败：' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('删除失败：' + error.message);
+    });
+}
+
+// 重置文档UI
+function resetDocumentUI(docType) {
+    const container = document.getElementById(`doc-${docType}`);
+    if (!container) return;
+
+    // 重置状态标签
+    const status = container.querySelector('.doc-status');
+    status.textContent = '未上传';
+    status.className = 'doc-status px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800';
+
+    // 隐藏文档信息
+    const info = container.querySelector('.doc-info');
+    info.classList.add('hidden');
+
+    // 隐藏操作按钮
+    const actions = container.querySelector('.doc-actions');
+    actions.classList.add('hidden');
+
+    // 重置上传按钮文本
+    const uploadBtn = container.querySelector('.doc-upload-form button');
+    const docNames = {
+        'thesis_draft': '上传初稿',
+        'thesis_final': '上传终稿',
+        'presentation': '上传演示方案',
+        'novelty_report': '上传查新报告',
+        'plagiarism_report': '上传查重报告',
+        'evaluation_material': '上传综评材料'
+    };
+    uploadBtn.textContent = docNames[docType] || '上传文档';
+}
+
+// 课题名称编辑功能
+function editThesisName() {
+    document.getElementById('thesisNameDisplay').parentElement.classList.add('hidden');
+    document.getElementById('thesisNameEdit').classList.remove('hidden');
+    document.getElementById('thesisNameInput').focus();
+}
+
+function cancelEditThesisName() {
+    document.getElementById('thesisNameDisplay').parentElement.classList.remove('hidden');
+    document.getElementById('thesisNameEdit').classList.add('hidden');
+}
+
+function saveThesisName() {
+    const thesisName = document.getElementById('thesisNameInput').value.trim();
+
+    if (!thesisName) {
+        alert('课题名称不能为空');
+        return;
+    }
+
+    if (thesisName.length > 200) {
+        alert('课题名称不能超过200个字符');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('thesis_name', thesisName);
+
+    fetch(`/teacher/students/{{ student.id }}/update_thesis_name`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 更新显示
+            document.getElementById('thesisNameDisplay').textContent = data.thesis_name;
+            cancelEditThesisName();
+            alert(data.message);
+        } else {
+            alert('更新失败：' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('更新失败：' + error.message);
+    });
+}
+</script>
+{% endblock %}
+

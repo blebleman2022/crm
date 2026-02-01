@@ -1,6 +1,6 @@
 {% extends "leads/base.html" %}
 
-{% block title %}{{ teacher.chinese_name }} - 导师简历{% endblock %}
+{% block title %}{{ teacher.user.username if teacher.user else '' }} - 导师简历{% endblock %}
 {% block page_title %}导师简历{% endblock %}
 
 {% block content %}
@@ -46,7 +46,7 @@
             <span class="material-symbols-outlined mr-1 text-sm">arrow_back</span>
             返回列表
         </a>
-        <a href="{{ url_for('teachers.edit_teacher', teacher_id=teacher.id) }}"
+        <a href="{{ url_for('teachers.edit_teacher', teacher_id=teacher.user_id) }}"
            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-800 hover:bg-blue-900 shadow-sm">
             <span class="material-symbols-outlined mr-1 text-sm">edit</span>
             编辑资料
@@ -59,11 +59,8 @@
         <!-- 头部深蓝色区域 - 显示名字 -->
         <div class="bg-blue-800 px-8 py-8">
             <h1 class="text-4xl font-bold text-white mb-2">
-                {% if teacher.chinese_name %}
-                    {{ teacher.chinese_name[0] }}老师
-                {% endif %}
-                {% if teacher.english_name %}
-                <span class="text-2xl text-blue-200 font-normal ml-3">{{ teacher.english_name }}</span>
+                {% if teacher.user %}
+                    {{ teacher.user.username[0] }}老师
                 {% endif %}
             </h1>
         </div>
@@ -212,4 +209,3 @@
     {% endif %}
 </div>
 {% endblock %}
-

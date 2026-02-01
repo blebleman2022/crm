@@ -8,10 +8,10 @@
     <div class="bg-white p-6 rounded-lg shadow-sm">
         <div class="mb-6">
             <h2 class="text-xl font-semibold text-gray-900">编辑老师信息</h2>
-            <p class="mt-1 text-sm text-gray-600">{{ teacher.chinese_name }}</p>
+            <p class="mt-1 text-sm text-gray-600">{{ teacher.user.username if teacher.user else '' }}</p>
         </div>
 
-        <form method="POST" action="{{ url_for('teachers.edit_teacher', teacher_id=teacher.id) }}">
+        <form method="POST" action="{{ url_for('teachers.edit_teacher', teacher_id=teacher.user_id) }}">
             <div class="space-y-6">
                 <!-- 基本信息 -->
                 <div class="border-b border-gray-200 pb-6">
@@ -19,24 +19,13 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label for="chinese_name" class="block text-sm font-medium text-gray-700">
-                                中文名 <span class="text-red-500">*</span>
+                                姓名 <span class="text-red-500">*</span>
                             </label>
                             <input type="text" 
                                    name="chinese_name" 
                                    id="chinese_name" 
                                    required
-                                   value="{{ teacher.chinese_name }}"
-                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
-                        </div>
-
-                        <div>
-                            <label for="english_name" class="block text-sm font-medium text-gray-700">
-                                英文名
-                            </label>
-                            <input type="text" 
-                                   name="english_name" 
-                                   id="english_name" 
-                                   value="{{ teacher.english_name or '' }}"
+                                   value="{{ teacher.user.username if teacher.user else '' }}"
                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
                         </div>
 
@@ -410,7 +399,7 @@ async function uploadImages() {
     uploadBtn.innerHTML = '<span class="material-symbols-outlined mr-1 text-sm animate-spin">refresh</span>上传中...';
 
     try {
-        const response = await fetch(`/teachers/upload-image/{{ teacher.id }}`, {
+        const response = await fetch(`/teachers/upload-image/{{ teacher.user_id }}`, {
             method: 'POST',
             body: formData
         });
@@ -490,4 +479,3 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
-

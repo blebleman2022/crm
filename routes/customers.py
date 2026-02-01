@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session
 from flask_login import login_required, current_user
 from functools import wraps
-from models import User, Customer, Lead, TutoringDelivery, CompetitionDelivery, CustomerCompetition, CompetitionName, CourseRecordImage, AwardCertificateImage, db
+from models import User, Customer, Lead, TutoringDelivery, CustomerCompetition, CompetitionName, CourseRecordImage, AwardCertificateImage, db
 from sqlalchemy.orm import joinedload
 from datetime import datetime, date
 from decimal import Decimal
@@ -11,14 +11,21 @@ from werkzeug.utils import secure_filename
 customers_bp = Blueprint('customers', __name__)
 
 def sales_or_admin_required(f):
-    """销售管理或管理员权限装饰器"""
+    """销售管理、班主任或管理员权限装饰器"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or not (current_user.is_sales() or current_user.is_admin()):
+        if not current_user.is_authenticated or not (current_user.is_sales() or current_user.is_admin() or current_user.role == 'teacher_supervisor'):
             flash('您没有权限访问此页面', 'error')
             return redirect(url_for('auth.login'))
         return f(*args, **kwargs)
     return decorated_function
+
+def get_sales_users():
+    """获取所有启用的销售用户（包括销售经理和销售员）"""
+    return User.query.filter(
+        User.status == True,
+        User.role.in_(['sales_manager', 'salesperson'])
+    ).all()
 
 def get_teachers():
     """获取所有启用的班主任"""
@@ -49,7 +56,8 @@ def list_customers():
 
     query = Customer.query.join(Lead).options(
         db.joinedload(Customer.tutoring_delivery),
-        db.joinedload(Customer.competition_delivery)
+        db.joinedload(Customer.teacher_user),
+        db.joinedload(Customer.teacher)
     )
 
     # 权限控制
@@ -96,9 +104,10 @@ def list_customers():
     # 已完成筛选
     if completed == 'true':
         # 筛选已完成的客户（课题辅导已完成或竞赛辅导已完成）
+        # 竞赛已完成：状态不是"未报名"或"已报名"
         query = query.filter(
             (TutoringDelivery.thesis_status == '已完成') |
-            (CompetitionDelivery.delivery_status == '服务完结')
+            (~CustomerCompetition.status.in_(['未报名', '已报名']))
         )
 
     # 中高考时间筛选
@@ -163,19 +172,49 @@ def list_customers():
             if len(payments) >= 2:
                 second_payments[lead_id] = payments[1].payment_date
 
-    # 批量查询每个客户的赛事数量
+    # 批量查询每个客户的赛事数量（已报名的赛事，状态不是"未报名"）
     customer_ids = [customer.id for customer in customers.items]
-    competition_counts = {}
+    competition_registered_counts = {}
+    competition_award_achieved = {}  # 记录是否达成奖项要求
+
     if customer_ids:
         from sqlalchemy import func
         counts = db.session.query(
             CustomerCompetition.customer_id,
             func.count(CustomerCompetition.id).label('count')
         ).filter(
-            CustomerCompetition.customer_id.in_(customer_ids)
+            CustomerCompetition.customer_id.in_(customer_ids),
+            CustomerCompetition.status != '未报名'
         ).group_by(CustomerCompetition.customer_id).all()
 
-        competition_counts = {customer_id: count for customer_id, count in counts}
+        competition_registered_counts = {customer_id: count for customer_id, count in counts}
+
+        # 判断每个客户是否达成奖项要求
+        for customer in customers.items:
+            award_level = customer.lead.competition_award_level
+            if not award_level:
+                competition_award_achieved[customer.id] = False
+                continue
+
+            # 获取客户的所有赛事
+            competitions = CustomerCompetition.query.filter_by(customer_id=customer.id).all()
+            achieved = False
+
+            for comp in competitions:
+                status = comp.status
+                # 市奖要求：市级或以上奖项
+                if award_level == '市奖':
+                    if status in ['市级一等奖', '市级二等奖', '市级三等奖',
+                                  '国家一等奖', '国家二等奖', '国家三等奖']:
+                        achieved = True
+                        break
+                # 国奖要求：国家级奖项
+                elif award_level == '国奖':
+                    if status in ['国家一等奖', '国家二等奖', '国家三等奖']:
+                        achieved = True
+                        break
+
+            competition_award_achieved[customer.id] = achieved
 
     # 获取所有不同的中高考年份用于筛选
     exam_years = db.session.query(Customer.exam_year).filter(
@@ -193,7 +232,8 @@ def list_customers():
                          start_date=start_date,
                          end_date=end_date,
                          second_payments=second_payments,
-                         competition_counts=competition_counts,
+                         competition_registered_counts=competition_registered_counts,
+                         competition_award_achieved=competition_award_achieved,
                          exam_year_filter=exam_year_filter,
                          award_level_filter=award_level_filter,
                          exam_years=exam_years)
@@ -224,43 +264,65 @@ def edit_customer(customer_id):
         contact_info = request.form.get('contact_info', '').strip()
         sales_user_id = request.form.get('sales_user_id', type=int)
         teacher_user_id = request.form.get('teacher_user_id', type=int)
+        teacher_id = request.form.get('teacher_id', type=int)  # 新增：辅导老师ID
         competition_award_level = request.form.get('competition_award_level', '').strip()
         additional_requirements = request.form.get('additional_requirements', '').strip()
         exam_year = request.form.get('exam_year', type=int)
         notes = request.form.get('notes', '').strip()
+        thesis_deadline_str = request.form.get('thesis_deadline', '').strip()  # 新增：课题截止时间
+        first_competition_id = request.form.get('first_competition_id', type=int)  # 新增：首个参赛赛事
 
         # 验证必填字段
         required_fields = [student_name, contact_info, sales_user_id, exam_year]
 
         if not all(required_fields):
             flash('请填写所有必填字段', 'error')
-            sales_users = User.query.filter_by(role='sales', status=True).all()
+            sales_users = get_sales_users()
             teacher_users = get_teachers()
+            # 查询 Teacher 对象（辅导老师列表）
+            teacher_users_active = User.query.filter(User.status == True, User.role == 'teacher').all()
+            teacher_user_ids = [u.id for u in teacher_users_active]
+            teachers = Teacher.query.filter(Teacher.user_id.in_(teacher_user_ids)).all() if teacher_user_ids else []
+            competitions = CompetitionName.query.all()
             return render_template('customers/edit.html', customer=customer,
-                                 sales_users=sales_users, teacher_users=teacher_users)
+                                 sales_users=sales_users, teacher_users=teacher_users, teachers=teachers, competitions=competitions)
 
         # 验证销售用户
-        sales_user = User.query.filter_by(id=sales_user_id, role='sales', status=True).first()
+        sales_user = User.query.filter(
+            User.id == sales_user_id,
+            User.role.in_(['sales_manager', 'salesperson']),
+            User.status == True
+        ).first()
         if not sales_user:
             flash('选择的销售用户无效', 'error')
-            sales_users = User.query.filter_by(role='sales', status=True).all()
+            sales_users = get_sales_users()
             teacher_users = get_teachers()
+            # 查询 Teacher 对象（辅导老师列表）
+            teacher_users_active = User.query.filter(User.status == True, User.role == 'teacher').all()
+            teacher_user_ids = [u.id for u in teacher_users_active]
+            teachers = Teacher.query.filter(Teacher.user_id.in_(teacher_user_ids)).all() if teacher_user_ids else []
+            competitions = CompetitionName.query.all()
             return render_template('customers/edit.html', customer=customer,
-                                 sales_users=sales_users, teacher_users=teacher_users)
+                                 sales_users=sales_users, teacher_users=teacher_users, teachers=teachers, competitions=competitions)
 
-        # 验证班主任（可选）- 允许销售管理和班主任角色
+        # 验证班主任（可选）- 允许teacher_supervisor角色
         if teacher_user_id:
             teacher = User.query.filter(
                 User.id == teacher_user_id,
-                User.role.in_(['teacher', 'sales']),
+                User.role == 'teacher_supervisor',
                 User.status == True
             ).first()
             if not teacher:
                 flash('选择的班主任无效', 'error')
-                sales_users = User.query.filter_by(role='sales', status=True).all()
+                sales_users = get_sales_users()
                 teacher_users = get_teachers()
+                # 查询 Teacher 对象（辅导老师列表）
+                teacher_users_active = User.query.filter(User.status == True, User.role == 'teacher').all()
+                teacher_user_ids = [u.id for u in teacher_users_active]
+                teachers = Teacher.query.filter(Teacher.user_id.in_(teacher_user_ids)).all() if teacher_user_ids else []
+                competitions = CompetitionName.query.all()
                 return render_template('customers/edit.html', customer=customer,
-                                     sales_users=sales_users, teacher_users=teacher_users)
+                                     sales_users=sales_users, teacher_users=teacher_users, teachers=teachers, competitions=competitions)
 
         try:
             # 更新线索信息
@@ -271,9 +333,24 @@ def edit_customer(customer_id):
 
             # 更新客户信息
             customer.teacher_user_id = teacher_user_id if teacher_user_id else None
-            customer.competition_award_level = competition_award_level if competition_award_level else None
-            customer.additional_requirements = additional_requirements if additional_requirements else None
+            customer.teacher_id = teacher_id if teacher_id else None  # 新增：保存辅导老师ID
+            # 注意：competition_award_level和additional_requirements是@property,从线索表读取,不能直接设置
+            # 需要更新线索表中的对应字段
+            customer.lead.competition_award_level = competition_award_level if competition_award_level else None
+            customer.lead.additional_requirements = additional_requirements if additional_requirements else None
             customer.exam_year = exam_year
+
+            # 新增：保存课题截止时间
+            if thesis_deadline_str:
+                try:
+                    customer.thesis_deadline = datetime.strptime(thesis_deadline_str, '%Y-%m-%d').date()
+                except ValueError:
+                    customer.thesis_deadline = None
+            else:
+                customer.thesis_deadline = None
+
+            # 新增：保存首个参赛赛事
+            customer.first_competition_id = first_competition_id if first_competition_id else None
 
             # 如果备注有变化，添加为沟通记录
             if notes and notes != customer.customer_notes:
@@ -293,9 +370,7 @@ def edit_customer(customer_id):
                 tutoring_delivery = TutoringDelivery(customer_id=customer.id)
                 db.session.add(tutoring_delivery)
 
-            if teacher_user_id and not customer.competition_delivery:
-                competition_delivery = CompetitionDelivery(customer_id=customer.id)
-                db.session.add(competition_delivery)
+            # 赛事记录通过 customer_competitions 表管理，这里不需要自动创建
 
             db.session.commit()
             flash(f'客户 {customer.lead.student_name} 更新成功', 'success')
@@ -305,10 +380,15 @@ def edit_customer(customer_id):
             flash(f'更新客户失败: {str(e)}', 'error')
 
     # GET 请求，显示编辑表单
-    sales_users = User.query.filter_by(role='sales', status=True).all()
+    sales_users = get_sales_users()
     teacher_users = get_teachers()
+    # 查询 Teacher 对象（辅导老师列表）
+    teacher_users_active = User.query.filter(User.status == True, User.role == 'teacher').all()
+    teacher_user_ids = [u.id for u in teacher_users_active]
+    teachers = Teacher.query.filter(Teacher.user_id.in_(teacher_user_ids)).all() if teacher_user_ids else []
+    competitions = CompetitionName.query.all()  # 获取所有竞赛项目
     return render_template('customers/edit.html', customer=customer,
-                         sales_users=sales_users, teacher_users=teacher_users)
+                         sales_users=sales_users, teacher_users=teacher_users, teachers=teachers, competitions=competitions)
 
 @customers_bp.route('/<int:customer_id>/assign_teacher', methods=['POST'])
 @login_required
@@ -333,19 +413,17 @@ def assign_teacher(customer_id):
     try:
         customer.teacher_user_id = teacher_id
         customer.updated_at = datetime.utcnow()
-        
+
         # 创建交付记录
         if not customer.tutoring_delivery:
             tutoring_delivery = TutoringDelivery(customer_id=customer.id)
             db.session.add(tutoring_delivery)
-        
-        if not customer.competition_delivery:
-            competition_delivery = CompetitionDelivery(customer_id=customer.id)
-            db.session.add(competition_delivery)
-        
+
+        # 赛事记录通过 customer_competitions 表管理，这里不需要自动创建
+
         db.session.commit()
         return jsonify({
-            'success': True, 
+            'success': True,
             'message': f'已将客户 {customer.lead.student_name} 分配给班主任 {teacher.username}'
         })
     except Exception as e:
@@ -368,7 +446,7 @@ def get_customer_progress(customer_id):
         'thesis_name': customer.thesis_name,  # 添加课题名称
         'service_types': customer.get_service_types(),  # 添加服务类型信息
         'tutoring_delivery': None,
-        'competition_delivery': None
+        'competitions': []
     }
 
     # 课程进度信息
@@ -378,12 +456,13 @@ def get_customer_progress(customer_id):
             'completed_sessions': customer.tutoring_delivery.completed_sessions,
         }
 
-    # 奖项完成信息
-    if customer.competition_delivery:
-        customer_data['competition_delivery'] = {
-            'delivery_status': customer.competition_delivery.delivery_status,
-            'award_obtained_at': customer.competition_delivery.award_obtained_at.isoformat() if customer.competition_delivery.award_obtained_at else None
-        }
+    # 赛事信息
+    competitions = customer.competitions.all()
+    customer_data['competitions'] = [{
+        'id': comp.id,
+        'name': comp.competition_name.name if comp.competition_name else '',
+        'status': comp.status,
+    } for comp in competitions]
 
     return jsonify({'success': True, 'customer': customer_data})
 
@@ -447,12 +526,13 @@ def customer_api(customer_id):
             'thesis_completed_at': customer.tutoring_delivery.thesis_completed_at.isoformat() if customer.tutoring_delivery.thesis_completed_at else None
         }
 
-    # 竞赛交付状态
-    if customer.competition_delivery:
-        customer_data['competition_delivery'] = {
-            'delivery_status': customer.competition_delivery.delivery_status,
-            'award_obtained_at': customer.competition_delivery.award_obtained_at.isoformat() if customer.competition_delivery.award_obtained_at else None
-        }
+    # 赛事状态（使用 customer_competitions）
+    competitions = customer.competitions.all()
+    customer_data['competitions'] = [{
+        'id': comp.id,
+        'name': comp.competition_name.name if comp.competition_name else '',
+        'status': comp.status,
+    } for comp in competitions]
 
     return jsonify({'success': True, 'customer': customer_data})
 
@@ -561,8 +641,7 @@ def get_customer_competitions(customer_id):
                 'competition_name': comp.competition_name.name,
                 'competition_name_id': comp.competition_name_id,
                 'status': comp.status,
-                'custom_award': comp.custom_award,
-                'display_status': comp.get_display_status(),
+                'display_status': comp.status,
                 'status_color': comp.get_status_color(),
                 'created_at': comp.created_at.strftime('%Y-%m-%d %H:%M:%S') if comp.created_at else None
             })
@@ -583,18 +662,21 @@ def add_customer_competition(customer_id):
     try:
         customer = Customer.query.get_or_404(customer_id)
 
-        # 权限检查：只有班主任可以添加赛事
-        if current_user.role != 'teacher_supervisor':
-            return jsonify({'success': False, 'message': '只有班主任可以添加赛事'}), 403
-
-        # 权限检查：班主任只能为自己负责的客户添加赛事
-        if customer.teacher_user_id != current_user.id:
-            return jsonify({'success': False, 'message': '无权限为此客户添加赛事'}), 403
+        # 权限检查：班主任或老师可以添加赛事
+        if current_user.role == 'teacher_supervisor':
+            # 班主任只能为自己负责的客户添加赛事
+            if customer.teacher_user_id != current_user.id:
+                return jsonify({'success': False, 'message': '无权限为此客户添加赛事'}), 403
+        elif current_user.role == 'teacher':
+            # 老师只能为自己负责的学生添加赛事
+            if customer.teacher_id != current_user.teacher_profile.user_id:
+                return jsonify({'success': False, 'message': '无权限为此客户添加赛事'}), 403
+        else:
+            return jsonify({'success': False, 'message': '无权限添加赛事'}), 403
 
         data = request.get_json()
         competition_name_id = data.get('competition_name_id')
-        status = data.get('status', '未报名')
-        custom_award = data.get('custom_award')
+        status = data.get('status', '已报名')
 
         # 验证必填字段
         if not competition_name_id:
@@ -615,21 +697,17 @@ def add_customer_competition(customer_id):
             return jsonify({'success': False, 'message': '该客户已添加过此赛事'}), 400
 
         # 验证状态值
-        valid_statuses = ['未报名', '已报名', '国家一等奖', '国家二等奖', '国家三等奖',
-                         '市级一等奖', '市级二等奖', '市级三等奖', '其他奖项']
+        valid_statuses = ['已报名', '国家一等奖', '国家二等奖', '国家三等奖',
+                         '市级一等奖', '市级二等奖', '市级三等奖',
+                         '区级一等奖', '区级二等奖', '区级三等奖']
         if status not in valid_statuses:
             return jsonify({'success': False, 'message': '无效的状态值'}), 400
-
-        # 如果是"其他奖项"，验证自定义奖项名称
-        if status == '其他奖项' and not custom_award:
-            return jsonify({'success': False, 'message': '请输入自定义奖项名称'}), 400
 
         # 创建新赛事记录
         new_competition = CustomerCompetition(
             customer_id=customer_id,
             competition_name_id=competition_name_id,
             status=status,
-            custom_award=custom_award if status == '其他奖项' else None,
             created_by_user_id=current_user.id
         )
 
@@ -643,8 +721,7 @@ def add_customer_competition(customer_id):
                 'id': new_competition.id,
                 'competition_name': competition_name.name,
                 'status': new_competition.status,
-                'custom_award': new_competition.custom_award,
-                'display_status': new_competition.get_display_status(),
+                'display_status': new_competition.status,
                 'status_color': new_competition.get_status_color()
             }
         })
@@ -660,31 +737,30 @@ def update_competition_status(competition_id):
     try:
         competition = CustomerCompetition.query.get_or_404(competition_id)
 
-        # 权限检查：只有班主任可以更新赛事状态
-        if current_user.role != 'teacher_supervisor':
-            return jsonify({'success': False, 'message': '只有班主任可以更新赛事状态'}), 403
-
-        # 权限检查：班主任只能更新自己负责的客户的赛事
-        if competition.customer.teacher_user_id != current_user.id:
-            return jsonify({'success': False, 'message': '无权限更新此赛事'}), 403
+        # 权限检查：班主任或老师可以更新赛事状态
+        if current_user.role == 'teacher_supervisor':
+            # 班主任只能更新自己负责的客户的赛事
+            if competition.customer.teacher_user_id != current_user.id:
+                return jsonify({'success': False, 'message': '无权限更新此赛事'}), 403
+        elif current_user.role == 'teacher':
+            # 老师只能更新自己负责的学生的赛事
+            if competition.customer.teacher_id != current_user.teacher_profile.user_id:
+                return jsonify({'success': False, 'message': '无权限更新此赛事'}), 403
+        else:
+            return jsonify({'success': False, 'message': '无权限更新赛事状态'}), 403
 
         data = request.get_json()
         new_status = data.get('status')
-        custom_award = data.get('custom_award')
 
         # 验证状态值
         valid_statuses = ['未报名', '已报名', '国家一等奖', '国家二等奖', '国家三等奖',
-                         '市级一等奖', '市级二等奖', '市级三等奖', '其他奖项']
+                         '市级一等奖', '市级二等奖', '市级三等奖',
+                         '区级一等奖', '区级二等奖', '区级三等奖']
         if new_status not in valid_statuses:
             return jsonify({'success': False, 'message': '无效的状态值'}), 400
 
-        # 如果是"其他奖项"，验证自定义奖项名称
-        if new_status == '其他奖项' and not custom_award:
-            return jsonify({'success': False, 'message': '请输入自定义奖项名称'}), 400
-
         # 更新状态
         competition.status = new_status
-        competition.custom_award = custom_award if new_status == '其他奖项' else None
         competition.updated_at = datetime.utcnow()
 
         db.session.commit()
@@ -695,8 +771,7 @@ def update_competition_status(competition_id):
             'competition': {
                 'id': competition.id,
                 'status': competition.status,
-                'custom_award': competition.custom_award,
-                'display_status': competition.get_display_status(),
+                'display_status': competition.status,
                 'status_color': competition.get_status_color()
             }
         })
@@ -712,13 +787,17 @@ def delete_competition(competition_id):
     try:
         competition = CustomerCompetition.query.get_or_404(competition_id)
 
-        # 权限检查：只有班主任可以删除赛事
-        if current_user.role != 'teacher_supervisor':
-            return jsonify({'success': False, 'message': '只有班主任可以删除赛事'}), 403
-
-        # 权限检查：班主任只能删除自己负责的客户的赛事
-        if competition.customer.teacher_user_id != current_user.id:
-            return jsonify({'success': False, 'message': '无权限删除此赛事'}), 403
+        # 权限检查：班主任或老师可以删除赛事
+        if current_user.role == 'teacher_supervisor':
+            # 班主任只能删除自己负责的客户的赛事
+            if competition.customer.teacher_user_id != current_user.id:
+                return jsonify({'success': False, 'message': '无权限删除此赛事'}), 403
+        elif current_user.role == 'teacher':
+            # 老师只能删除自己负责的学生的赛事
+            if competition.customer.teacher_id != current_user.teacher_profile.user_id:
+                return jsonify({'success': False, 'message': '无权限删除此赛事'}), 403
+        else:
+            return jsonify({'success': False, 'message': '无权限删除赛事'}), 403
 
         competition_name = competition.competition_name.name
 
@@ -1071,3 +1150,41 @@ def get_award_certificate_images(customer_id):
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'获取图片失败: {str(e)}'}), 500
+
+@customers_bp.route('/<int:customer_id>/update_basic_info', methods=['POST'])
+@login_required
+def update_customer_basic_info(customer_id):
+    """更新客户基本信息（年级、学校、行政区）"""
+    try:
+        customer = Customer.query.get_or_404(customer_id)
+
+        # 权限检查：只有班主任可以更新
+        if current_user.role != 'teacher_supervisor':
+            return jsonify({'success': False, 'message': '只有班主任可以更新学员信息'}), 403
+
+        # 权限检查：只能更新自己负责的客户
+        if customer.teacher_user_id != current_user.id:
+            return jsonify({'success': False, 'message': '您只能更新自己负责的学员信息'}), 403
+
+        # 获取请求数据
+        data = request.get_json()
+        grade = data.get('grade', '').strip()
+        school = data.get('school', '').strip()
+        district = data.get('district', '').strip()
+
+        # 更新Lead表中的信息
+        lead = customer.lead
+        lead.grade = grade if grade else None
+        lead.school = school if school else None
+        lead.district = district if district else None
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': '学员信息更新成功'
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'更新失败: {str(e)}'}), 500

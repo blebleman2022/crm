@@ -87,8 +87,6 @@ def migrate_add_teachers_table(conn):
     cursor.execute("""
         CREATE TABLE teachers (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            chinese_name VARCHAR(50) NOT NULL,
-            english_name VARCHAR(100),
             current_institution VARCHAR(200),
             major_direction VARCHAR(200),
             highest_degree VARCHAR(50),
@@ -481,4 +479,3 @@ def main():
 
 if __name__ == "__main__":
     exit(main())
-

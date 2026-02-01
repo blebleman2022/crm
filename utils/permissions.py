@@ -186,7 +186,7 @@ def get_accessible_data_filter(user, model_class):
             return model_class.customer_id.in_(
                 Customer.query.filter_by(teacher_user_id=user.id).with_entities(Customer.id)
             )
-        elif model_class.__name__ == 'CompetitionDelivery':
+        elif model_class.__name__ == 'CustomerCompetition':
             from models import Customer
             return model_class.customer_id.in_(
                 Customer.query.filter_by(teacher_user_id=user.id).with_entities(Customer.id)

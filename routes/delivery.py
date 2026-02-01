@@ -1,9 +1,10 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_file
 from flask_login import login_required, current_user
 from functools import wraps
-from models import User, Customer, Lead, TutoringDelivery, CompetitionDelivery, Payment, db
+from models import User, Customer, Lead, TutoringDelivery, CustomerCompetition, Payment, DeliveryDocument, db
 from datetime import datetime, date
 from sqlalchemy import and_, func
+import os
 
 delivery_bp = Blueprint('delivery', __name__)
 
@@ -43,21 +44,22 @@ def dashboard():
         Lead.service_types.contains('competition')
     ).count()
 
-    competition_completed = CompetitionDelivery.query.join(Customer).join(Customer.lead).filter(
+    # 已结束赛事统计（获奖）
+    competition_completed = CustomerCompetition.query.join(Customer).filter(
         Customer.teacher_user_id == current_user.id,
-        Lead.service_types.contains('competition'),
-        CompetitionDelivery.delivery_status == '服务完结'
+        ~CustomerCompetition.status.in_(['未报名', '已报名'])
     ).count()
-    
+
     # 最近的交付任务
     recent_tutoring = TutoringDelivery.query.join(Customer).filter(
         Customer.teacher_user_id == current_user.id
     ).order_by(TutoringDelivery.updated_at.desc()).limit(5).all()
-    
-    recent_competition = CompetitionDelivery.query.join(Customer).filter(
+
+    # 最近的赛事进展（使用 CustomerCompetition）
+    recent_competition = CustomerCompetition.query.join(Customer).filter(
         Customer.teacher_user_id == current_user.id
-    ).order_by(CompetitionDelivery.updated_at.desc()).limit(5).all()
-    
+    ).order_by(CustomerCompetition.updated_at.desc()).limit(5).all()
+
     return render_template('delivery/dashboard.html',
                          my_customers=my_customers,
                          tutoring_total=tutoring_total,
@@ -249,83 +251,207 @@ def edit_tutoring(delivery_id):
     
     return render_template('delivery/edit_tutoring.html', delivery=delivery)
 
-@delivery_bp.route('/competition')
-@login_required
-@teacher_supervisor_required
-def competition_list():
-    """竞赛奖项交付列表"""
-    page = request.args.get('page', 1, type=int)
-    search = request.args.get('search', '', type=str)
-    status_filter = request.args.get('status', '', type=str)
-    
-    query = CompetitionDelivery.query.join(Customer).join(Customer.lead).filter(
-        Customer.teacher_user_id == current_user.id
-    )
-    
-    # 搜索过滤
-    if search:
-        from models import Lead
-        query = query.filter(Lead.student_name.contains(search))
-    
-    # 状态过滤
-    if status_filter:
-        query = query.filter(CompetitionDelivery.delivery_status == status_filter)
-    
-    # 分页
-    deliveries = query.order_by(CompetitionDelivery.updated_at.desc()).paginate(
-        page=page, per_page=20, error_out=False
-    )
-    
-    return render_template('delivery/competition_list.html', 
-                         deliveries=deliveries, 
-                         search=search,
-                         status_filter=status_filter)
+# 赛事管理已迁移到 customer_competitions 表，在客户管理中进行
 
-@delivery_bp.route('/competition/<int:delivery_id>/edit', methods=['GET', 'POST'])
+
+# ==================== 老师管理功能 ====================
+
+@delivery_bp.route('/teachers')
 @login_required
 @teacher_supervisor_required
-def edit_competition(delivery_id):
-    """编辑竞赛奖项交付"""
-    delivery = CompetitionDelivery.query.get_or_404(delivery_id)
-    
-    # 检查权限
-    if delivery.customer.teacher_user_id != current_user.id:
-        flash('您没有权限编辑此交付记录', 'error')
-        return redirect(url_for('delivery.competition_list'))
-    
+def teacher_list():
+    """辅导老师列表（role='teacher'）"""
+    # 获取该班主任创建的所有辅导老师
+    # 先查询 User 表中由当前班主任创建的 teacher 角色用户
+    user_query = User.query.filter(
+        User.role == 'teacher',
+        User.created_by_user_id == current_user.id
+    ).all()
+    user_ids = [u.id for u in user_query]
+
+    # 再查询 Teacher 表中对应的老师信息
+    teachers = Teacher.query.filter(Teacher.user_id.in_(user_ids)).all() if user_ids else []
+
+    # 统计每个老师负责的学生数
+    teacher_stats = {}
+    for teacher in teachers:
+        student_count = Customer.query.filter_by(teacher_id=teacher.user_id).count()
+        teacher_stats[teacher.user_id] = student_count
+
+    return render_template('delivery/teacher_list.html',
+                         teachers=teachers,
+                         teacher_stats=teacher_stats)
+
+@delivery_bp.route('/teachers/create', methods=['GET', 'POST'])
+@login_required
+@teacher_supervisor_required
+def create_teacher():
+    """创建辅导老师账号 - 免密登录（保存到 User 表，role='teacher'）"""
     if request.method == 'POST':
-        competition_name = request.form.get('competition_name', '').strip()
-        delivery_status = request.form.get('delivery_status', '').strip()
-        registration_date = request.form.get('registration_date', '').strip()
-        competition_date = request.form.get('competition_date', '').strip()
-        award_result = request.form.get('award_result', '').strip()
-        delivery_notes = request.form.get('delivery_notes', '').strip()
-        
+        name = request.form.get('name', '').strip()
+        phone = request.form.get('phone', '').strip()
+        email = request.form.get('email', '').strip()
+        subject = request.form.get('subject', '').strip()
+
+        # 验证输入
+        if not name or not phone:
+            flash('姓名和手机号为必填项', 'error')
+            return render_template('delivery/create_teacher.html')
+
+        # 验证手机号格式
+        import re
+        if not re.match(r'^1[3-9]\d{9}$', phone):
+            flash('手机号格式不正确', 'error')
+            return render_template('delivery/create_teacher.html')
+
+        # 检查手机号是否已存在（User 表或 Teacher 表）
+        if User.query.filter_by(phone=phone).first():
+            flash('该手机号已被注册', 'error')
+            return render_template('delivery/create_teacher.html')
+
         try:
-            # 转换日期
-            reg_date = None
-            comp_date = None
-            if registration_date:
-                reg_date = datetime.strptime(registration_date, '%Y-%m-%d').date()
-            if competition_date:
-                comp_date = datetime.strptime(competition_date, '%Y-%m-%d').date()
-            
-            # 更新交付信息
-            delivery.competition_name = competition_name
-            delivery.delivery_status = delivery_status
-            delivery.registration_date = reg_date
-            delivery.competition_date = comp_date
-            delivery.award_result = award_result
-            delivery.delivery_notes = delivery_notes
-            delivery.updated_at = datetime.utcnow()
-            
+            # 创建辅导老师账号（保存到 User 表，role='teacher'）
+            user = User(
+                username=name,
+                phone=phone,
+                role='teacher',
+                status=True,
+                created_by_user_id=current_user.id
+            )
+
+            db.session.add(user)
+            db.session.flush()
+
+            teacher = Teacher(
+                user_id=user.id,
+                email=email,
+                subject=subject
+            )
+            db.session.add(teacher)
             db.session.commit()
-            flash(f'竞赛奖项交付记录更新成功', 'success')
-            return redirect(url_for('delivery.competition_list'))
-        except ValueError:
-            flash('日期格式不正确', 'error')
+
+            flash(f'辅导老师账号创建成功！登录手机号：{phone}（免密登录）', 'success')
+            return redirect(url_for('delivery.teacher_list'))
         except Exception as e:
             db.session.rollback()
-            flash(f'更新失败: {str(e)}', 'error')
-    
-    return render_template('delivery/edit_competition.html', delivery=delivery)
+            flash(f'创建失败：{str(e)}', 'error')
+
+    return render_template('delivery/create_teacher.html')
+
+@delivery_bp.route('/teachers/<int:teacher_id>/edit', methods=['GET', 'POST'])
+@login_required
+@teacher_supervisor_required
+def edit_teacher(teacher_id):
+    """编辑辅导老师信息"""
+    # teacher_id 是 User.id
+    user = User.query.get_or_404(teacher_id)
+
+    # 验证权限：只能编辑自己创建的辅导老师，且必须是 role='teacher'
+    if user.created_by_user_id != current_user.id or user.role != 'teacher':
+        flash('您无权编辑此老师信息', 'error')
+        return redirect(url_for('delivery.teacher_list'))
+
+    # 获取关联的 Teacher 记录
+    teacher = Teacher.query.filter_by(user_id=teacher_id).first_or_404()
+
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        email = request.form.get('email', '').strip()
+        subject = request.form.get('subject', '').strip()
+
+        if not name:
+            flash('姓名不能为空', 'error')
+            return render_template('delivery/edit_teacher.html', teacher=teacher, user=user)
+
+        try:
+            user.username = name
+            teacher.email = email
+            teacher.subject = subject
+            teacher.updated_at = datetime.utcnow()
+            db.session.commit()
+
+            flash('辅导老师信息更新成功', 'success')
+            return redirect(url_for('delivery.teacher_list'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'更新失败：{str(e)}', 'error')
+
+    return render_template('delivery/edit_teacher.html', teacher=teacher, user=user)
+
+@delivery_bp.route('/teachers/<int:teacher_id>/toggle-status', methods=['POST'])
+@login_required
+@teacher_supervisor_required
+def toggle_teacher_status(teacher_id):
+    """启用/禁用辅导老师账号"""
+    # teacher_id 是 User.id
+    user = User.query.get_or_404(teacher_id)
+
+    # 验证权限：只能操作自己创建的辅导老师，且必须是 role='teacher'
+    if user.created_by_user_id != current_user.id or user.role != 'teacher':
+        return jsonify({'success': False, 'message': '您无权操作此老师账号'}), 403
+
+    try:
+        user.status = not user.status
+        user.updated_at = datetime.utcnow()
+        db.session.commit()
+
+        status_text = '启用' if user.status else '禁用'
+        return jsonify({'success': True, 'message': f'已{status_text}辅导老师账号', 'status': user.status})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+# ==================== 班主任文档查看功能 ====================
+
+@delivery_bp.route('/customers/<int:customer_id>/documents')
+@login_required
+@teacher_supervisor_required
+def view_customer_documents(customer_id):
+    """班主任查看学生的所有文档"""
+    customer = Customer.query.get_or_404(customer_id)
+
+    # 验证权限 - 只能查看自己负责的客户
+    if customer.teacher_user_id != current_user.id:
+        return jsonify({'success': False, 'message': '您无权查看此客户的文档'}), 403
+
+    # 获取所有最新版本的文档
+    documents = DeliveryDocument.query.filter_by(
+        customer_id=customer_id,
+        is_latest=True
+    ).all()
+
+    # 按文档类型分组并转换为字典
+    docs_by_type = {}
+    for doc in documents:
+        docs_by_type[doc.doc_type] = {
+            'id': doc.id,
+            'file_name': doc.file_name,
+            'version': doc.version,
+            'created_at': doc.created_at.isoformat(),
+            'uploaded_by_name': doc.uploaded_by_name
+        }
+
+    return jsonify({
+        'success': True,
+        'documents': docs_by_type
+    })
+
+@delivery_bp.route('/documents/<int:doc_id>/download')
+@login_required
+@teacher_supervisor_required
+def download_document(doc_id):
+    """班主任下载文档"""
+    doc = DeliveryDocument.query.get_or_404(doc_id)
+
+    # 验证权限 - 只能下载自己负责的客户的文档
+    customer = Customer.query.get_or_404(doc.customer_id)
+    if customer.teacher_user_id != current_user.id:
+        flash('您无权下载此文档', 'error')
+        return redirect(url_for('delivery.dashboard'))
+
+    # 检查文件是否存在
+    if not os.path.exists(doc.file_path):
+        flash('文件不存在', 'error')
+        return redirect(url_for('customers.detail', customer_id=doc.customer_id))
+
+    return send_file(doc.file_path, as_attachment=True, download_name=doc.file_name)

@@ -72,3 +72,8 @@ htmlcov/
 
 # Database (do not push local db)
 instance/*.db
+
+# SSH keys and sensitive files
+*.pem
+*.key
+*.crt

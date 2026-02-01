@@ -314,16 +314,31 @@
 
                 <!-- 竞赛奖项等级（仅在选择竞赛辅导时显示） -->
                 <div class="mt-6" id="competition_award_level_section" style="display: none;">
-                    <label for="competition_award_level" class="block text-sm font-medium text-gray-700 mb-2">
-                        <span class="material-symbols-outlined text-sm mr-1">military_tech</span>竞赛奖项等级
-                    </label>
-                    <select id="competition_award_level" name="competition_award_level"
-                            class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md">
-                        <option value="">请选择目标奖项等级</option>
-                        <option value="市奖" {% if lead.competition_award_level == '市奖' %}selected{% endif %}>市奖</option>
-                        <option value="国奖" {% if lead.competition_award_level == '国奖' %}selected{% endif %}>国奖</option>
-                    </select>
-                    <p class="mt-1 text-sm text-gray-500">选择了竞赛辅导服务，必须设置目标奖项等级</p>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label for="competition_award_level" class="block text-sm font-medium text-gray-700 mb-2">
+                                <span class="material-symbols-outlined text-sm mr-1">military_tech</span>竞赛奖项等级
+                            </label>
+                            <select id="competition_award_level" name="competition_award_level"
+                                    class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md">
+                                <option value="">请选择目标奖项等级</option>
+                                <option value="市奖" {% if lead.competition_award_level == '市奖' %}selected{% endif %}>市奖</option>
+                                <option value="国奖" {% if lead.competition_award_level == '国奖' %}selected{% endif %}>国奖</option>
+                            </select>
+                            <p class="mt-1 text-sm text-gray-500">必须设置目标奖项等级</p>
+                        </div>
+                        <div>
+                            <label for="competition_count" class="block text-sm font-medium text-gray-700 mb-2">
+                                <span class="material-symbols-outlined text-sm mr-1">format_list_numbered</span>申报赛事数量
+                            </label>
+                            <input type="number" id="competition_count" name="competition_count"
+                                   min="1" step="1"
+                                   value="{{ lead.competition_count or '' }}"
+                                   placeholder="请输入数量"
+                                   class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md">
+                            <p class="mt-1 text-sm text-gray-500">必须填写申报数量</p>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- 额外要求 -->
@@ -952,15 +967,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // 表单提交时检查基本信息是否有变化
 document.querySelector('form').addEventListener('submit', function(e) {
-    // 1. 先验证竞赛辅导和奖项等级的联动
+    // 1. 先验证竞赛辅导和奖项等级、申报数量的联动
     const competitionCheckbox = document.getElementById('service_competition');
     const awardLevelSelect = document.getElementById('competition_award_level');
+    const competitionCountInput = document.getElementById('competition_count');
 
     if (competitionCheckbox && competitionCheckbox.checked) {
         if (!awardLevelSelect.value) {
             e.preventDefault();
             alert('选择了竞赛辅导服务，必须设置目标奖项等级！');
             awardLevelSelect.focus();
+            return false;
+        }
+        if (!competitionCountInput.value || competitionCountInput.value < 1) {
+            e.preventDefault();
+            alert('选择了竞赛辅导服务，必须填写申报赛事数量！');
+            competitionCountInput.focus();
             return false;
         }
     }

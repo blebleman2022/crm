@@ -38,7 +38,24 @@
                                 </tr>
                                 <tr>
                                     <td class="px-3 py-2 text-sm text-gray-600 bg-gray-50">年级</td>
-                                    <td id="grade" class="px-3 py-2 text-sm font-medium text-gray-900">-</td>
+                                    <td class="px-3 py-2">
+                                        <span id="gradeDisplay" class="text-sm font-medium text-gray-900">-</span>
+                                        <select id="gradeEdit" class="hidden w-full text-sm border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                            <option value="">请选择年级</option>
+                                            <option value="1年级">1年级</option>
+                                            <option value="2年级">2年级</option>
+                                            <option value="3年级">3年级</option>
+                                            <option value="4年级">4年级</option>
+                                            <option value="5年级">5年级</option>
+                                            <option value="6年级">6年级</option>
+                                            <option value="7年级">7年级</option>
+                                            <option value="8年级">8年级</option>
+                                            <option value="9年级">9年级</option>
+                                            <option value="高一">高一</option>
+                                            <option value="高二">高二</option>
+                                            <option value="高三">高三</option>
+                                        </select>
+                                    </td>
                                 </tr>
                                 <tr>
                                     <td class="px-3 py-2 text-sm text-gray-600 bg-gray-50">家长微信名</td>
@@ -50,11 +67,35 @@
                                 </tr>
                                 <tr>
                                     <td class="px-3 py-2 text-sm text-gray-600 bg-gray-50">学校</td>
-                                    <td id="school" class="px-3 py-2 text-sm font-medium text-gray-900">-</td>
+                                    <td class="px-3 py-2">
+                                        <span id="schoolDisplay" class="text-sm font-medium text-gray-900">-</span>
+                                        <input type="text" id="schoolEdit" class="hidden w-full text-sm border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="请输入学校名称">
+                                    </td>
                                 </tr>
                                 <tr>
                                     <td class="px-3 py-2 text-sm text-gray-600 bg-gray-50">行政区</td>
-                                    <td id="district" class="px-3 py-2 text-sm font-medium text-gray-900">-</td>
+                                    <td class="px-3 py-2">
+                                        <span id="districtDisplay" class="text-sm font-medium text-gray-900">-</span>
+                                        <select id="districtEdit" class="hidden w-full text-sm border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                            <option value="">请选择行政区</option>
+                                            <option value="黄浦区">黄浦区</option>
+                                            <option value="徐汇区">徐汇区</option>
+                                            <option value="长宁区">长宁区</option>
+                                            <option value="静安区">静安区</option>
+                                            <option value="普陀区">普陀区</option>
+                                            <option value="虹口区">虹口区</option>
+                                            <option value="杨浦区">杨浦区</option>
+                                            <option value="闵行区">闵行区</option>
+                                            <option value="宝山区">宝山区</option>
+                                            <option value="嘉定区">嘉定区</option>
+                                            <option value="浦东新区">浦东新区</option>
+                                            <option value="金山区">金山区</option>
+                                            <option value="松江区">松江区</option>
+                                            <option value="青浦区">青浦区</option>
+                                            <option value="奉贤区">奉贤区</option>
+                                            <option value="崇明区">崇明区</option>
+                                        </select>
+                                    </td>
                                 </tr>
                             </tbody>
                         </table>
@@ -99,11 +140,29 @@
         </div>
 
         <!-- 模态框底部 -->
-        <div class="flex justify-end pt-4">
-            <button onclick="closeStudentDetailModal()"
-                    class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200">
-                关闭
-            </button>
+        <div class="flex justify-between pt-4">
+            <div id="editButtonGroup" class="hidden">
+                <button id="editButton" onclick="enableStudentEdit()"
+                        class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-blue-600 rounded-md hover:bg-blue-700">
+                    <span class="material-symbols-outlined text-sm mr-1 align-middle">edit</span>
+                    <span class="align-middle">编辑</span>
+                </button>
+            </div>
+            <div class="flex gap-2">
+                <button id="cancelEditButton" onclick="cancelStudentEdit()"
+                        class="hidden px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200">
+                    取消
+                </button>
+                <button id="saveButton" onclick="saveStudentInfo()"
+                        class="hidden px-4 py-2 text-sm font-medium text-white bg-green-600 border border-green-600 rounded-md hover:bg-green-700">
+                    <span class="material-symbols-outlined text-sm mr-1 align-middle">save</span>
+                    <span class="align-middle">保存</span>
+                </button>
+                <button id="closeButton" onclick="closeStudentDetailModal()"
+                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200">
+                    关闭
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -152,9 +211,18 @@ function populateStudentDetail(data, isCustomer, hideContactInfo = false) {
     // 基本信息
     document.getElementById('studentName').textContent = studentData.student_name || '-';
     document.getElementById('parentWechatDisplayName').textContent = studentData.parent_wechat_display_name || '-';
-    document.getElementById('grade').textContent = studentData.grade || '-';
-    document.getElementById('school').textContent = studentData.school || '-';
-    document.getElementById('district').textContent = studentData.district || '-';
+
+    // 年级 - 填充显示和编辑字段
+    document.getElementById('gradeDisplay').textContent = studentData.grade || '-';
+    document.getElementById('gradeEdit').value = studentData.grade || '';
+
+    // 学校 - 填充显示和编辑字段
+    document.getElementById('schoolDisplay').textContent = studentData.school || '-';
+    document.getElementById('schoolEdit').value = studentData.school || '';
+
+    // 行政区 - 填充显示和编辑字段
+    document.getElementById('districtDisplay').textContent = studentData.district || '-';
+    document.getElementById('districtEdit').value = studentData.district || '';
 
     // 根据参数决定是否显示联系方式
     const contactInfoRow = document.getElementById('contactInfoRow');
@@ -163,6 +231,14 @@ function populateStudentDetail(data, isCustomer, hideContactInfo = false) {
     } else {
         contactInfoRow.classList.remove('hidden');
         document.getElementById('contactInfo').textContent = studentData.contact_info || '-';
+    }
+
+    // 显示编辑按钮（仅班主任且是客户）
+    const editButtonGroup = document.getElementById('editButtonGroup');
+    if (isCustomer && typeof currentUserRole !== 'undefined' && currentUserRole === 'teacher_supervisor') {
+        editButtonGroup.classList.remove('hidden');
+    } else {
+        editButtonGroup.classList.add('hidden');
     }
 
     // 服务内容（线索和客户都显示）
@@ -365,6 +441,100 @@ function displayCommunications(communications, isCustomer) {
     } else {
         communicationEmpty.classList.remove('hidden');
     }
+}
+
+// 启用编辑模式
+function enableStudentEdit() {
+    // 隐藏显示字段，显示编辑字段
+    document.getElementById('gradeDisplay').classList.add('hidden');
+    document.getElementById('gradeEdit').classList.remove('hidden');
+
+    document.getElementById('schoolDisplay').classList.add('hidden');
+    document.getElementById('schoolEdit').classList.remove('hidden');
+
+    document.getElementById('districtDisplay').classList.add('hidden');
+    document.getElementById('districtEdit').classList.remove('hidden');
+
+    // 切换按钮显示
+    document.getElementById('editButton').classList.add('hidden');
+    document.getElementById('saveButton').classList.remove('hidden');
+    document.getElementById('cancelEditButton').classList.remove('hidden');
+    document.getElementById('closeButton').classList.add('hidden');
+}
+
+// 取消编辑
+function cancelStudentEdit() {
+    // 恢复原始值
+    const studentData = currentStudentData.customer;
+    document.getElementById('gradeEdit').value = studentData.grade || '';
+    document.getElementById('schoolEdit').value = studentData.school || '';
+    document.getElementById('districtEdit').value = studentData.district || '';
+
+    // 隐藏编辑字段，显示显示字段
+    document.getElementById('gradeDisplay').classList.remove('hidden');
+    document.getElementById('gradeEdit').classList.add('hidden');
+
+    document.getElementById('schoolDisplay').classList.remove('hidden');
+    document.getElementById('schoolEdit').classList.add('hidden');
+
+    document.getElementById('districtDisplay').classList.remove('hidden');
+    document.getElementById('districtEdit').classList.add('hidden');
+
+    // 切换按钮显示
+    document.getElementById('editButton').classList.remove('hidden');
+    document.getElementById('saveButton').classList.add('hidden');
+    document.getElementById('cancelEditButton').classList.add('hidden');
+    document.getElementById('closeButton').classList.remove('hidden');
+}
+
+// 保存学员信息
+function saveStudentInfo() {
+    const customerId = currentStudentData.customer.id;
+    const grade = document.getElementById('gradeEdit').value;
+    const school = document.getElementById('schoolEdit').value;
+    const district = document.getElementById('districtEdit').value;
+
+    // 发送更新请求
+    fetch(`/customers/${customerId}/update_basic_info`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            grade: grade,
+            school: school,
+            district: district
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 更新显示字段
+            document.getElementById('gradeDisplay').textContent = grade || '-';
+            document.getElementById('schoolDisplay').textContent = school || '-';
+            document.getElementById('districtDisplay').textContent = district || '-';
+
+            // 更新缓存数据
+            currentStudentData.customer.grade = grade;
+            currentStudentData.customer.school = school;
+            currentStudentData.customer.district = district;
+
+            // 退出编辑模式
+            cancelStudentEdit();
+
+            // 显示成功消息
+            alert('保存成功！');
+
+            // 刷新页面以更新列表
+            location.reload();
+        } else {
+            alert('保存失败：' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('保存失败：' + error.message);
+    });
 }
 
 // 关闭学员详情弹窗

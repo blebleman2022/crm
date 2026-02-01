@@ -126,7 +126,9 @@
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">中高考时间</th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">课程进度</th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">赛事进展</th>
+                        {% if current_user.role != 'teacher_supervisor' %}
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">升学陪跑</th>
+                        {% endif %}
                         <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-20">新增时间</th>
                         <th class="relative px-6 py-3">
                             <span class="sr-only">操作</span>
@@ -167,12 +169,12 @@
                         <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                             {% if customer.teacher %}
                                 {% if current_user.role == 'teacher_supervisor' %}
-                                    <button onclick="showChangeTeacherModal({{ customer.id }}, '{{ customer.lead.student_name }}', {{ customer.teacher.id }}, '{{ customer.teacher.chinese_name }}')"
+                                    <button onclick="showChangeTeacherModal({{ customer.id }}, '{{ customer.lead.student_name }}', {{ customer.teacher.user_id }}, '{{ customer.teacher.user.username if customer.teacher and customer.teacher.user else '' }}')"
                                             class="text-blue-600 hover:text-blue-800 cursor-pointer teacher-name-cell">
-                                        {{ customer.teacher.chinese_name }}
+                                        {{ customer.teacher.user.username if customer.teacher and customer.teacher.user else '-' }}
                                     </button>
                                 {% else %}
-                                    <span class="text-gray-900 teacher-name-cell">{{ customer.teacher.chinese_name }}</span>
+                                    <span class="text-gray-900 teacher-name-cell">{{ customer.teacher.user.username if customer.teacher and customer.teacher.user else '-' }}</span>
                                 {% endif %}
                             {% else %}
                                 {% if current_user.role == 'teacher_supervisor' %}
@@ -207,10 +209,7 @@
                                         <div class="text-sm font-medium text-gray-900">
                                             {{ customer.tutoring_delivery.completed_sessions }}/{{ customer.tutoring_delivery.total_sessions }}
                                         </div>
-                                        <div class="w-full bg-gray-200 rounded-full h-2">
-                                            {% set progress = (customer.tutoring_delivery.completed_sessions / customer.tutoring_delivery.total_sessions * 100) if customer.tutoring_delivery.total_sessions > 0 else 0 %}
-                                            <div class="bg-blue-600 h-2 rounded-full" style="width: {{ progress }}%"></div>
-                                        </div>
+                                        {% set progress = (customer.tutoring_delivery.completed_sessions / customer.tutoring_delivery.total_sessions * 100) if customer.tutoring_delivery.total_sessions > 0 else 0 %}
                                     </div>
                                 </div>
                             {% else %}
@@ -220,22 +219,26 @@
                         <td class="whitespace-nowrap px-6 py-4 text-sm">
                             {% set service_types = customer.lead.get_service_types_list() %}
                             {% if 'competition' in service_types %}
-                                {% set comp_count = competition_counts.get(customer.id, 0) %}
-                                {% if comp_count > 0 %}
-                                    <button onclick="showCompetitionsModal({{ customer.id }}, '{{ customer.lead.student_name }}')"
-                                            class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 hover:bg-blue-200 cursor-pointer">
-                                        🏆 {{ comp_count }}项
-                                    </button>
-                                {% else %}
-                                    <button onclick="showCompetitionsModal({{ customer.id }}, '{{ customer.lead.student_name }}')"
-                                            class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600 hover:bg-gray-200 cursor-pointer">
-                                        🏆 0项
-                                    </button>
-                                {% endif %}
+                                {% set registered_count = competition_registered_counts.get(customer.id, 0) %}
+                                {% set total_count = customer.lead.competition_count or 0 %}
+                                {% set award_achieved = competition_award_achieved.get(customer.id, False) %}
+                                <button onclick="showCompetitionsModal({{ customer.id }}, '{{ customer.lead.student_name }}')"
+                                        class="flex items-center gap-2 hover:opacity-80 cursor-pointer">
+                                    <div class="flex-1">
+                                        <div class="text-sm font-medium text-gray-900">
+                                            {{ registered_count }}/{{ total_count }}
+                                        </div>
+                                        {% set progress = (registered_count / total_count * 100) if total_count > 0 else 0 %}
+                                    </div>
+                                    {% if award_achieved %}
+                                        <span class="material-symbols-outlined text-yellow-500 text-lg" title="已达成奖项要求">emoji_events</span>
+                                    {% endif %}
+                                </button>
                             {% else %}
                                 <span class="text-gray-400">-</span>
                             {% endif %}
                         </td>
+                        {% if current_user.role != 'teacher_supervisor' %}
                         <td class="whitespace-nowrap px-6 py-4 text-sm">
                             {% set service_types = customer.lead.get_service_types_list() %}
                             {% if 'upgrade_guidance' in service_types %}
@@ -244,6 +247,7 @@
                                 <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">不包含</span>
                             {% endif %}
                         </td>
+                        {% endif %}
                         <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 w-20">
                             {% if second_payments.get(customer.lead_id) %}
                                 {{ second_payments[customer.lead_id].year }}/{{ second_payments[customer.lead_id].month }}/{{ second_payments[customer.lead_id].day }}
@@ -393,6 +397,9 @@
 </div>
 
 <script>
+// 当前用户角色
+const currentUserRole = '{{ current_user.role }}';
+
 // 自动提交搜索表单
 document.querySelectorAll('select[name="service_type"], select[name="sales"], select[name="exam_year"], select[name="award_level"]').forEach(select => {
     select.addEventListener('change', function() {
@@ -479,7 +486,7 @@ function showAssignTeacherModal(customerId, studentName) {
     allTeachers.forEach(teacher => {
         const option = document.createElement('option');
         option.value = teacher.id;
-        option.textContent = `${teacher.chinese_name}${teacher.english_name ? ' (' + teacher.english_name + ')' : ''}${teacher.major_direction ? ' - ' + teacher.major_direction : ''}`;
+        option.textContent = `${teacher.username}${teacher.major_direction ? ' - ' + teacher.major_direction : ''}`;
         teacherSelect.appendChild(option);
     });
 
@@ -542,7 +549,7 @@ function showChangeTeacherModal(customerId, studentName, teacherId, teacherName)
         if (teacher.id !== teacherId) {
             const option = document.createElement('option');
             option.value = teacher.id;
-            option.textContent = `${teacher.chinese_name}${teacher.english_name ? ' (' + teacher.english_name + ')' : ''}${teacher.major_direction ? ' - ' + teacher.major_direction : ''}`;
+            option.textContent = `${teacher.username}${teacher.major_direction ? ' - ' + teacher.major_direction : ''}`;
             newTeacherSelect.appendChild(option);
         }
     });
@@ -589,7 +596,7 @@ function changeTeacher(event) {
     // 第一次点击，显示确认提示
     if (!changeTeacherConfirmed) {
         const newTeacher = allTeachers.find(t => t.id == newTeacherId);
-        if (confirm(`确定要将辅导老师从 ${currentTeacherName} 更换为 ${newTeacher.chinese_name} 吗？\n\n此操作需要二次确认，请再次点击"确认更换"按钮。`)) {
+        if (confirm(`确定要将辅导老师从 ${currentTeacherName} 更换为 ${newTeacher.username} 吗？\n\n此操作需要二次确认，请再次点击"确认更换"按钮。`)) {
             changeTeacherConfirmed = true;
             // 改变按钮文字提示用户需要再次点击
             changeTeacherButton.textContent = '再次点击确认';
@@ -1103,7 +1110,7 @@ function togglePriorityCustomer() {
                         <input type="text" id="thesisName" placeholder="请输入课题名称"
                                class="block w-full px-3 py-2 border-2 border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
                     </div>
-                    <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">总课程数量</label>
                             <input type="number" id="totalSessions" min="0"
@@ -1113,46 +1120,6 @@ function togglePriorityCustomer() {
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">已完成数量</label>
                             <input type="number" id="completedSessions" min="0"
                                    class="block w-full px-3 py-2 border-2 border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
-                        </div>
-                    </div>
-
-                    <!-- 课程记录图片 -->
-                    <div class="mt-4 border-t border-gray-200 pt-4">
-                        <div class="flex items-center justify-between mb-2">
-                            <label class="block text-sm font-medium text-gray-700">课程记录图片</label>
-                            <button type="button" onclick="showCourseRecordImageUpload()"
-                                    class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md text-blue-600 bg-blue-50 hover:bg-blue-100 transition-all">
-                                <span class="material-symbols-outlined text-sm mr-1">add_photo_alternate</span>
-                                上传图片
-                            </button>
-                        </div>
-                        <div id="courseRecordImagesList" class="grid grid-cols-3 gap-2 max-h-40 overflow-y-auto">
-                            <!-- 动态加载图片 -->
-                        </div>
-
-                        <!-- 图片上传表单（隐藏） -->
-                        <div id="courseRecordImageUploadForm" class="hidden mt-3 p-3 bg-white border border-blue-200 rounded-lg">
-                            <div class="mb-2">
-                                <label class="block text-xs font-medium text-gray-700 mb-1">选择图片</label>
-                                <input type="file" id="courseRecordImageInput" accept="image/*" multiple
-                                       class="block w-full text-xs text-gray-500 file:mr-2 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
-                            </div>
-                            <div class="mb-2">
-                                <label class="block text-xs font-medium text-gray-700 mb-1">图片描述</label>
-                                <input type="text" id="courseRecordImageDescription" placeholder="请输入图片描述"
-                                       class="block w-full px-2 py-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500">
-                            </div>
-                            <div class="flex items-center space-x-2">
-                                <button type="button" onclick="uploadCourseRecordImages()"
-                                        class="flex-1 inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-all">
-                                    <span class="material-symbols-outlined text-sm mr-1">cloud_upload</span>
-                                    上传
-                                </button>
-                                <button type="button" onclick="hideCourseRecordImageUpload()"
-                                        class="flex-1 inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium rounded-md text-gray-700 bg-gray-100 hover:bg-gray-200 transition-all">
-                                    取消
-                                </button>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -1309,9 +1276,7 @@ function togglePriorityCustomer() {
                 </label>
                 <select id="statusSelect"
                         required
-                        onchange="handleAddCompetitionStatusChange(this.value)"
                         class="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
-                    <option value="未报名">未报名</option>
                     <option value="已报名">已报名</option>
                     <option value="国家一等奖">国家一等奖</option>
                     <option value="国家二等奖">国家二等奖</option>
@@ -1319,20 +1284,10 @@ function togglePriorityCustomer() {
                     <option value="市级一等奖">市级一等奖</option>
                     <option value="市级二等奖">市级二等奖</option>
                     <option value="市级三等奖">市级三等奖</option>
-                    <option value="其他奖项">其他奖项...</option>
+                    <option value="区级一等奖">区级一等奖</option>
+                    <option value="区级二等奖">区级二等奖</option>
+                    <option value="区级三等奖">区级三等奖</option>
                 </select>
-            </div>
-
-            <!-- 自定义奖项输入框 -->
-            <div id="customAwardInputDiv" class="hidden">
-                <label for="customAwardInput" class="block text-sm font-medium text-gray-700 mb-2">
-                    <span class="material-symbols-outlined text-sm mr-1 align-middle text-blue-600">edit</span>
-                    <span class="align-middle">自定义奖项名称</span>
-                </label>
-                <input type="text"
-                       id="customAwardInput"
-                       placeholder="例如：优秀奖、鼓励奖"
-                       class="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
             </div>
 
             <!-- 按钮组 -->
@@ -1580,7 +1535,6 @@ function renderProgressCompetitions(competitions) {
                 <select onchange="updateProgressCompetitionStatus(${comp.id}, this.value)"
                         data-comp-id="${comp.id}"
                         class="text-xs rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${comp.status_color} flex-1">
-                    <option value="未报名" ${comp.status === '未报名' ? 'selected' : ''}>未报名</option>
                     <option value="已报名" ${comp.status === '已报名' ? 'selected' : ''}>已报名</option>
                     <option value="国家一等奖" ${comp.status === '国家一等奖' ? 'selected' : ''}>国家一等奖</option>
                     <option value="国家二等奖" ${comp.status === '国家二等奖' ? 'selected' : ''}>国家二等奖</option>
@@ -1588,30 +1542,17 @@ function renderProgressCompetitions(competitions) {
                     <option value="市级一等奖" ${comp.status === '市级一等奖' ? 'selected' : ''}>市级一等奖</option>
                     <option value="市级二等奖" ${comp.status === '市级二等奖' ? 'selected' : ''}>市级二等奖</option>
                     <option value="市级三等奖" ${comp.status === '市级三等奖' ? 'selected' : ''}>市级三等奖</option>
-                    <option value="其他奖项" ${comp.status === '其他奖项' ? 'selected' : ''}>其他奖项...</option>
+                    <option value="区级一等奖" ${comp.status === '区级一等奖' ? 'selected' : ''}>区级一等奖</option>
+                    <option value="区级二等奖" ${comp.status === '区级二等奖' ? 'selected' : ''}>区级二等奖</option>
+                    <option value="区级三等奖" ${comp.status === '区级三等奖' ? 'selected' : ''}>区级三等奖</option>
                 </select>
             </div>
-            ${comp.status === '其他奖项' ? `
-                <input type="text"
-                       id="progressCustomAward_${comp.id}"
-                       value="${comp.custom_award || ''}"
-                       placeholder="输入奖项名称"
-                       class="mt-2 text-xs rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 w-full"
-                       onblur="saveProgressCustomAward(${comp.id})">
-            ` : ''}
         </div>
     `).join('');
 }
 
 // 更新赛事状态
 async function updateProgressCompetitionStatus(competitionId, newStatus) {
-    // 如果选择"其他奖项"，需要等待用户输入自定义奖项名称
-    if (newStatus === '其他奖项') {
-        // 重新渲染以显示输入框
-        await loadProgressCompetitions(currentCustomerId);
-        return;
-    }
-
     try {
         const response = await fetch(`/customers/api/competitions/${competitionId}`, {
             method: 'PUT',
@@ -1619,8 +1560,7 @@ async function updateProgressCompetitionStatus(competitionId, newStatus) {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                status: newStatus,
-                custom_award: null
+                status: newStatus
             })
         });
 
@@ -1637,41 +1577,6 @@ async function updateProgressCompetitionStatus(competitionId, newStatus) {
         console.error('更新状态失败:', error);
         alert('更新状态失败');
         await loadProgressCompetitions(currentCustomerId);
-    }
-}
-
-// 保存自定义奖项
-async function saveProgressCustomAward(competitionId) {
-    const customAward = document.getElementById(`progressCustomAward_${competitionId}`).value.trim();
-
-    if (!customAward) {
-        alert('请输入自定义奖项名称');
-        return;
-    }
-
-    try {
-        const response = await fetch(`/customers/api/competitions/${competitionId}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                status: '其他奖项',
-                custom_award: customAward
-            })
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            showProgressToast('状态已更新');
-            await loadProgressCompetitions(currentCustomerId);
-        } else {
-            alert('保存失败：' + data.message);
-        }
-    } catch (error) {
-        console.error('保存失败:', error);
-        alert('保存失败');
     }
 }
 
@@ -1717,8 +1622,7 @@ async function showAddCompetitionInProgress() {
 
     // 重置表单
     document.getElementById('addCompetitionForm').reset();
-    document.getElementById('customAwardInputDiv').classList.add('hidden');
-    document.getElementById('customAwardInput').value = '';
+    // 已移除自定义奖项输入
 
     // 显示弹窗
     document.getElementById('addCompetitionModal').classList.remove('hidden');
@@ -1729,36 +1633,15 @@ function closeAddCompetitionModal() {
     document.getElementById('addCompetitionModal').classList.add('hidden');
 }
 
-// 处理状态选择变化
-function handleAddCompetitionStatusChange(status) {
-    const customAwardDiv = document.getElementById('customAwardInputDiv');
-    const customAwardInput = document.getElementById('customAwardInput');
-
-    if (status === '其他奖项') {
-        customAwardDiv.classList.remove('hidden');
-        customAwardInput.required = true;
-    } else {
-        customAwardDiv.classList.add('hidden');
-        customAwardInput.required = false;
-        customAwardInput.value = '';
-    }
-}
-
 // 提交添加赛事表单
 async function submitAddCompetition(event) {
     event.preventDefault();
 
     const competitionNameId = document.getElementById('competitionSelect').value;
     const status = document.getElementById('statusSelect').value;
-    const customAward = document.getElementById('customAwardInput').value;
 
     if (!competitionNameId) {
         alert('请选择赛事');
-        return;
-    }
-
-    if (status === '其他奖项' && !customAward) {
-        alert('请输入自定义奖项名称');
         return;
     }
 
@@ -1771,8 +1654,7 @@ async function submitAddCompetition(event) {
             },
             body: JSON.stringify({
                 competition_name_id: parseInt(competitionNameId),
-                status: status,
-                custom_award: status === '其他奖项' ? customAward : null
+                status: status
             })
         });
 

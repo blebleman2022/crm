@@ -6,7 +6,7 @@
 from flask import Blueprint, render_template, request, jsonify, send_file
 from flask_login import login_required, current_user
 from functools import wraps
-from models import db, User, Lead, Customer, Payment, Teacher, TutoringDelivery, CompetitionDelivery, CommunicationRecord, LoginLog, CompetitionName, TeacherImage
+from models import db, User, Lead, Customer, Payment, Teacher, TutoringDelivery, CustomerCompetition, CommunicationRecord, LoginLog, CompetitionName, TeacherImage
 from datetime import datetime
 import pandas as pd
 import io
@@ -63,7 +63,7 @@ EXPORTABLE_TABLES = {
     'teachers': {
         'name': '老师表',
         'model': Teacher,
-        'columns': ['id', 'chinese_name', 'english_name', 'current_institution', 'major', 
+        'columns': ['id', 'current_institution', 'major', 
                    'highest_degree', 'education_background', 'research_achievements', 
                    'innovation_achievements', 'social_roles', 'status', 'created_at', 'updated_at'],
         'column_names': ['ID', '中文名', '英文名', '现单位', '专业方向', '最高学历', '教育背景', 
@@ -72,20 +72,18 @@ EXPORTABLE_TABLES = {
     'tutoring_deliveries': {
         'name': '课题辅导交付表',
         'model': TutoringDelivery,
-        'columns': ['id', 'customer_id', 'project_topic', 'project_description', 
-                   'start_date', 'expected_completion_date', 'actual_completion_date', 
+        'columns': ['id', 'customer_id', 'project_topic', 'project_description',
+                   'start_date', 'expected_completion_date', 'actual_completion_date',
                    'status', 'progress_notes', 'created_at', 'updated_at'],
-        'column_names': ['ID', '客户ID', '课题名称', '课题描述', '开始日期', '预计完成日期', 
+        'column_names': ['ID', '客户ID', '课题名称', '课题描述', '开始日期', '预计完成日期',
                         '实际完成日期', '状态', '进度备注', '创建时间', '更新时间']
     },
-    'competition_deliveries': {
-        'name': '竞赛交付表',
-        'model': CompetitionDelivery,
-        'columns': ['id', 'customer_id', 'competition_name', 'target_award_level', 
-                   'registration_date', 'competition_date', 'result_date', 'actual_award_level', 
-                   'status', 'notes', 'created_at', 'updated_at'],
-        'column_names': ['ID', '客户ID', '竞赛名称', '目标奖项', '报名日期', '比赛日期', 
-                        '结果公布日期', '实际奖项', '状态', '备注', '创建时间', '更新时间']
+    'customer_competitions': {
+        'name': '客户赛事表',
+        'model': CustomerCompetition,
+        'columns': ['id', 'customer_id', 'competition_name_id', 'status',
+                   'notes', 'created_by_user_id', 'created_at', 'updated_at'],
+        'column_names': ['ID', '客户ID', '赛事ID', '状态', '自定义奖项', '备注', '创建人ID', '创建时间', '更新时间']
     },
     'communication_records': {
         'name': '沟通记录表',
@@ -259,4 +257,3 @@ def preview_table(table_key):
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'message': f'预览失败：{str(e)}'}), 500
-

@@ -73,6 +73,48 @@
                                         </select>
                                     </div>
                                 </div>
+
+                                <div>
+                                    <label for="teacher_id" class="block text-sm font-medium text-gray-700">辅导老师</label>
+                                    <div class="mt-1">
+                                        <select name="teacher_id" id="teacher_id"
+                                                class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                                            <option value="">请选择辅导老师（可选）</option>
+                                            {% for teacher in teachers %}
+                                            <option value="{{ teacher.user_id }}" {% if teacher.user_id == customer.teacher_id %}selected{% endif %}>
+                                                {{ teacher.user.username if teacher.user else '-' }}{% if teacher.subject %} - {{ teacher.subject }}{% endif %}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <p class="mt-1 text-xs text-gray-500">负责实际教学和文档上传的老师</p>
+                                </div>
+
+                                <div>
+                                    <label for="thesis_deadline" class="block text-sm font-medium text-gray-700">课题截止时间</label>
+                                    <div class="mt-1">
+                                        <input type="date" name="thesis_deadline" id="thesis_deadline"
+                                               value="{% if customer.thesis_deadline %}{{ customer.thesis_deadline.strftime('%Y-%m-%d') }}{% endif %}"
+                                               class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                                    </div>
+                                    <p class="mt-1 text-xs text-gray-500">课题完成的截止日期</p>
+                                </div>
+
+                                <div>
+                                    <label for="first_competition_id" class="block text-sm font-medium text-gray-700">首个参赛赛事</label>
+                                    <div class="mt-1">
+                                        <select name="first_competition_id" id="first_competition_id"
+                                                class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                                            <option value="">请选择首个参赛赛事（可选）</option>
+                                            {% for competition in competitions %}
+                                            <option value="{{ competition.id }}" {% if competition.id == customer.first_competition_id %}selected{% endif %}>
+                                                {{ competition.name }}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <p class="mt-1 text-xs text-gray-500">学生首次参加的竞赛项目</p>
+                                </div>
                             </div>
                         </div>
 

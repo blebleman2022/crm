@@ -553,11 +553,18 @@ def update_lead(lead_id):
         else:
             lead.service_types = None
 
-        # 更新竞赛奖项等级
+        # 更新竞赛奖项等级和申报数量
         competition_award_level = request.form.get('competition_award_level', '').strip()
-        if 'competition' in service_types and not competition_award_level:
-            return jsonify({'success': False, 'message': '选择了竞赛辅导服务，必须设置目标奖项等级'})
+        competition_count = request.form.get('competition_count', '').strip()
+
+        if 'competition' in service_types:
+            if not competition_award_level:
+                return jsonify({'success': False, 'message': '选择了竞赛辅导服务，必须设置目标奖项等级'})
+            if not competition_count or int(competition_count) < 1:
+                return jsonify({'success': False, 'message': '选择了竞赛辅导服务，必须填写申报赛事数量'})
+
         lead.competition_award_level = competition_award_level if competition_award_level else None
+        lead.competition_count = int(competition_count) if competition_count else None
 
         # 更新额外要求
         lead.additional_requirements = request.form.get('additional_requirements', '').strip()

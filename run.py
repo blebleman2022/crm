@@ -43,8 +43,20 @@ def create_app(config_name=None):
     
     @login_manager.user_loader
     def load_user(user_id):
+        """加载用户对象（包括辅导老师，role='teacher'）"""
         from models import User
-        return User.query.get(int(user_id))
+
+        # 兼容旧会话格式（teacher_X）和新格式（纯数字）
+        try:
+            if isinstance(user_id, str) and user_id.startswith('teacher_'):
+                # 旧格式：teacher_X -> X
+                user_id = int(user_id.replace('teacher_', ''))
+            else:
+                user_id = int(user_id)
+        except (ValueError, AttributeError):
+            return None
+
+        return User.query.get(user_id)
     
     # 注册蓝图
     from routes.auth import auth_bp
@@ -55,10 +67,10 @@ def create_app(config_name=None):
     from routes.config import config_bp
     from routes.query import query_bp
     from routes.consultations import consultations_bp
-    from routes.mobile_test import mobile_test_bp
     from routes.teachers import teachers_bp
     from routes.data_export import data_export_bp
     from routes.payments import payments_bp
+    from routes.teacher import teacher_bp  # 新增：老师端Blueprint
 
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(admin_bp, url_prefix='/admin')
@@ -68,10 +80,10 @@ def create_app(config_name=None):
     app.register_blueprint(config_bp, url_prefix='/config')
     app.register_blueprint(query_bp, url_prefix='/query')
     app.register_blueprint(consultations_bp, url_prefix='/consultations')
-    app.register_blueprint(mobile_test_bp, url_prefix='/test')
     app.register_blueprint(teachers_bp, url_prefix='/teachers')
     app.register_blueprint(data_export_bp, url_prefix='/data_export')
     app.register_blueprint(payments_bp, url_prefix='/payments')
+    app.register_blueprint(teacher_bp)  # 新增：老师端路由（已包含url_prefix）
 
     # 添加全局模板函数
     @app.context_processor
@@ -138,12 +150,18 @@ def create_app(config_name=None):
         if not current_user.is_authenticated:
             return redirect(url_for('auth.login'))
 
-        if current_user.role == 'admin':
-            return redirect(url_for('admin.dashboard'))
-        elif current_user.role == 'sales':
-            return redirect(url_for('leads.dashboard'))
-        elif current_user.role == 'teacher_supervisor':
-            return redirect(url_for('delivery.dashboard'))
+        # 判断用户类型 - Teacher 对象没有 role 属性
+        if hasattr(current_user, 'role'):
+            # 普通用户
+            if current_user.role == 'admin':
+                return redirect(url_for('admin.dashboard'))
+            elif current_user.role == 'sales':
+                return redirect(url_for('leads.dashboard'))
+            elif current_user.role == 'teacher_supervisor':
+                return redirect(url_for('delivery.dashboard'))
+        else:
+            # 辅导老师
+            return redirect(url_for('teacher.student_list'))
 
         return redirect(url_for('auth.login'))
 
@@ -408,6 +426,42 @@ def init_database(app):
                 else:
                     print(f"⚠️ meeting_location字段添加失败: {e}")
 
+            # 添加competition_count字段
+            try:
+                db.session.execute(text("ALTER TABLE leads ADD COLUMN competition_count INTEGER"))
+                db.session.commit()
+                print("✅ competition_count字段添加成功")
+            except Exception as e:
+                if "duplicate column name" in str(e):
+                    print("✅ competition_count字段已存在")
+                else:
+                    print(f"⚠️ competition_count字段添加失败: {e}")
+
+            # 更新现有数据：为有竞赛辅导但没有申报数量的线索设置默认值
+            try:
+                # 市奖设为1，国奖设为2
+                db.session.execute(text("""
+                    UPDATE leads
+                    SET competition_count = 1
+                    WHERE service_types LIKE '%competition%'
+                    AND competition_award_level = '市奖'
+                    AND (competition_count IS NULL OR competition_count = 0)
+                """))
+
+                db.session.execute(text("""
+                    UPDATE leads
+                    SET competition_count = 2
+                    WHERE service_types LIKE '%competition%'
+                    AND competition_award_level = '国奖'
+                    AND (competition_count IS NULL OR competition_count = 0)
+                """))
+
+                db.session.commit()
+                print("✅ 已更新现有竞赛辅导线索的申报数量（市奖=1，国奖=2）")
+            except Exception as e:
+                print(f"⚠️ 更新竞赛申报数量失败: {e}")
+                db.session.rollback()
+
             # 创建consultation_details表
             try:
                 db.session.execute(text("""
@@ -439,76 +493,8 @@ def init_database(app):
             print(f"❌ 数据库迁移失败: {e}")
             db.session.rollback()
 
-        # 创建测试账号列表
-        test_users = [
-            {
-                'username': 'admin',
-                'phone': '13800138000',
-                'role': 'admin',
-                'description': '系统管理员'
-            },
-            {
-                'username': '张三',
-                'phone': '13900139001',
-                'role': 'sales_manager',
-                'description': '销售经理'
-            },
-            {
-                'username': '李四',
-                'phone': '13900139002',
-                'role': 'salesperson',
-                'description': '销售专员'
-            },
-            {
-                'username': '王五',
-                'phone': '13900139003',
-                'role': 'teacher',
-                'description': '数学班主任'
-            },
-            {
-                'username': '赵六',
-                'phone': '13900139004',
-                'role': 'teacher',
-                'description': '英语班主任'
-            },
-            {
-                'username': '钱七',
-                'phone': '13900139005',
-                'role': 'sales_manager',
-                'description': '高级销售经理'
-            },
-            {
-                'username': '小王',
-                'phone': '13900139006',
-                'role': 'salesperson',
-                'description': '销售代表'
-            }
-        ]
-
-        # 只在开发环境或数据库为空时初始化测试账号
-        config_name = os.environ.get('FLASK_ENV', 'development')
-        user_count = User.query.count()
-
-        if config_name == 'development' or user_count == 0:
-            print("正在初始化测试账号...")
-
-            for user_data in test_users:
-                # 检查用户是否已存在
-                existing_user = User.query.filter_by(phone=user_data['phone']).first()
-                if not existing_user:
-                    user = User(
-                        username=user_data['username'],
-                        phone=user_data['phone'],
-                        role=user_data['role'],
-                        status=True
-                    )
-                    db.session.add(user)
-                    print(f"创建用户: {user_data['username']} ({user_data['description']}) - {user_data['phone']}")
-
-            db.session.commit()
-            print("测试账号初始化完成!")
-        else:
-            print(f"生产环境跳过测试账号初始化 (当前用户数: {user_count})")
+        # 测试账号初始化已移除 - 系统使用真实用户数据
+        print("✅ 数据库初始化完成（不再创建测试账号）")
 
 def main():
     """主函数"""
@@ -545,7 +531,7 @@ def main():
             # 开发环境直接启动
             app.run(
                 host='0.0.0.0',
-                port=int(os.environ.get('PORT', 5000)),
+                port=int(os.environ.get('PORT', 5002)),
                 debug=(config_name == 'development')
             )
     
@@ -564,7 +550,7 @@ def main():
         print("")
         print("环境变量:")
         print("  FLASK_ENV - 设置环境 (development/production/testing)")
-        print("  PORT      - 设置端口 (默认: 5000)")
+        print("  PORT      - 设置端口 (默认: 5002)")
 
 # 创建应用实例供Gunicorn使用
 # 使用 try-except 包裹，避免导入时出错

@@ -801,8 +801,9 @@ def edit_lead(lead_id):
         # 获取多选服务类型
         service_types = request.form.getlist('service_types')
 
-        # 获取竞赛奖项等级和额外要求
+        # 获取竞赛奖项等级、申报数量和额外要求
         competition_award_level = request.form.get('competition_award_level', '').strip()
+        competition_count = request.form.get('competition_count', '').strip()
         additional_requirements = request.form.get('additional_requirements', '').strip()
 
         # 检查是否确认转换为客户
@@ -838,10 +839,13 @@ def edit_lead(lead_id):
             flash(f'{", ".join(missing_fields)}为必填项', 'error')
             return render_template('leads/edit.html', lead=lead, sales_users=get_sales_users(), is_basic_info_locked=is_basic_info_locked, is_field_locked=is_field_locked_for_template)
 
-        # 验证竞赛辅导和奖项等级的联动（仅当选择了竞赛辅导时）
+        # 验证竞赛辅导和奖项等级、申报数量的联动（仅当选择了竞赛辅导时）
         if service_types and 'competition' in service_types:
             if not competition_award_level:
                 flash('选择了竞赛辅导服务，必须设置目标奖项等级', 'error')
+                return render_template('leads/edit.html', lead=lead, sales_users=get_sales_users(), is_basic_info_locked=is_basic_info_locked, is_field_locked=is_field_locked_for_template)
+            if not competition_count or int(competition_count) < 1:
+                flash('选择了竞赛辅导服务，必须填写申报赛事数量', 'error')
                 return render_template('leads/edit.html', lead=lead, sales_users=get_sales_users(), is_basic_info_locked=is_basic_info_locked, is_field_locked=is_field_locked_for_template)
 
         # 验证家长微信号是否重复（只在未锁定且有值时验证）
@@ -901,8 +905,9 @@ def edit_lead(lead_id):
             # 设置多选服务类型
             lead.set_service_types_list(service_types)
 
-            # 设置竞赛奖项等级和额外要求
+            # 设置竞赛奖项等级、申报数量和额外要求
             lead.competition_award_level = competition_award_level if competition_award_level else None
+            lead.competition_count = int(competition_count) if competition_count else None
             lead.additional_requirements = additional_requirements if additional_requirements else None
 
             # 如果年级发生变化，且该线索已转为客户，则自动更新客户的 exam_year
@@ -1163,7 +1168,7 @@ def convert_to_customer(lead_id):
 
     try:
         from datetime import datetime, date
-        from models import TutoringDelivery, CompetitionDelivery
+        from models import TutoringDelivery
         from utils.exam_calculator import calculate_exam_year
 
         # 获取必填的班主任ID
@@ -1225,8 +1230,7 @@ def convert_to_customer(lead_id):
         tutoring_delivery = TutoringDelivery(customer_id=customer_id)
         db.session.add(tutoring_delivery)
 
-        competition_delivery = CompetitionDelivery(customer_id=customer_id)
-        db.session.add(competition_delivery)
+        # 赛事记录通过 customer_competitions 表管理，这里不需要自动创建
 
         db.session.commit()
 
