@@ -62,6 +62,51 @@ def reconciliation():
     teacher_user_id = request.args.get('teacher_user_id', type=int)
     start_date = request.args.get('start_date', '')
     end_date = request.args.get('end_date', '')
+    active_tab = request.args.get('tab', 'summary')
+
+    def parse_month(value):
+        return datetime.strptime(value, '%Y-%m')
+
+    def month_start(dt_value):
+        return datetime(dt_value.year, dt_value.month, 1)
+
+    def add_month(dt_value, months=1):
+        month = dt_value.month - 1 + months
+        year = dt_value.year + month // 12
+        month = month % 12 + 1
+        return datetime(year, month, 1)
+
+    def build_month_columns(start_value, end_value, earliest_payment):
+        now = datetime.now()
+        max_future = add_month(month_start(now), 1)
+
+        if not start_value and not end_value:
+            start_dt = earliest_payment or month_start(now)
+            end_dt = max_future
+        else:
+            start_dt = parse_month(start_value) if start_value else parse_month(end_value)
+            end_dt = parse_month(end_value) if end_value else start_dt
+
+        if start_dt > max_future:
+            start_dt = max_future
+        if end_dt > max_future:
+            end_dt = max_future
+
+        if start_dt > end_dt:
+            end_dt = start_dt
+
+        columns = []
+        current = month_start(start_dt)
+        end_marker = (end_dt.year, end_dt.month)
+        while (current.year, current.month) <= end_marker:
+            columns.append({
+                'key': current.strftime('%Y-%m'),
+                'label': f'{current.year}年{current.month}月'
+            })
+            current = add_month(current, 1)
+        return columns
+
+    earliest_payment_month = None
 
     # 构建查询
     query = db.session.query(
@@ -84,14 +129,25 @@ def reconciliation():
     # 执行查询
     results = query.all()
 
-    # 组织数据
+    for customer, payment, lead, teacher_user in results:
+        if payment:
+            for date_value in [payment.first_payment_date, payment.second_payment_date, payment.third_payment_date]:
+                if date_value:
+                    current_month = month_start(date_value)
+                    if earliest_payment_month is None or current_month < earliest_payment_month:
+                        earliest_payment_month = current_month
+
+    month_columns = build_month_columns(start_date, end_date, earliest_payment_month)
+    month_keys = [item['key'] for item in month_columns]
+    month_totals = {key: 0 for key in month_keys}
+
     payment_data = []
     for customer, payment, lead, teacher_user in results:
         # 获取服务类型
         service_types = lead.get_service_types_list() if lead else []
         has_tutoring = 'tutoring' in service_types
         has_competition = 'competition' in service_types
-        
+
         # 计算已付款和剩余付款
         if payment:
             total_paid = payment.get_total_paid()
@@ -99,7 +155,7 @@ def reconciliation():
         else:
             total_paid = 0
             remaining = float(customer.payment_amount) if customer.payment_amount else 0
-        
+
         # 总金额从customer_payments.total_amount获取（公司应付给供应商的金额）
         total_amount = float(payment.total_amount) if payment and payment.total_amount else 0
 
@@ -174,6 +230,24 @@ def reconciliation():
             if not in_range:
                 continue
 
+        monthly_paid = {key: 0 for key in month_keys}
+        if payment:
+            if payment.first_payment_date:
+                month_key = payment.first_payment_date.strftime('%Y-%m')
+                if month_key in monthly_paid:
+                    monthly_paid[month_key] += float(payment.first_payment) if payment.first_payment else 0
+            if payment.second_payment_date:
+                month_key = payment.second_payment_date.strftime('%Y-%m')
+                if month_key in monthly_paid:
+                    monthly_paid[month_key] += float(payment.second_payment) if payment.second_payment else 0
+            if payment.third_payment_date:
+                month_key = payment.third_payment_date.strftime('%Y-%m')
+                if month_key in monthly_paid:
+                    monthly_paid[month_key] += float(payment.third_payment) if payment.third_payment else 0
+
+        for key, value in monthly_paid.items():
+            month_totals[key] += value
+
         payment_data.append({
             'customer_id': customer.id,
             'student_name': lead.student_name if lead else '',
@@ -191,18 +265,39 @@ def reconciliation():
             'total_paid': total_paid,
             'remaining': remaining,
             'period_paid': period_paid,  # 筛选时间段内的付款总额
+            'monthly_paid': monthly_paid,
             'teacher_user_name': teacher_user.username if teacher_user else '未分配'
         })
 
     # 获取所有班主任（用于筛选）
     teacher_supervisors = User.query.filter_by(role='teacher_supervisor', status=True).all()
 
+    totals = {
+        'total_amount': sum(item['total_amount'] for item in payment_data),
+        'first_payment': sum(item['first_payment'] for item in payment_data),
+        'second_payment': sum(item['second_payment'] for item in payment_data),
+        'third_payment': sum(item['third_payment'] for item in payment_data),
+        'total_paid': sum(item['total_paid'] for item in payment_data),
+        'remaining': sum(item['remaining'] for item in payment_data)
+    }
+
+    detail_totals = {
+        'total_amount': sum(item['total_amount'] for item in payment_data),
+        'total_paid': sum(item['total_paid'] for item in payment_data),
+        'remaining': sum(item['remaining'] for item in payment_data)
+    }
+
     return render_template('payments/reconciliation.html',
                          payment_data=payment_data,
+                         totals=totals,
+                         detail_totals=detail_totals,
+                         month_columns=month_columns,
+                         detail_month_totals=month_totals,
                          teacher_supervisors=teacher_supervisors,
                          selected_teacher_id=teacher_user_id,
                          start_date=start_date,
-                         end_date=end_date)
+                         end_date=end_date,
+                         active_tab=active_tab)
 
 
 @payments_bp.route('/manage')
@@ -581,4 +676,3 @@ def clear_lock_month():
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'清除失败：{str(e)}'}), 500
-

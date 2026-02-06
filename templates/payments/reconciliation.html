@@ -9,6 +9,7 @@
         
         <!-- 筛选条件 -->
         <form method="GET" class="mb-6">
+            <input type="hidden" name="tab" id="activeTabInput" value="{{ active_tab or 'summary' }}">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {% if current_user.is_sales_manager() %}
                 <div class="flex items-center gap-4">
@@ -49,6 +50,23 @@
             </div>
         </form>
 
+        <!-- Tabs -->
+        <div class="border-b border-gray-200 mb-4">
+            <nav class="-mb-px flex gap-6" aria-label="Tabs">
+                <button type="button"
+                        class="tab-button whitespace-nowrap border-b-2 px-1 pb-2 text-sm font-medium {% if active_tab != 'detail' %}border-blue-600 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %}"
+                        data-tab="summary">
+                    对账总览
+                </button>
+                <button type="button"
+                        class="tab-button whitespace-nowrap border-b-2 px-1 pb-2 text-sm font-medium {% if active_tab == 'detail' %}border-blue-600 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %}"
+                        data-tab="detail">
+                    付款明细
+                </button>
+            </nav>
+        </div>
+
+        <div id="tab-summary" class="{% if active_tab == 'detail' %}hidden{% endif %}">
         <!-- 统计信息 -->
         <div class="mb-4 p-4 bg-blue-50 rounded-lg">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -166,7 +184,99 @@
                     </tr>
                     {% endfor %}
                 </tbody>
+                {% if payment_data %}
+                <tfoot class="bg-gray-50">
+                    <tr class="font-semibold text-gray-900">
+                        <td class="px-4 py-3 text-sm" colspan="5">合计</td>
+                        <td class="px-4 py-3 text-sm text-right">¥{{ "{:,.0f}".format(totals.total_amount) }}</td>
+                        <td class="px-4 py-3 text-sm text-right">¥{{ "{:,.0f}".format(totals.first_payment) }}</td>
+                        <td class="px-4 py-3 text-sm text-center text-gray-500">-</td>
+                        <td class="px-4 py-3 text-sm text-right">¥{{ "{:,.0f}".format(totals.second_payment) }}</td>
+                        <td class="px-4 py-3 text-sm text-center text-gray-500">-</td>
+                        <td class="px-4 py-3 text-sm text-right">¥{{ "{:,.0f}".format(totals.third_payment) }}</td>
+                        <td class="px-4 py-3 text-sm text-center text-gray-500">-</td>
+                        <td class="px-4 py-3 text-sm text-right text-green-700 bg-green-50">¥{{ "{:,.0f}".format(totals.total_paid) }}</td>
+                        <td class="px-4 py-3 text-sm text-right text-orange-700 bg-orange-50">¥{{ "{:,.0f}".format(totals.remaining) }}</td>
+                        {% if current_user.is_sales_manager() %}
+                        <td class="px-4 py-3 text-sm text-gray-500">-</td>
+                        {% endif %}
+                    </tr>
+                </tfoot>
+                {% endif %}
             </table>
+        </div>
+
+        </div>
+
+        <div id="tab-detail" class="{% if active_tab != 'detail' %}hidden{% endif %}">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-32">学员姓名</th>
+                            <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 w-28">总金额</th>
+                            {% for month in month_columns %}
+                            <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 w-28">{{ month.label }}</th>
+                            {% endfor %}
+                            <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 w-28 bg-green-50">已付款</th>
+                            <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 w-28 bg-orange-50">剩余付款</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200 bg-white">
+                        {% for payment in payment_data %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ payment.student_name or '-' }}</td>
+                            <td class="px-4 py-3 text-sm text-right text-gray-900">
+                                ¥{{ "{:,.0f}".format(payment.total_amount) if payment.total_amount else '-' }}
+                            </td>
+                            {% for month in month_columns %}
+                            {% set amount = payment.monthly_paid[month.key] if payment.monthly_paid and month.key in payment.monthly_paid else 0 %}
+                            <td class="px-4 py-3 text-sm text-right text-gray-700">
+                                {% if amount %}
+                                    ¥{{ "{:,.0f}".format(amount) }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            {% endfor %}
+                            <td class="px-4 py-3 text-sm text-right font-medium text-green-600 bg-green-50">
+                                ¥{{ "{:,.0f}".format(payment.total_paid) }}
+                            </td>
+                            <td class="px-4 py-3 text-sm text-right font-medium text-orange-600 bg-orange-50">
+                                ¥{{ "{:,.0f}".format(payment.remaining) }}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="{{ 4 + (month_columns|length) }}" class="px-6 py-12 text-center text-gray-500">
+                                <span class="material-symbols-outlined text-6xl text-gray-300 mb-2">receipt_long</span>
+                                <p class="text-lg">暂无付款记录</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    {% if payment_data %}
+                    <tfoot class="bg-gray-50">
+                        <tr class="font-semibold text-gray-900">
+                            <td class="px-4 py-3 text-sm">合计</td>
+                            <td class="px-4 py-3 text-sm text-right">¥{{ "{:,.0f}".format(detail_totals.total_amount) }}</td>
+                            {% for month in month_columns %}
+                            {% set m_total = detail_month_totals[month.key] if month.key in detail_month_totals else 0 %}
+                            <td class="px-4 py-3 text-sm text-right">
+                                {% if m_total %}
+                                    ¥{{ "{:,.0f}".format(m_total) }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            {% endfor %}
+                            <td class="px-4 py-3 text-sm text-right text-green-700 bg-green-50">¥{{ "{:,.0f}".format(detail_totals.total_paid) }}</td>
+                            <td class="px-4 py-3 text-sm text-right text-orange-700 bg-orange-50">¥{{ "{:,.0f}".format(detail_totals.remaining) }}</td>
+                        </tr>
+                    </tfoot>
+                    {% endif %}
+                </table>
+            </div>
         </div>
     </div>
 </div>
@@ -176,6 +286,28 @@
 document.addEventListener('DOMContentLoaded', function() {
     const startDateInput = document.getElementById('start_date');
     const endDateInput = document.getElementById('end_date');
+    const tabButtons = document.querySelectorAll('.tab-button');
+    const tabSummary = document.getElementById('tab-summary');
+    const tabDetail = document.getElementById('tab-detail');
+    const activeTabInput = document.getElementById('activeTabInput');
+
+    function setActiveTab(tab) {
+        const isDetail = tab === 'detail';
+        if (tabSummary && tabDetail) {
+            tabSummary.classList.toggle('hidden', isDetail);
+            tabDetail.classList.toggle('hidden', !isDetail);
+        }
+        tabButtons.forEach(btn => {
+            const isActive = btn.dataset.tab === tab;
+            btn.classList.toggle('border-blue-600', isActive);
+            btn.classList.toggle('text-blue-600', isActive);
+            btn.classList.toggle('border-transparent', !isActive);
+            btn.classList.toggle('text-gray-500', !isActive);
+        });
+        if (activeTabInput) {
+            activeTabInput.value = tab;
+        }
+    }
 
     if (startDateInput && endDateInput) {
         // 当开始时间改变时，如果截止时间为空，自动设置为当月
@@ -188,7 +320,15 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    const initialTab = activeTabInput ? activeTabInput.value : 'summary';
+    setActiveTab(initialTab);
+
+    tabButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            setActiveTab(this.dataset.tab);
+        });
+    });
 });
 </script>
 {% endblock %}
-
