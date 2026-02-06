@@ -4,7 +4,7 @@
 """
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_file
 from flask_login import login_required, current_user
-from models import User, Customer, TutoringDelivery, DeliveryDocument, CustomerCompetition, db
+from models import User, Customer, TutoringDelivery, DeliveryDocument, CustomerCompetition, TopicTask, TopicSubmission, Lead, db
 from functools import wraps
 from werkzeug.utils import secure_filename
 from communication_utils import CommunicationManager
@@ -163,6 +163,66 @@ def student_list():
                          now=datetime.utcnow(),
                          competition_registered_counts=competition_registered_counts,
                          competition_award_achieved=competition_award_achieved)
+
+@teacher_bp.route('/topic-tasks')
+@teacher_required
+def topic_tasks():
+    """老师课题选项任务列表"""
+    tasks = TopicTask.query.filter_by(teacher_user_id=current_user.id).filter(TopicTask.status != TopicTask.STATUS_DRAFT).order_by(TopicTask.created_at.desc(), TopicTask.id.desc()).all()
+    now = datetime.utcnow()
+    updated = False
+    for task in tasks:
+        if task.status == TopicTask.STATUS_DRAFT:
+            continue
+        submission = TopicSubmission.query.filter_by(task_id=task.id).first()
+        if submission:
+            if task.status != TopicTask.STATUS_SUBMITTED:
+                task.status = TopicTask.STATUS_SUBMITTED
+                updated = True
+        else:
+            if task.due_at and task.due_at < now and task.status != TopicTask.STATUS_OVERDUE:
+                task.status = TopicTask.STATUS_OVERDUE
+                updated = True
+    if updated:
+        db.session.commit()
+
+    # 预加载提交内容
+    task_data = []
+    for task in tasks:
+        submission = TopicSubmission.query.filter_by(task_id=task.id).first()
+        task_data.append({
+            'task': task,
+            'lead': task.lead,
+            'submission': submission
+        })
+
+    return render_template('teacher/topic_tasks.html', task_data=task_data, now=datetime.utcnow())
+
+@teacher_bp.route('/topic-tasks/<int:task_id>/submit', methods=['POST'])
+@teacher_required
+def submit_topic_task(task_id):
+    task = TopicTask.query.get_or_404(task_id)
+    if task.teacher_user_id != current_user.id:
+        return jsonify({'success': False, 'message': '无权提交该任务'}), 403
+
+    data = request.get_json(silent=True) or {}
+    content = (data.get('content') or '').strip()
+    if not content:
+        return jsonify({'success': False, 'message': '内容不能为空'}), 400
+
+    submission = TopicSubmission.query.filter_by(task_id=task.id).first()
+    if submission:
+        submission.content = content
+        submission.submitted_at = datetime.utcnow()
+    else:
+        submission = TopicSubmission(task_id=task.id, content=content, submitted_at=datetime.utcnow())
+        db.session.add(submission)
+
+    task.status = TopicTask.STATUS_SUBMITTED
+    task.updated_at = datetime.utcnow()
+    db.session.commit()
+
+    return jsonify({'success': True, 'message': '提交成功'})
 
 @teacher_bp.route('/students/<int:customer_id>')
 @teacher_required

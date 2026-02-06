@@ -19,6 +19,16 @@ def sales_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def leads_list_access_required(f):
+    """线索列表访问权限（销售/管理员/班主任）"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or not (current_user.is_sales() or current_user.is_admin() or current_user.is_teacher_supervisor()):
+            flash('您没有权限访问此页面', 'error')
+            return redirect(url_for('auth.login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
 def sales_or_admin_required(f):
     """销售或管理员权限装饰器"""
     @wraps(f)
@@ -248,7 +258,7 @@ def dashboard():
 
 @leads_bp.route('/list')
 @login_required
-@sales_required
+@leads_list_access_required
 def list_leads():
     """线索列表"""
     page = request.args.get('page', 1, type=int)
@@ -404,6 +414,18 @@ def list_leads():
     leads = query.order_by(Lead.updated_at.desc()).paginate(
         page=page, per_page=20, error_out=False
     )
+
+    # 计算头脑风暴已过天数（以结论保存时间为起点）
+    now = datetime.utcnow()
+    for lead in leads.items:
+        if lead.brainstorm_conclusion_at:
+            if lead.brainstorm_topics_at:
+                delta_days = max((lead.brainstorm_topics_at - lead.brainstorm_conclusion_at).days, 0)
+            else:
+                delta_days = max((now - lead.brainstorm_conclusion_at).days, 0)
+            lead.brainstorm_days_elapsed = delta_days
+        else:
+            lead.brainstorm_days_elapsed = None
     
     # 获取所有销售人员用于筛选
     sales_users = User.query.filter(User.role.in_(['sales_manager', 'salesperson']), User.status == True).all()
@@ -1131,12 +1153,78 @@ def lead_api(lead_id):
         # 奖项和额外要求优先从线索表读取，如果已转为客户则从客户表读取
         'competition_award_level': customer.competition_award_level if customer else lead.competition_award_level,
         'additional_requirements': customer.additional_requirements if customer else lead.additional_requirements,
+        'brainstorm_conclusion': lead.brainstorm_conclusion,
+        'brainstorm_topics': lead.brainstorm_topics,
+        'brainstorm_conclusion_at': lead.brainstorm_conclusion_at.isoformat() if lead.brainstorm_conclusion_at else None,
+        'brainstorm_topics_at': lead.brainstorm_topics_at.isoformat() if lead.brainstorm_topics_at else None,
         'communications': communications_data,
         'created_at': lead.created_at.isoformat() if lead.created_at else None,
         'updated_at': lead.updated_at.isoformat() if lead.updated_at else None
     }
 
     return jsonify({'success': True, 'lead': lead_data})
+
+@leads_bp.route('/<int:lead_id>/brainstorm', methods=['GET', 'POST'])
+@login_required
+def manage_brainstorm(lead_id):
+    """头脑风暴结论与课题选项（班主任可编辑）"""
+    lead = Lead.query.get_or_404(lead_id)
+
+    # 访问权限：销售/管理员/班主任可查看；销售仅限本人线索
+    if current_user.is_salesperson() and lead.sales_user_id != current_user.id:
+        return jsonify({'success': False, 'message': '您没有权限查看此线索'}), 403
+
+    if request.method == 'GET':
+        return jsonify({
+            'success': True,
+            'data': {
+                'brainstorm_conclusion': lead.brainstorm_conclusion or '',
+                'brainstorm_topics': lead.brainstorm_topics or '',
+                'brainstorm_conclusion_at': lead.brainstorm_conclusion_at.isoformat() if lead.brainstorm_conclusion_at else None,
+                'brainstorm_topics_at': lead.brainstorm_topics_at.isoformat() if lead.brainstorm_topics_at else None
+            }
+        })
+
+    # 仅班主任可编辑
+    if not current_user.is_teacher_supervisor():
+        return jsonify({'success': False, 'message': '您没有权限编辑此内容'}), 403
+
+    data = request.get_json(silent=True) or {}
+    conclusion = (data.get('brainstorm_conclusion') or '').strip()
+    topics = (data.get('brainstorm_topics') or '').strip()
+
+    previous_conclusion = lead.brainstorm_conclusion or ''
+    previous_topics = lead.brainstorm_topics or ''
+
+    lead.brainstorm_conclusion = conclusion if conclusion else None
+    lead.brainstorm_topics = topics if topics else None
+
+    if conclusion:
+        if conclusion != previous_conclusion or not lead.brainstorm_conclusion_at:
+            lead.brainstorm_conclusion_at = datetime.utcnow()
+    else:
+        lead.brainstorm_conclusion_at = None
+        lead.brainstorm_topics_at = None
+
+    if topics:
+        if topics != previous_topics or not lead.brainstorm_topics_at:
+            lead.brainstorm_topics_at = datetime.utcnow()
+    else:
+        lead.brainstorm_topics_at = None
+
+    lead.updated_at = datetime.utcnow()
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'message': '保存成功',
+        'data': {
+            'brainstorm_conclusion': lead.brainstorm_conclusion or '',
+            'brainstorm_topics': lead.brainstorm_topics or '',
+            'brainstorm_conclusion_at': lead.brainstorm_conclusion_at.isoformat() if lead.brainstorm_conclusion_at else None,
+            'brainstorm_topics_at': lead.brainstorm_topics_at.isoformat() if lead.brainstorm_topics_at else None
+        }
+    })
 
 @leads_bp.route('/<int:lead_id>/convert', methods=['POST'])
 @login_required
@@ -1372,5 +1460,3 @@ def update_contract_amount():
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'更新合同金额失败: {str(e)}'})
-
-

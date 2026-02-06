@@ -1,13 +1,32 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_file
 from flask_login import login_required, current_user
 from functools import wraps
-from models import User, Customer, Lead, TutoringDelivery, CustomerCompetition, Payment, DeliveryDocument, db
+from models import User, Customer, Lead, TutoringDelivery, CustomerCompetition, Payment, DeliveryDocument, TopicTask, TopicSubmission, db
 from datetime import datetime, date
 from werkzeug.utils import secure_filename
 from sqlalchemy import and_, func
 import os
 
 delivery_bp = Blueprint('delivery', __name__)
+
+def sort_teachers_by_pinyin(teachers):
+    """按姓名拼音首字母排序（无库时退化为原始字符串排序）"""
+    try:
+        from pypinyin import lazy_pinyin
+    except Exception:
+        return sorted(teachers, key=lambda t: (t.username or ''))
+
+    def key_func(user):
+        name = user.username or ''
+        if not name:
+            return ''
+        try:
+            initials = ''.join([p[0] for p in lazy_pinyin(name) if p])
+            return initials.upper()
+        except Exception:
+            return name
+
+    return sorted(teachers, key=key_func)
 
 def teacher_supervisor_required(f):
     """班主任权限装饰器"""
@@ -129,10 +148,33 @@ def leads_list():
         except ValueError:
             pass
 
-    # 分页 - 按更新时间倒序
-    leads = query.order_by(Lead.updated_at.desc()).paginate(
+    # 分页 - 按定金支付时间倒序（无付款记录则按更新时间）
+    first_payment_subquery = db.session.query(
+        Payment.lead_id,
+        func.min(Payment.payment_date).label('first_payment_date')
+    ).group_by(Payment.lead_id).subquery()
+
+    leads = query.outerjoin(
+        first_payment_subquery,
+        Lead.id == first_payment_subquery.c.lead_id
+    ).order_by(
+        first_payment_subquery.c.first_payment_date.desc().nullslast(),
+        Lead.updated_at.desc()
+    ).paginate(
         page=page, per_page=20, error_out=False
     )
+
+    # 计算头脑风暴已过天数（以结论保存时间为起点）
+    now = datetime.utcnow()
+    for lead in leads.items:
+        if lead.brainstorm_conclusion_at:
+            if lead.brainstorm_topics_at:
+                delta_days = max((lead.brainstorm_topics_at - lead.brainstorm_conclusion_at).days, 0)
+            else:
+                delta_days = max((now - lead.brainstorm_conclusion_at).days, 0)
+            lead.brainstorm_days_elapsed = delta_days
+        else:
+            lead.brainstorm_days_elapsed = None
 
     # 获取所有销售用户（用于显示）
     sales_users = User.query.filter(
@@ -149,13 +191,126 @@ def leads_list():
             if payments and payments[0].payment_date:
                 first_payment_dates[lead_id] = payments[0].payment_date
 
+    # 批量查询已指派老师数量（非草稿）
+    assigned_counts = {}
+    submitted_counts = {}
+    if lead_ids:
+        counts = db.session.query(
+            TopicTask.lead_id,
+            func.count(TopicTask.id).label('count')
+        ).filter(
+            TopicTask.lead_id.in_(lead_ids),
+            TopicTask.status != TopicTask.STATUS_DRAFT
+        ).group_by(TopicTask.lead_id).all()
+        assigned_counts = {lead_id: count for lead_id, count in counts}
+
+        submitted = db.session.query(
+            TopicTask.lead_id,
+            func.count(TopicSubmission.id).label('count')
+        ).join(
+            TopicSubmission, TopicSubmission.task_id == TopicTask.id
+        ).filter(
+            TopicTask.lead_id.in_(lead_ids),
+            TopicTask.status != TopicTask.STATUS_DRAFT
+        ).group_by(TopicTask.lead_id).all()
+        submitted_counts = {lead_id: count for lead_id, count in submitted}
+
     return render_template('delivery/leads_list.html',
                          leads=leads,
                          search=search,
                          start_date=start_date,
                          end_date=end_date,
                          sales_users=sales_users,
-                         first_payment_dates=first_payment_dates)
+                         first_payment_dates=first_payment_dates,
+                         assigned_counts=assigned_counts,
+                         submitted_counts=submitted_counts,
+                         teachers=sort_teachers_by_pinyin(
+                             User.query.filter(User.role == 'teacher', User.status == True).all()
+                         ))
+
+@delivery_bp.route('/leads/<int:lead_id>/topic_tasks', methods=['GET', 'POST'])
+@login_required
+@teacher_supervisor_required
+def manage_topic_tasks(lead_id):
+    lead = Lead.query.get_or_404(lead_id)
+
+    if request.method == 'GET':
+        tasks = TopicTask.query.filter_by(lead_id=lead.id).all()
+        now = datetime.utcnow()
+        updated = False
+        for task in tasks:
+            if task.status == TopicTask.STATUS_DRAFT:
+                continue
+            submission = TopicSubmission.query.filter_by(task_id=task.id).first()
+            if submission:
+                if task.status != TopicTask.STATUS_SUBMITTED:
+                    task.status = TopicTask.STATUS_SUBMITTED
+                    updated = True
+            else:
+                if task.due_at and task.due_at < now and task.status != TopicTask.STATUS_OVERDUE:
+                    task.status = TopicTask.STATUS_OVERDUE
+                    updated = True
+        if updated:
+            db.session.commit()
+        response_tasks = []
+        for task in tasks:
+            submission = TopicSubmission.query.filter_by(task_id=task.id).first()
+            response_tasks.append({
+                'id': task.id,
+                'teacher_id': task.teacher_user_id,
+                'teacher_name': task.teacher.username if task.teacher else '',
+                'due_at': task.due_at.isoformat() if task.due_at else None,
+                'status': task.status,
+                'submitted_at': submission.submitted_at.isoformat() if submission and submission.submitted_at else None,
+                'content': submission.content if submission else None
+            })
+        return jsonify({'success': True, 'tasks': response_tasks})
+
+    data = request.get_json(silent=True) or {}
+    teacher_ids = data.get('teacher_ids') or []
+    due_at_str = (data.get('due_at') or '').strip()
+    send_flag = data.get('send', True)
+
+    if not teacher_ids:
+        return jsonify({'success': False, 'message': '请选择老师'}), 400
+    if not due_at_str:
+        return jsonify({'success': False, 'message': '请选择截止时间'}), 400
+
+    try:
+        due_at = datetime.fromisoformat(due_at_str.replace('T', ' '))
+    except ValueError:
+        return jsonify({'success': False, 'message': '截止时间格式不正确'}), 400
+
+    existing_tasks = TopicTask.query.filter_by(lead_id=lead.id).all()
+    existing_teacher_ids = {task.teacher_user_id for task in existing_tasks}
+    incoming_teacher_ids = set(teacher_ids)
+
+    # 删除未包含在当前选择中的任务
+    for task in existing_tasks:
+        if task.teacher_user_id not in incoming_teacher_ids:
+            TopicSubmission.query.filter_by(task_id=task.id).delete()
+            db.session.delete(task)
+
+    created_tasks = []
+    for teacher_id in teacher_ids:
+        task = TopicTask.query.filter_by(lead_id=lead.id, teacher_user_id=teacher_id).first()
+        if task:
+            task.due_at = due_at
+            task.status = TopicTask.STATUS_PENDING if send_flag else TopicTask.STATUS_DRAFT
+        else:
+            task = TopicTask(
+                lead_id=lead.id,
+                teacher_user_id=teacher_id,
+                due_at=due_at,
+                status=TopicTask.STATUS_PENDING if send_flag else TopicTask.STATUS_DRAFT,
+                created_by=current_user.id
+            )
+            db.session.add(task)
+        created_tasks.append(task)
+
+    db.session.commit()
+
+    return jsonify({'success': True, 'message': '指派成功' if send_flag else '保存成功'})
 
 @delivery_bp.route('/tutoring')
 @login_required

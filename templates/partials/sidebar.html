@@ -102,6 +102,17 @@
             </div>
             {% endif %}
 
+            <!-- 老师任务 -->
+            {% if current_user.role == 'teacher' %}
+            <div class="space-y-1">
+                <a href="{{ url_for('teacher.topic_tasks') }}"
+                   class="flex items-center px-4 py-2 text-sm font-medium text-gray-300 rounded-md hover:bg-gray-700 hover:text-white group">
+                    <span class="material-symbols-outlined mr-3">assignment_add</span>
+                    课题选项任务
+                </a>
+            </div>
+            {% endif %}
+
             <!-- 系统管理 -->
             {% if current_user.is_admin() %}
             <div class="space-y-1">
@@ -238,6 +249,17 @@
                             竞赛奖项
                         </a>
                     </div>
+                </div>
+                {% endif %}
+
+                <!-- 老师任务 -->
+                {% if current_user.role == 'teacher' %}
+                <div class="space-y-1">
+                    <a href="{{ url_for('teacher.topic_tasks') }}"
+                       class="flex items-center px-4 py-2 text-sm font-medium text-gray-300 rounded-md hover:bg-gray-700 hover:text-white group">
+                        <span class="material-symbols-outlined mr-3">assignment_add</span>
+                        课题选项任务
+                    </a>
                 </div>
                 {% endif %}
 

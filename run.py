@@ -437,6 +437,38 @@ def init_database(app):
                 else:
                     print(f"⚠️ competition_count字段添加失败: {e}")
 
+            # 添加定金/尾款支付时间兼容字段
+            for column_name, column_type, column_label in [
+                ("deposit_paid_at", "DATETIME", "deposit_paid_at"),
+                ("full_payment_at", "DATETIME", "full_payment_at")
+            ]:
+                try:
+                    db.session.execute(text(f"ALTER TABLE leads ADD COLUMN {column_name} {column_type}"))
+                    db.session.commit()
+                    print(f"✅ {column_label}字段添加成功")
+                except Exception as e:
+                    if "duplicate column name" in str(e):
+                        print(f"✅ {column_label}字段已存在")
+                    else:
+                        print(f"⚠️ {column_label}字段添加失败: {e}")
+
+            # 添加头脑风暴字段
+            for column_name, column_type, column_label in [
+                ("brainstorm_conclusion", "TEXT", "brainstorm_conclusion"),
+                ("brainstorm_topics", "TEXT", "brainstorm_topics"),
+                ("brainstorm_conclusion_at", "DATETIME", "brainstorm_conclusion_at"),
+                ("brainstorm_topics_at", "DATETIME", "brainstorm_topics_at")
+            ]:
+                try:
+                    db.session.execute(text(f"ALTER TABLE leads ADD COLUMN {column_name} {column_type}"))
+                    db.session.commit()
+                    print(f"✅ {column_label}字段添加成功")
+                except Exception as e:
+                    if "duplicate column name" in str(e):
+                        print(f"✅ {column_label}字段已存在")
+                    else:
+                        print(f"⚠️ {column_label}字段添加失败: {e}")
+
             # 更新现有数据：为有竞赛辅导但没有申报数量的线索设置默认值
             try:
                 # 市奖设为1，国奖设为2
@@ -488,6 +520,50 @@ def init_database(app):
                     print("✅ consultation_details表已存在")
                 else:
                     print(f"⚠️ consultation_details表创建失败: {e}")
+
+            # 创建课题选项任务与提交表
+            try:
+                db.session.execute(text("""
+                    CREATE TABLE IF NOT EXISTS topic_tasks (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        lead_id INTEGER NOT NULL,
+                        teacher_user_id INTEGER NOT NULL,
+                        due_at DATETIME NOT NULL,
+                        status VARCHAR(20) DEFAULT '待提交',
+                        created_by INTEGER NOT NULL,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (lead_id) REFERENCES leads (id),
+                        FOREIGN KEY (teacher_user_id) REFERENCES users (id),
+                        FOREIGN KEY (created_by) REFERENCES users (id)
+                    )
+                """))
+                db.session.execute(text("CREATE INDEX IF NOT EXISTS idx_topic_tasks_lead_id ON topic_tasks (lead_id)"))
+                db.session.execute(text("CREATE INDEX IF NOT EXISTS idx_topic_tasks_teacher_id ON topic_tasks (teacher_user_id)"))
+                db.session.commit()
+                print("✅ topic_tasks表创建成功")
+            except Exception as e:
+                print(f"⚠️ topic_tasks表创建失败: {e}")
+                db.session.rollback()
+
+            try:
+                db.session.execute(text("""
+                    CREATE TABLE IF NOT EXISTS topic_submissions (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        task_id INTEGER NOT NULL,
+                        content TEXT NOT NULL,
+                        submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (task_id) REFERENCES topic_tasks (id)
+                    )
+                """))
+                db.session.execute(text("CREATE INDEX IF NOT EXISTS idx_topic_submissions_task_id ON topic_submissions (task_id)"))
+                db.session.commit()
+                print("✅ topic_submissions表创建成功")
+            except Exception as e:
+                print(f"⚠️ topic_submissions表创建失败: {e}")
+                db.session.rollback()
 
         except Exception as e:
             print(f"❌ 数据库迁移失败: {e}")

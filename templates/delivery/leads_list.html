@@ -68,10 +68,14 @@
                 <thead class="bg-gray-50">
                     <tr>
                         <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">学员姓名</th>
-                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">家长微信名</th>
-                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">年级</th>
                         <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">责任销售</th>
-                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">定金支付</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">年级</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">定金支付时间</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">已过天数</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">头脑风暴</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">课题选项上传</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">课题选项</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">更新时间</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200 bg-white">
@@ -87,13 +91,7 @@
                                 {% endif %}
                             </div>
                         </td>
-                        <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
-                            {% if lead.parent_wechat_display_name %}
-                                <span class="text-sm">{{ lead.parent_wechat_display_name }}</span>
-                            {% else %}
-                                <span class="text-gray-400">-</span>
-                            {% endif %}
-                        </td>
+                        <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">{{ lead.sales_user.username }}</td>
                         <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
                             {% if lead.grade %}
                                 <span class="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
@@ -103,18 +101,67 @@
                                 <span class="text-gray-400">-</span>
                             {% endif %}
                         </td>
-                        <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">{{ lead.sales_user.username }}</td>
                         <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
                             {% if first_payment_dates.get(lead.id) %}
-                                {{ first_payment_dates[lead.id].strftime('%Y-%m-%d') }}
+                                {{ first_payment_dates[lead.id].strftime('%m-%d') }}
                             {% else %}
                                 <span class="text-gray-400">-</span>
                             {% endif %}
                         </td>
+                        <td class="whitespace-nowrap px-3 py-3 text-sm">
+                            {% if lead.brainstorm_days_elapsed is not none %}
+                                {% if lead.brainstorm_days_elapsed >= 7 %}
+                                    <span class="font-semibold text-red-600">{{ lead.brainstorm_days_elapsed }}天</span>
+                                {% elif lead.brainstorm_days_elapsed >= 5 %}
+                                    <span class="font-semibold text-orange-600">{{ lead.brainstorm_days_elapsed }}天</span>
+                                {% else %}
+                                    <span class="text-gray-700">{{ lead.brainstorm_days_elapsed }}天</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-gray-400">未开始</span>
+                            {% endif %}
+                        </td>
+                            <td class="whitespace-nowrap px-3 py-3 text-sm">
+                                {% if lead.brainstorm_conclusion %}
+                                    <button type="button" onclick="openBrainstormModal({{ lead.id }}, 'conclusion')" class="text-blue-600 hover:text-blue-800" title="查看结论">
+                                        <span class="material-symbols-outlined">description</span>
+                                    </button>
+                                {% else %}
+                                    <button type="button" onclick="openBrainstormModal({{ lead.id }}, 'conclusion')"
+                                            class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                                        添加
+                                    </button>
+                                {% endif %}
+                            </td>
+                            <td class="whitespace-nowrap px-3 py-3 text-sm">
+                                {% set submitted_count = submitted_counts.get(lead.id, 0) %}
+                                {% set assigned_count = assigned_counts.get(lead.id, 0) %}
+                                {% if assigned_count > 0 %}
+                                    <button type="button" onclick="openTopicSubmissionModal({{ lead.id }})"
+                                            class="text-blue-600 hover:text-blue-800">
+                                        {{ submitted_count }}/{{ assigned_count }}
+                                    </button>
+                                {% else %}
+                                    <span class="text-gray-400">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="whitespace-nowrap px-3 py-3 text-sm">
+                                {% if lead.brainstorm_topics %}
+                                    <button type="button" onclick="openBrainstormModal({{ lead.id }}, 'topics')" class="text-blue-600 hover:text-blue-800">
+                                        <span class="material-symbols-outlined">description</span>
+                                    </button>
+                            {% else %}
+                                <button type="button" onclick="openBrainstormModal({{ lead.id }}, 'topics')"
+                                        class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                                    添加
+                                </button>
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">{{ lead.updated_at.strftime('%m-%d') }}</td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="5" class="px-3 py-8 text-center text-sm text-gray-500">
+                        <td colspan="9" class="px-3 py-8 text-center text-sm text-gray-500">
                             <div class="flex flex-col items-center">
                                 <span class="material-symbols-outlined text-4xl text-gray-300 mb-2">inbox</span>
                                 <p>暂无首笔支付阶段的线索</p>
@@ -183,7 +230,601 @@
     </div>
 </div>
 
+<!-- 头脑风暴弹窗 -->
+<div id="brainstormModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+    <div id="brainstormModalPanel" class="relative top-20 mx-auto p-0 border-0 w-full max-w-2xl shadow-2xl rounded-xl bg-white">
+        <div class="bg-blue-600 px-5 py-3 rounded-t-xl">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <span class="material-symbols-outlined text-white">lightbulb</span>
+                    <h3 id="brainstormModalTitle" class="text-base font-semibold text-white">头脑风暴</h3>
+                </div>
+                <button onclick="closeBrainstormModal()" class="text-white hover:text-blue-100">
+                    <span class="material-symbols-outlined text-lg">close</span>
+                </button>
+            </div>
+        </div>
+        <div id="brainstormModalBody" class="p-5 space-y-4 min-h-[200px]">
+            <div id="brainstormConclusionField">
+                <label for="brainstormConclusionInput" class="block text-sm font-medium text-gray-700 mb-1.5">头脑风暴结论</label>
+                <textarea id="brainstormConclusionInput" rows="8"
+                          class="block w-full h-[200px] px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="请输入头脑风暴结论..."></textarea>
+            </div>
+            <div id="brainstormAssignmentSection" class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <h4 class="text-sm font-semibold text-gray-900">指派老师</h4>
+                    <span class="text-xs text-gray-500">结论将同步给所选老师</span>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="border border-gray-200 rounded-lg bg-transparent p-3 min-h-[200px]">
+                        <label class="block text-xs font-medium text-gray-600 mb-1.5">选择老师</label>
+                        <div id="brainstormTeacherTags" class="flex flex-wrap gap-2">
+                            {% for teacher in teachers %}
+                                <button type="button"
+                                        class="teacher-tag inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full border border-gray-300 text-gray-600 hover:border-blue-400 hover:text-blue-600"
+                                        data-teacher-id="{{ teacher.id }}">
+                                    {{ teacher.username }}
+                                </button>
+                            {% endfor %}
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">点击标签可多选</p>
+                    </div>
+                    <div class="border border-gray-200 rounded-lg bg-transparent p-3 min-h-[200px]">
+                        <div>
+                            <h5 class="text-xs font-medium text-gray-600 mb-2">已选择老师</h5>
+                            <div id="brainstormSelectedTeachers" class="flex flex-wrap gap-2 text-sm text-gray-700">
+                                <span class="text-gray-400 text-sm">暂无选择</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <label class="block text-sm font-semibold text-gray-900 mb-1.5">提交截止日期（24:00）</label>
+                    <input type="date" id="brainstormDueAt"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+            <div id="brainstormTopicsField">
+                <label for="brainstormTopicsInput" class="block text-sm font-medium text-gray-700 mb-1.5">课题选项内容</label>
+                <textarea id="brainstormTopicsInput" rows="8"
+                          class="block w-full h-[200px] px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="请输入课题选项内容..."></textarea>
+            </div>
+            <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="copyBrainstormContent()"
+                        class="inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg text-blue-600 bg-blue-50 hover:bg-blue-100">
+                    <span class="material-symbols-outlined text-sm mr-1">content_copy</span>
+                    一键复制
+                </button>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="closeBrainstormModal()"
+                            class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        取消
+                    </button>
+                    <button id="brainstormSendButton" type="button" onclick="assignTopicTasks()"
+                            class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
+                        发送
+                    </button>
+                    <button id="brainstormSaveButton" type="button" onclick="saveBrainstormOnly()"
+                            class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
+                        保存
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 课题选项提交详情弹窗 -->
+<div id="topicSubmissionListModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+    <div class="relative top-20 mx-auto p-0 border-0 w-full max-w-2xl shadow-2xl rounded-xl bg-white">
+        <div class="bg-blue-600 px-5 py-3 rounded-t-xl">
+            <div class="flex items-center justify-between">
+                <h3 class="text-base font-semibold text-white">课题选项提交详情</h3>
+                <button onclick="closeTopicSubmissionModal()" class="text-white hover:text-blue-100">
+                    <span class="material-symbols-outlined text-lg">close</span>
+                </button>
+            </div>
+        </div>
+        <div class="p-5 space-y-3">
+            <div id="topicSubmissionList" class="max-h-[60vh] overflow-y-auto border border-gray-200 rounded-lg bg-white p-3 text-sm text-gray-700">
+                <p class="text-gray-400">暂无提交记录</p>
+            </div>
+            <div class="flex justify-between">
+                <button type="button" onclick="copyAllTopicSubmissions()"
+                        class="inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg text-blue-600 bg-blue-50 hover:bg-blue-100">
+                    <span class="material-symbols-outlined text-sm mr-1">content_copy</span>
+                    复制全部
+                </button>
+                <button type="button" onclick="closeTopicSubmissionModal()"
+                        class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    关闭
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- 包含学员详情弹窗组件 -->
 {% include 'components/student_detail_modal.html' %}
-{% endblock %}
 
+<script>
+const canEditBrainstorm = true;
+let currentBrainstormLeadId = null;
+const brainstormSelectionKeyPrefix = 'brainstorm_selected_teachers_';
+
+function openBrainstormModal(leadId, focusField = 'conclusion') {
+    currentBrainstormLeadId = leadId;
+
+    fetch(`/leads/${leadId}/brainstorm`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('brainstormConclusionInput').value = data.data.brainstorm_conclusion || '';
+                document.getElementById('brainstormTopicsInput').value = data.data.brainstorm_topics || '';
+
+                const conclusionInput = document.getElementById('brainstormConclusionInput');
+                const topicsInput = document.getElementById('brainstormTopicsInput');
+                const conclusionField = document.getElementById('brainstormConclusionField');
+                const topicsField = document.getElementById('brainstormTopicsField');
+                const saveButton = document.getElementById('brainstormSaveButton');
+                const modalTitle = document.getElementById('brainstormModalTitle');
+                const modalBody = document.getElementById('brainstormModalBody');
+                const assignmentSection = document.getElementById('brainstormAssignmentSection');
+                const sendButton = document.getElementById('brainstormSendButton');
+
+                if (!canEditBrainstorm) {
+                    conclusionInput.setAttribute('readonly', 'readonly');
+                    topicsInput.setAttribute('readonly', 'readonly');
+                    saveButton.classList.add('hidden');
+                } else {
+                    conclusionInput.removeAttribute('readonly');
+                    topicsInput.removeAttribute('readonly');
+                    saveButton.classList.remove('hidden');
+                }
+
+                if (focusField === 'topics') {
+                    topicsField.classList.remove('hidden');
+                    conclusionField.classList.add('hidden');
+                    assignmentSection.classList.add('hidden');
+                    sendButton.classList.add('hidden');
+                    modalTitle.textContent = '课题选项';
+                    modalBody.classList.add('max-h-[80vh]', 'overflow-y-auto');
+                } else {
+                    conclusionField.classList.remove('hidden');
+                    topicsField.classList.add('hidden');
+                    assignmentSection.classList.remove('hidden');
+                    sendButton.classList.remove('hidden');
+                    modalTitle.textContent = '头脑风暴';
+                    modalBody.classList.remove('max-h-[80vh]', 'overflow-y-auto');
+                }
+
+                document.getElementById('brainstormModal').classList.remove('hidden');
+                loadTopicTasks();
+                initBrainstormTags();
+                resetTeacherTags();
+                setDefaultDueAt();
+                updateSelectedTagsDisplay();
+
+                if (focusField === 'topics') {
+                    topicsInput.focus();
+                } else {
+                    conclusionInput.focus();
+                }
+            } else {
+                alert(data.message || '加载头脑风暴内容失败');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('加载头脑风暴内容失败，请重试');
+        });
+}
+
+function closeBrainstormModal() {
+    document.getElementById('brainstormModal').classList.add('hidden');
+    currentBrainstormLeadId = null;
+    persistSelectedTeachers();
+    document.getElementById('brainstormConclusionField').classList.remove('hidden');
+    document.getElementById('brainstormTopicsField').classList.remove('hidden');
+    document.getElementById('brainstormAssignmentSection').classList.remove('hidden');
+    document.getElementById('brainstormModalBody').classList.remove('max-h-[80vh]', 'overflow-y-auto');
+    document.getElementById('brainstormModalTitle').textContent = '头脑风暴';
+    document.getElementById('brainstormSendButton').classList.remove('hidden');
+}
+
+function saveBrainstormOnly() {
+    if (!canEditBrainstorm || !currentBrainstormLeadId) {
+        return;
+    }
+
+    const conclusion = document.getElementById('brainstormConclusionInput').value;
+    const topics = document.getElementById('brainstormTopicsInput').value;
+    const dueAtDate = document.getElementById('brainstormDueAt').value;
+    const teacherIds = getSelectedTeacherIds();
+    const saveButton = document.getElementById('brainstormSaveButton');
+    const originalText = saveButton.textContent;
+
+    saveButton.textContent = '保存中...';
+    saveButton.disabled = true;
+
+    fetch(`/leads/${currentBrainstormLeadId}/brainstorm`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            brainstorm_conclusion: conclusion,
+            brainstorm_topics: topics
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const shouldSaveDraft = teacherIds.length > 0 && !!dueAtDate;
+            if (teacherIds.length > 0 && !dueAtDate) {
+                alert('请选择截止日期');
+            }
+            if (!shouldSaveDraft) {
+                persistSelectedTeachers();
+                closeBrainstormModal();
+                location.reload();
+                return null;
+            }
+
+            return fetch(`/delivery/leads/${currentBrainstormLeadId}/topic_tasks`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    teacher_ids: teacherIds,
+                    due_at: `${dueAtDate} 23:59:59`,
+                    send: false
+                })
+            }).then(response => response.json())
+              .then(taskData => {
+                  if (!taskData.success) {
+                      throw new Error(taskData.message || '保存失败');
+                  }
+                  persistSelectedTeachers();
+                  closeBrainstormModal();
+                  location.reload();
+                  return null;
+              });
+        } else {
+            throw new Error(data.message || '保存失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('保存失败：' + error.message);
+    })
+    .finally(() => {
+        saveButton.textContent = originalText;
+        saveButton.disabled = false;
+    });
+}
+
+function copyBrainstormContent() {
+    const conclusion = document.getElementById('brainstormConclusionInput').value || '';
+    const topics = document.getElementById('brainstormTopicsInput').value || '';
+    const conclusionField = document.getElementById('brainstormConclusionField');
+    const topicsField = document.getElementById('brainstormTopicsField');
+    const showConclusion = !conclusionField.classList.contains('hidden');
+    const showTopics = !topicsField.classList.contains('hidden');
+
+    const visibleContent = showConclusion ? conclusion : topics;
+    if (!visibleContent.trim()) {
+        alert('暂无内容可复制');
+        return;
+    }
+
+    const content = showConclusion
+        ? `头脑风暴结论：\n${conclusion}`
+        : `课题选项内容：\n${topics}`;
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(content)
+            .then(() => {
+                alert('已复制到剪贴板');
+            })
+            .catch(() => {
+                fallbackCopyText(content);
+            });
+    } else {
+        fallbackCopyText(content);
+    }
+}
+
+function fallbackCopyText(text) {
+    const tempTextArea = document.createElement('textarea');
+    tempTextArea.value = text;
+    document.body.appendChild(tempTextArea);
+    tempTextArea.select();
+    try {
+        document.execCommand('copy');
+        alert('已复制到剪贴板');
+    } catch (err) {
+        alert('复制失败，请手动复制');
+    }
+    document.body.removeChild(tempTextArea);
+}
+
+function openTopicSubmissionModal(leadId) {
+    fetch(`/delivery/leads/${leadId}/topic_tasks`)
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                alert(data.message || '加载提交详情失败');
+                return;
+            }
+            const container = document.getElementById('topicSubmissionList');
+            const tasks = data.tasks || [];
+            const submitted = tasks.filter(task => task.content);
+            const pending = tasks.filter(task => !task.content);
+
+            let html = '';
+            if (submitted.length) {
+                html += submitted.map(task => `
+                    <div class="border-b border-gray-100 pb-2 mb-2">
+                        <div class="text-xs text-gray-500 mb-1">${task.teacher_name || ''}</div>
+                        <div class="text-sm text-gray-800 whitespace-pre-wrap">${task.content}</div>
+                    </div>
+                `).join('');
+            } else {
+                html += '<p class="text-gray-400">暂无提交记录</p>';
+            }
+
+            if (pending.length) {
+                html += `
+                    <div class="pt-3 mt-2 border-t border-gray-200">
+                        <div class="text-xs font-medium text-gray-600 mb-2">未上传老师</div>
+                        <div class="flex flex-wrap gap-2">
+                            ${pending.map(task => `
+                                <span class="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-600 border border-gray-200">
+                                    ${task.teacher_name || ''}
+                                </span>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = html;
+            document.getElementById('topicSubmissionListModal').classList.remove('hidden');
+        })
+        .catch(error => {
+            console.error('加载提交详情失败:', error);
+            alert('加载提交详情失败，请重试');
+        });
+}
+
+function closeTopicSubmissionModal() {
+    document.getElementById('topicSubmissionListModal').classList.add('hidden');
+}
+
+function copyAllTopicSubmissions() {
+    const container = document.getElementById('topicSubmissionList');
+    if (!container) return;
+    const text = container.innerText.trim();
+    if (!text || text === '暂无提交记录') {
+        alert('暂无内容可复制');
+        return;
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text)
+            .then(() => alert('已复制到剪贴板'))
+            .catch(() => fallbackCopyText(text));
+    } else {
+        fallbackCopyText(text);
+    }
+}
+
+function loadTopicTasks() {
+    if (!currentBrainstormLeadId) return;
+
+    fetch(`/delivery/leads/${currentBrainstormLeadId}/topic_tasks`)
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) return;
+            setSelectedTeacherTags((data.tasks || []).map(task => task.teacher_id));
+            setDueAtFromTasks(data.tasks || []);
+            updateSelectedTagsDisplay();
+            if (!(data.tasks || []).length) {
+                restoreSelectedTeachers();
+            }
+        })
+        .catch(error => {
+            console.error('加载课题选项任务失败:', error);
+        });
+}
+
+function assignTopicTasks() {
+    if (!currentBrainstormLeadId) return;
+    const dueAtDate = document.getElementById('brainstormDueAt').value;
+    const teacherIds = getSelectedTeacherIds();
+    const conclusion = document.getElementById('brainstormConclusionInput').value.trim();
+    const topics = document.getElementById('brainstormTopicsInput').value;
+
+    if (!teacherIds.length) {
+        alert('请选择老师');
+        return;
+    }
+    if (!dueAtDate) {
+        alert('请选择截止时间');
+        return;
+    }
+    if (!conclusion) {
+        alert('请先填写头脑风暴结论');
+        return;
+    }
+
+    const confirmMessage = `确认发送给所选老师吗？\n截止日期：${dueAtDate} 24:00`;
+    if (!confirm(confirmMessage)) {
+        return;
+    }
+
+    fetch(`/leads/${currentBrainstormLeadId}/brainstorm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            brainstorm_conclusion: conclusion,
+            brainstorm_topics: topics
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data.success) {
+            throw new Error(data.message || '保存结论失败');
+        }
+        return fetch(`/delivery/leads/${currentBrainstormLeadId}/topic_tasks`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ teacher_ids: teacherIds, due_at: `${dueAtDate} 23:59:59`, send: true })
+        });
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            loadTopicTasks();
+            alert('指派成功');
+            closeBrainstormModal();
+            location.reload();
+        } else {
+            alert(data.message || '指派失败');
+        }
+    })
+    .catch(error => {
+        console.error('指派失败:', error);
+        alert('指派失败：' + error.message);
+    });
+}
+
+function initBrainstormTags() {
+    const tags = document.querySelectorAll('#brainstormTeacherTags .teacher-tag');
+    tags.forEach(tag => {
+        if (!tag.dataset.bound) {
+            tag.addEventListener('click', () => {
+                tag.classList.toggle('bg-blue-50');
+                tag.classList.toggle('border-blue-500');
+                tag.classList.toggle('text-blue-700');
+                tag.classList.toggle('border-gray-300');
+                tag.classList.toggle('text-gray-600');
+                if (tag.classList.contains('bg-blue-50')) {
+                    tag.classList.add('invisible', 'pointer-events-none');
+                } else {
+                    tag.classList.remove('invisible', 'pointer-events-none');
+                }
+                updateSelectedTagsDisplay();
+                persistSelectedTeachers();
+            });
+            tag.dataset.bound = 'true';
+        }
+    });
+}
+
+function setSelectedTeacherTags(teacherIds) {
+    const idSet = new Set(teacherIds || []);
+    const tags = document.querySelectorAll('#brainstormTeacherTags .teacher-tag');
+    tags.forEach(tag => {
+        const id = parseInt(tag.dataset.teacherId, 10);
+        if (idSet.has(id)) {
+            tag.classList.add('bg-blue-50', 'border-blue-500', 'text-blue-700');
+            tag.classList.remove('border-gray-300', 'text-gray-600');
+            tag.classList.add('invisible', 'pointer-events-none');
+        } else {
+            tag.classList.remove('bg-blue-50', 'border-blue-500', 'text-blue-700');
+            tag.classList.add('border-gray-300', 'text-gray-600');
+            tag.classList.remove('invisible', 'pointer-events-none');
+        }
+    });
+}
+
+function updateSelectedTagsDisplay() {
+    const container = document.getElementById('brainstormSelectedTeachers');
+    if (!container) return;
+    const selectedTags = Array.from(document.querySelectorAll('#brainstormTeacherTags .teacher-tag.bg-blue-50'));
+    if (!selectedTags.length) {
+        container.innerHTML = '<span class="text-gray-400 text-sm">暂无选择</span>';
+        return;
+    }
+    container.innerHTML = selectedTags.map(tag => `
+        <button type="button"
+                class="selected-teacher-tag inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full bg-blue-50 text-blue-700 border border-blue-200"
+                data-teacher-id="${tag.dataset.teacherId}">
+            ${tag.textContent.trim()}
+        </button>
+    `).join('');
+
+    container.querySelectorAll('.selected-teacher-tag').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = parseInt(btn.dataset.teacherId, 10);
+            const originTag = document.querySelector(`#brainstormTeacherTags .teacher-tag[data-teacher-id="${id}"]`);
+            if (originTag) {
+                originTag.classList.remove('bg-blue-50', 'border-blue-500', 'text-blue-700', 'invisible', 'pointer-events-none');
+                originTag.classList.add('border-gray-300', 'text-gray-600');
+            }
+            updateSelectedTagsDisplay();
+            persistSelectedTeachers();
+        });
+    });
+}
+
+function setDueAtFromTasks(tasks) {
+    if (!tasks || !tasks.length) return;
+    const dueAt = tasks[0].due_at;
+    if (!dueAt) return;
+    const dateStr = new Date(dueAt).toISOString().slice(0, 10);
+    const input = document.getElementById('brainstormDueAt');
+    if (input) {
+        input.value = dateStr;
+    }
+}
+
+function resetTeacherTags() {
+    const tags = document.querySelectorAll('#brainstormTeacherTags .teacher-tag');
+    tags.forEach(tag => {
+        tag.classList.remove('bg-blue-50', 'border-blue-500', 'text-blue-700');
+        tag.classList.add('border-gray-300', 'text-gray-600');
+        tag.classList.remove('invisible', 'pointer-events-none');
+    });
+    updateSelectedTagsDisplay();
+}
+
+function persistSelectedTeachers() {
+    if (!currentBrainstormLeadId) return;
+    const ids = getSelectedTeacherIds();
+    localStorage.setItem(`${brainstormSelectionKeyPrefix}${currentBrainstormLeadId}`, JSON.stringify(ids));
+}
+
+function restoreSelectedTeachers() {
+    if (!currentBrainstormLeadId) return;
+    const raw = localStorage.getItem(`${brainstormSelectionKeyPrefix}${currentBrainstormLeadId}`);
+    if (!raw) return;
+    try {
+        const ids = JSON.parse(raw);
+        if (Array.isArray(ids) && ids.length) {
+            setSelectedTeacherTags(ids);
+            updateSelectedTagsDisplay();
+        }
+    } catch (e) {
+        // ignore malformed storage
+    }
+}
+
+function getSelectedTeacherIds() {
+    return Array.from(document.querySelectorAll('#brainstormTeacherTags .teacher-tag.bg-blue-50'))
+        .map(tag => parseInt(tag.dataset.teacherId, 10));
+}
+
+function setDefaultDueAt() {
+    const input = document.getElementById('brainstormDueAt');
+    if (!input || input.value) return;
+    const now = new Date();
+    now.setDate(now.getDate() + 4);
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    input.value = now.toISOString().slice(0, 10);
+}
+</script>
+{% endblock %}

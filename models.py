@@ -94,6 +94,14 @@ class Lead(db.Model):
     meeting_location = db.Column(db.String(20), comment='见面地点：浦东/浦西')
     first_payment_at = db.Column(db.DateTime, comment='首笔支付时间')
     second_payment_at = db.Column(db.DateTime, comment='次笔支付时间')
+    deposit_paid_at = db.Column(db.DateTime, comment='定金支付时间（兼容字段）')
+    full_payment_at = db.Column(db.DateTime, comment='尾款支付时间（兼容字段）')
+
+    # 头脑风暴信息
+    brainstorm_conclusion = db.Column(db.Text, comment='头脑风暴结论')
+    brainstorm_topics = db.Column(db.Text, comment='课题选项内容')
+    brainstorm_conclusion_at = db.Column(db.DateTime, comment='头脑风暴结论保存时间')
+    brainstorm_topics_at = db.Column(db.DateTime, comment='课题选项保存时间')
 
     # 服务内容
     service_types = db.Column(db.Text, comment='服务类型JSON：["tutoring", "competition", "upgrade_guidance"]')
@@ -138,6 +146,43 @@ class Lead(db.Model):
     def get_display_name(self):
         """获取显示名称（优先显示学员姓名，否则显示家长微信号）"""
         return self.student_name if self.student_name else self.parent_wechat_name
+
+
+class TopicTask(db.Model):
+    """课题选项任务（班主任指派给老师）"""
+    __tablename__ = 'topic_tasks'
+
+    STATUS_DRAFT = '草稿'
+    STATUS_PENDING = '待提交'
+    STATUS_SUBMITTED = '已提交'
+    STATUS_OVERDUE = '已逾期'
+
+    id = db.Column(db.Integer, primary_key=True)
+    lead_id = db.Column(db.Integer, db.ForeignKey('leads.id'), nullable=False)
+    teacher_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    due_at = db.Column(db.DateTime, nullable=False)
+    status = db.Column(db.String(20), default=STATUS_PENDING)
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    lead = db.relationship('Lead', backref='topic_tasks')
+    teacher = db.relationship('User', foreign_keys=[teacher_user_id])
+    creator = db.relationship('User', foreign_keys=[created_by])
+
+
+class TopicSubmission(db.Model):
+    """老师提交的初版课题选项"""
+    __tablename__ = 'topic_submissions'
+
+    id = db.Column(db.Integer, primary_key=True)
+    task_id = db.Column(db.Integer, db.ForeignKey('topic_tasks.id'), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    task = db.relationship('TopicTask', backref='submission')
 
     def __repr__(self):
         return f'<Lead {self.get_display_name()}>'

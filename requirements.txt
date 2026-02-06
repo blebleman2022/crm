@@ -28,6 +28,13 @@ gunicorn==21.2.0
 pandas==2.1.4
 openpyxl==3.1.2
 
+# Utils
+pypinyin==0.51.0
+
+# Testing
+pytest==8.4.2
+pytest-playwright==0.7.1
+
 # Core dependencies (automatically installed with Flask but pinned for stability)
 click==8.1.7
 itsdangerous==2.1.2

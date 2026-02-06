@@ -50,14 +50,23 @@
                 {% endif %}
             </div>
 
+            {% set current_path = request.path %}
             <nav class="flex-1 overflow-y-auto">
                 <ul class="space-y-1 p-4">
                     <!-- 学生管理 -->
                     <li>
-                        <a class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-white bg-blue-600"
+                        <a class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium {{ 'text-white bg-blue-600' if current_path.startswith('/teacher/students') else 'text-gray-700 hover:bg-gray-100' }}"
                            href="{{ url_for('teacher.student_list') }}">
-                            <span class="material-symbols-outlined text-lg text-white">group</span>
+                            <span class="material-symbols-outlined text-lg {{ 'text-white' if current_path.startswith('/teacher/students') else 'text-blue-600' }}">group</span>
                             学生管理
+                        </a>
+                    </li>
+                    <!-- 课题选项任务 -->
+                    <li>
+                        <a class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium {{ 'text-white bg-blue-600' if current_path.startswith('/teacher/topic-tasks') else 'text-gray-700 hover:bg-gray-100' }}"
+                           href="{{ url_for('teacher.topic_tasks') }}">
+                            <span class="material-symbols-outlined text-lg {{ 'text-white' if current_path.startswith('/teacher/topic-tasks') else 'text-blue-600' }}">assignment_add</span>
+                            课题选项任务
                         </a>
                     </li>
                 </ul>

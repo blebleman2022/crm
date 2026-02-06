@@ -146,105 +146,187 @@
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">学员姓名</th>
-                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">家长微信名</th>
-                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">年级</th>
-                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">学校</th>
-                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">线索来源</th>
-                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">合同金额</th>
-                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">责任销售</th>
-                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">线索阶段</th>
-                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">最后更新</th>
-                        <th class="relative px-3 py-3">
-                            <span class="sr-only">操作</span>
-                        </th>
+                        {% if current_user.role == 'teacher_supervisor' %}
+                            <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">学员姓名</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">责任销售</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">年级</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">定金支付时间</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">已过天数</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">头脑风暴</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">课题选项</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">更新时间</th>
+                        {% else %}
+                            <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">学员姓名</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">家长微信名</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">年级</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">学校</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">线索来源</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">合同金额</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">责任销售</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">线索阶段</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">最后更新</th>
+                            <th class="relative px-3 py-3">
+                                <span class="sr-only">操作</span>
+                            </th>
+                        {% endif %}
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200 bg-white">
                     {% for lead in leads.items %}
                     <tr class="hover:bg-gray-50">
-                        <td class="whitespace-nowrap px-3 py-3 text-sm font-medium text-gray-900">
-                            <div class="flex items-center space-x-2">
-                                <button onclick="showStudentDetailModal({{ lead.id }}, false)" class="text-blue-600 hover:text-blue-800 cursor-pointer">
-                                    {{ lead.student_name or '-' }}
-                                </button>
-                                {% if lead.additional_requirements %}
-                                    <span class="material-symbols-outlined text-red-600 text-sm" title="有额外要求">add_circle</span>
+                        {% if current_user.role == 'teacher_supervisor' %}
+                            <td class="whitespace-nowrap px-3 py-3 text-sm font-medium text-gray-900">
+                                <div class="flex items-center space-x-2">
+                                    <button onclick="showStudentDetailModal({{ lead.id }}, false)" class="text-blue-600 hover:text-blue-800 cursor-pointer">
+                                        {{ lead.student_name or '-' }}
+                                    </button>
+                                    {% if lead.additional_requirements %}
+                                        <span class="material-symbols-outlined text-red-600 text-sm" title="有额外要求">add_circle</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
+                                {{ lead.sales_user.username }}
+                            </td>
+                            <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
+                                {% if lead.grade %}
+                                    <span class="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                                        {{ lead.grade }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-gray-400">-</span>
                                 {% endif %}
-                            </div>
-                        </td>
-                        <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
-                            {% if lead.parent_wechat_display_name %}
-                                <span class="text-sm">{{ lead.parent_wechat_display_name }}</span>
-                            {% else %}
-                                <span class="text-gray-400">-</span>
-                            {% endif %}
-                        </td>
-                        <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
-                            {% if lead.grade %}
-                                <span class="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
-                                    {{ lead.grade }}
-                                </span>
-                            {% else %}
-                                <span class="text-gray-400">-</span>
-                            {% endif %}
-                        </td>
-                        <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
-                            {% if lead.school %}
-                                {{ lead.school }}
-                            {% else %}
-                                <span class="text-gray-400">-</span>
-                            {% endif %}
-                        </td>
-                        <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
-                            {% if lead.lead_source %}
-                                <span class="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
-                                    {{ lead.lead_source }}
-                                </span>
-                            {% else %}
-                                <span class="text-gray-400">-</span>
-                            {% endif %}
-                        </td>
-                        <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
-                            {% if lead.contract_amount %}
-                                <button type="button"
-                                        onclick="showPaymentDetails({{ lead.id }})"
-                                        class="font-medium text-green-600 hover:text-green-800 hover:underline cursor-pointer">
-                                    ¥{{ lead.contract_amount|format_currency }}
-                                </button>
-                            {% else %}
-                                <span class="text-gray-400">-</span>
-                            {% endif %}
-                        </td>
-                        <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">{{ lead.sales_user.username }}</td>
-                        <td class="whitespace-nowrap px-3 py-3 text-sm">
-                            {% if lead.stage == '获取联系方式' %}
-                                <span class="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800">{{ lead.stage }}</span>
-                            {% elif lead.stage == '线下见面' %}
-                                <span class="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">{{ lead.stage }}</span>
-                            {% elif lead.stage == '首笔支付' %}
-                                <span class="inline-flex items-center rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800">{{ lead.stage }}</span>
-                            {% elif lead.stage == '次笔支付' %}
-                                <span class="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">{{ lead.stage }}</span>
-                            {% elif lead.stage == '全款支付' %}
-                                <span class="inline-flex items-center rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800">{{ lead.stage }}</span>
-                            {% endif %}
-                        </td>
-                        <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">{{ lead.updated_at.strftime('%m-%d') }}</td>
-                        <td class="whitespace-nowrap px-3 py-3 text-right text-sm font-medium">
-                            <div class="flex items-center justify-end gap-2">
-                                <button onclick="editLead({{ lead.id }}, {{ lead.sales_user_id }})"
-                                        class="text-blue-600 hover:text-blue-800 bg-transparent border-none cursor-pointer">编辑</button>
-                                {% set can_convert = false %}
-                                {% if not lead.customer and lead.stage in ['次笔支付', '全款支付'] %}
-                                    {% set can_convert = true %}
+                            </td>
+                            <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
+                                {% set deposit_time = lead.deposit_paid_at or lead.first_payment_at %}
+                                {% if deposit_time %}
+                                    {{ deposit_time.strftime('%m-%d') }}
+                                {% else %}
+                                    <span class="text-gray-400">-</span>
                                 {% endif %}
-                                {% if can_convert %}
-                                    <button onclick="convertToCustomer({{ lead.id }}, '{{ lead.student_name }}')"
-                                            class="text-green-600 hover:text-green-800">转客户</button>
+                            </td>
+                            <td class="whitespace-nowrap px-3 py-3 text-sm">
+                                {% if lead.brainstorm_days_elapsed is not none %}
+                                    {% if lead.brainstorm_days_elapsed >= 7 %}
+                                        <span class="font-semibold text-red-600">{{ lead.brainstorm_days_elapsed }}天</span>
+                                    {% elif lead.brainstorm_days_elapsed >= 5 %}
+                                        <span class="font-semibold text-orange-600">{{ lead.brainstorm_days_elapsed }}天</span>
+                                    {% else %}
+                                        <span class="text-gray-700">{{ lead.brainstorm_days_elapsed }}天</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-gray-400">未开始</span>
                                 {% endif %}
-                            </div>
-                        </td>
+                            </td>
+                            <td class="whitespace-nowrap px-3 py-3 text-sm">
+                                {% if lead.brainstorm_conclusion %}
+                                    <button type="button" onclick="openBrainstormModal({{ lead.id }}, 'conclusion')" class="text-blue-600 hover:text-blue-800">
+                                        <span class="material-symbols-outlined">description</span>
+                                    </button>
+                                {% else %}
+                                    <button type="button" onclick="openBrainstormModal({{ lead.id }}, 'conclusion')"
+                                            class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                                        添加
+                                    </button>
+                                {% endif %}
+                            </td>
+                            <td class="whitespace-nowrap px-3 py-3 text-sm">
+                                {% if lead.brainstorm_topics %}
+                                    <button type="button" onclick="openBrainstormModal({{ lead.id }}, 'topics')" class="text-blue-600 hover:text-blue-800">
+                                        <span class="material-symbols-outlined">description</span>
+                                    </button>
+                                {% else %}
+                                    <button type="button" onclick="openBrainstormModal({{ lead.id }}, 'topics')"
+                                            class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                                        添加
+                                    </button>
+                                {% endif %}
+                            </td>
+                            <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">{{ lead.updated_at.strftime('%m-%d') }}</td>
+                        {% else %}
+                            <td class="whitespace-nowrap px-3 py-3 text-sm font-medium text-gray-900">
+                                <div class="flex items-center space-x-2">
+                                    <button onclick="showStudentDetailModal({{ lead.id }}, false)" class="text-blue-600 hover:text-blue-800 cursor-pointer">
+                                        {{ lead.student_name or '-' }}
+                                    </button>
+                                    {% if lead.additional_requirements %}
+                                        <span class="material-symbols-outlined text-red-600 text-sm" title="有额外要求">add_circle</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
+                                {% if lead.parent_wechat_display_name %}
+                                    <span class="text-sm">{{ lead.parent_wechat_display_name }}</span>
+                                {% else %}
+                                    <span class="text-gray-400">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
+                                {% if lead.grade %}
+                                    <span class="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                                        {{ lead.grade }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-gray-400">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
+                                {% if lead.school %}
+                                    {{ lead.school }}
+                                {% else %}
+                                    <span class="text-gray-400">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
+                                {% if lead.lead_source %}
+                                    <span class="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
+                                        {{ lead.lead_source }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-gray-400">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
+                                {% if lead.contract_amount %}
+                                    <button type="button"
+                                            onclick="showPaymentDetails({{ lead.id }})"
+                                            class="font-medium text-green-600 hover:text-green-800 hover:underline cursor-pointer">
+                                        ¥{{ lead.contract_amount|format_currency }}
+                                    </button>
+                                {% else %}
+                                    <span class="text-gray-400">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">{{ lead.sales_user.username }}</td>
+                            <td class="whitespace-nowrap px-3 py-3 text-sm">
+                                {% if lead.stage == '获取联系方式' %}
+                                    <span class="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800">{{ lead.stage }}</span>
+                                {% elif lead.stage == '线下见面' %}
+                                    <span class="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">{{ lead.stage }}</span>
+                                {% elif lead.stage == '首笔支付' %}
+                                    <span class="inline-flex items-center rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800">{{ lead.stage }}</span>
+                                {% elif lead.stage == '次笔支付' %}
+                                    <span class="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">{{ lead.stage }}</span>
+                                {% elif lead.stage == '全款支付' %}
+                                    <span class="inline-flex items-center rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800">{{ lead.stage }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">{{ lead.updated_at.strftime('%m-%d') }}</td>
+                            <td class="whitespace-nowrap px-3 py-3 text-right text-sm font-medium">
+                                <div class="flex items-center justify-end gap-2">
+                                    <button onclick="editLead({{ lead.id }}, {{ lead.sales_user_id }})"
+                                            class="text-blue-600 hover:text-blue-800 bg-transparent border-none cursor-pointer">编辑</button>
+                                    {% set can_convert = false %}
+                                    {% if not lead.customer and lead.stage in ['次笔支付', '全款支付'] %}
+                                        {% set can_convert = true %}
+                                    {% endif %}
+                                    {% if can_convert %}
+                                        <button onclick="convertToCustomer({{ lead.id }}, '{{ lead.student_name }}')"
+                                                class="text-green-600 hover:text-green-800">转客户</button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        {% endif %}
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -430,6 +512,54 @@ function confirmConvertToCustomer() {
     </div>
 </div>
 
+<!-- 头脑风暴弹窗 -->
+<div id="brainstormModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+    <div id="brainstormModalPanel" class="relative top-20 mx-auto p-0 border-0 w-full max-w-2xl shadow-2xl rounded-xl bg-white">
+        <div class="bg-blue-600 px-5 py-3 rounded-t-xl">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <span class="material-symbols-outlined text-white">lightbulb</span>
+                    <h3 id="brainstormModalTitle" class="text-base font-semibold text-white">头脑风暴</h3>
+                </div>
+                <button onclick="closeBrainstormModal()" class="text-white hover:text-blue-100">
+                    <span class="material-symbols-outlined text-lg">close</span>
+                </button>
+            </div>
+        </div>
+        <div id="brainstormModalBody" class="p-5 space-y-4 min-h-[200px]">
+            <div id="brainstormConclusionField">
+                <label for="brainstormConclusionInput" class="block text-sm font-medium text-gray-700 mb-1.5">头脑风暴结论</label>
+                <textarea id="brainstormConclusionInput" rows="8"
+                          class="block w-full h-[200px] px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="请输入头脑风暴结论..."></textarea>
+            </div>
+            <div id="brainstormTopicsField">
+                <label for="brainstormTopicsInput" class="block text-sm font-medium text-gray-700 mb-1.5">课题选项内容</label>
+                <textarea id="brainstormTopicsInput" rows="8"
+                          class="block w-full h-[200px] px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="请输入课题选项内容..."></textarea>
+            </div>
+            <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="copyBrainstormContent()"
+                        class="inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg text-blue-600 bg-blue-50 hover:bg-blue-100">
+                    <span class="material-symbols-outlined text-sm mr-1">content_copy</span>
+                    一键复制
+                </button>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="closeBrainstormModal()"
+                            class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        取消
+                    </button>
+                    <button id="brainstormSaveButton" type="button" onclick="saveBrainstorm()"
+                            class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
+                        保存
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- 付款明细弹窗 -->
 <div id="paymentDetailsModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
     <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
@@ -553,6 +683,162 @@ function showPaymentDetails(leadId) {
 // 隐藏付款明细弹窗
 function hidePaymentDetails() {
     document.getElementById('paymentDetailsModal').classList.add('hidden');
+}
+
+const canEditBrainstorm = {{ 'true' if current_user.role == 'teacher_supervisor' else 'false' }};
+let currentBrainstormLeadId = null;
+
+function openBrainstormModal(leadId, focusField = 'conclusion') {
+    currentBrainstormLeadId = leadId;
+
+    fetch(`/leads/${leadId}/brainstorm`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('brainstormConclusionInput').value = data.data.brainstorm_conclusion || '';
+                document.getElementById('brainstormTopicsInput').value = data.data.brainstorm_topics || '';
+
+                const conclusionInput = document.getElementById('brainstormConclusionInput');
+                const topicsInput = document.getElementById('brainstormTopicsInput');
+                const conclusionField = document.getElementById('brainstormConclusionField');
+                const topicsField = document.getElementById('brainstormTopicsField');
+                const saveButton = document.getElementById('brainstormSaveButton');
+                const modalTitle = document.getElementById('brainstormModalTitle');
+                const modalBody = document.getElementById('brainstormModalBody');
+
+                if (!canEditBrainstorm) {
+                    conclusionInput.setAttribute('readonly', 'readonly');
+                    topicsInput.setAttribute('readonly', 'readonly');
+                    saveButton.classList.add('hidden');
+                } else {
+                    conclusionInput.removeAttribute('readonly');
+                    topicsInput.removeAttribute('readonly');
+                    saveButton.classList.remove('hidden');
+                }
+
+                if (focusField === 'topics') {
+                    topicsField.classList.remove('hidden');
+                    conclusionField.classList.add('hidden');
+                    modalTitle.textContent = '课题选项';
+                    modalBody.classList.add('max-h-[80vh]', 'overflow-y-auto');
+                } else {
+                    conclusionField.classList.remove('hidden');
+                    topicsField.classList.add('hidden');
+                    modalTitle.textContent = '头脑风暴';
+                    modalBody.classList.remove('max-h-[80vh]', 'overflow-y-auto');
+                }
+
+                document.getElementById('brainstormModal').classList.remove('hidden');
+
+                if (focusField === 'topics') {
+                    topicsInput.focus();
+                } else {
+                    conclusionInput.focus();
+                }
+            } else {
+                alert(data.message || '加载头脑风暴内容失败');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('加载头脑风暴内容失败，请重试');
+        });
+}
+
+function closeBrainstormModal() {
+    document.getElementById('brainstormModal').classList.add('hidden');
+    currentBrainstormLeadId = null;
+    document.getElementById('brainstormConclusionField').classList.remove('hidden');
+    document.getElementById('brainstormTopicsField').classList.remove('hidden');
+    document.getElementById('brainstormModalBody').classList.remove('max-h-[80vh]', 'overflow-y-auto');
+    document.getElementById('brainstormModalTitle').textContent = '头脑风暴';
+}
+
+function saveBrainstorm() {
+    if (!canEditBrainstorm || !currentBrainstormLeadId) {
+        return;
+    }
+
+    const conclusion = document.getElementById('brainstormConclusionInput').value;
+    const topics = document.getElementById('brainstormTopicsInput').value;
+    const saveButton = document.getElementById('brainstormSaveButton');
+    const originalText = saveButton.textContent;
+
+    saveButton.textContent = '保存中...';
+    saveButton.disabled = true;
+
+    fetch(`/leads/${currentBrainstormLeadId}/brainstorm`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            brainstorm_conclusion: conclusion,
+            brainstorm_topics: topics
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closeBrainstormModal();
+            location.reload();
+        } else {
+            throw new Error(data.message || '保存失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('保存失败：' + error.message);
+    })
+    .finally(() => {
+        saveButton.textContent = originalText;
+        saveButton.disabled = false;
+    });
+}
+
+function copyBrainstormContent() {
+    const conclusion = document.getElementById('brainstormConclusionInput').value || '';
+    const topics = document.getElementById('brainstormTopicsInput').value || '';
+    const conclusionField = document.getElementById('brainstormConclusionField');
+    const topicsField = document.getElementById('brainstormTopicsField');
+    const showConclusion = !conclusionField.classList.contains('hidden');
+    const showTopics = !topicsField.classList.contains('hidden');
+
+    const visibleContent = showConclusion ? conclusion : topics;
+    if (!visibleContent.trim()) {
+        alert('暂无内容可复制');
+        return;
+    }
+
+    const content = showConclusion
+        ? `头脑风暴结论：\n${conclusion}`
+        : `课题选项内容：\n${topics}`;
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(content)
+            .then(() => {
+                alert('已复制到剪贴板');
+            })
+            .catch(() => {
+                fallbackCopyText(content);
+            });
+    } else {
+        fallbackCopyText(content);
+    }
+}
+
+function fallbackCopyText(text) {
+    const tempTextArea = document.createElement('textarea');
+    tempTextArea.value = text;
+    document.body.appendChild(tempTextArea);
+    tempTextArea.select();
+    try {
+        document.execCommand('copy');
+        alert('已复制到剪贴板');
+    } catch (err) {
+        alert('复制失败，请手动复制');
+    }
+    document.body.removeChild(tempTextArea);
 }
 </script>
 {% endblock %}

@@ -76,12 +76,48 @@ CREATE TABLE leads (
     meeting_location VARCHAR(20),  -- 浦东/浦西
     first_payment_at DATETIME,
     second_payment_at DATETIME,
+    deposit_paid_at DATETIME,
+    full_payment_at DATETIME,
+
+    -- 头脑风暴信息
+    brainstorm_conclusion TEXT,
+    brainstorm_topics TEXT,
+    brainstorm_conclusion_at DATETIME,
+    brainstorm_topics_at DATETIME,
     
     -- 服务内容
     service_types TEXT,  -- JSON格式
     competition_award_level VARCHAR(20),  -- 市奖/国奖
     additional_requirements TEXT,
     
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### 12. topic_tasks (课题选项任务表)
+
+```sql
+CREATE TABLE topic_tasks (
+    id INTEGER PRIMARY KEY,
+    lead_id INTEGER NOT NULL,
+    teacher_user_id INTEGER NOT NULL,
+    due_at DATETIME NOT NULL,
+    status VARCHAR(20) DEFAULT '待提交',
+    created_by INTEGER NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### 13. topic_submissions (课题选项提交表)
+
+```sql
+CREATE TABLE topic_submissions (
+    id INTEGER PRIMARY KEY,
+    task_id INTEGER NOT NULL,
+    content TEXT NOT NULL,
+    submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );

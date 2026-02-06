@@ -1,0 +1,163 @@
+{% extends "teacher/base.html" %}
+
+{% block title %}课题选项任务 - EduConnect CRM{% endblock %}
+
+{% block content %}
+<div class="max-w-full mx-auto px-4 lg:px-6">
+    <div class="bg-white p-4 rounded-lg shadow-sm mb-4">
+        <h2 class="text-lg font-semibold text-gray-900">课题选项任务</h2>
+        <p class="text-sm text-gray-500 mt-1">请在截止时间前提交初版课题选项。</p>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">学员姓名</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">截止时间</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">剩余天数</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">状态</th>
+                    <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">操作</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200 bg-white">
+                {% for item in task_data %}
+                {% set task = item.task %}
+                {% set lead = item.lead %}
+                {% set submission = item.submission %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-3 text-sm font-medium text-gray-900">
+                        {{ lead.student_name or lead.parent_wechat_display_name or '-' }}
+                    </td>
+                    <td class="px-4 py-3 text-sm text-gray-600">
+                        {{ task.due_at.strftime('%m-%d %H:%M') if task.due_at else '-' }}
+                    </td>
+                    <td class="px-4 py-3 text-sm">
+                        {% if submission or task.status == '已提交' %}
+                            <span class="text-gray-400">-</span>
+                        {% elif task.due_at %}
+                            {% set days_left = (task.due_at.date() - now.date()).days %}
+                            {% if days_left < 0 %}
+                                <span class="font-semibold text-red-600">已逾期</span>
+                            {% elif days_left <= 2 %}
+                                <span class="font-semibold text-orange-600">{{ days_left }}天</span>
+                            {% else %}
+                                <span class="text-gray-700">{{ days_left }}天</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="text-gray-400">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-sm">
+                        {% if task.status == '已提交' %}
+                            <span class="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">已提交</span>
+                        {% elif task.status == '已逾期' %}
+                            <span class="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">已逾期</span>
+                        {% else %}
+                            <span class="inline-flex items-center rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800">待提交</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-right text-sm">
+                        <button type="button"
+                                onclick='openSubmissionModal({{ task.id }}, {{ (lead.student_name or lead.parent_wechat_display_name or '')|tojson }}, {{ (submission.content if submission else '')|tojson }}, {{ (lead.brainstorm_conclusion or '')|tojson }})'
+                                class="text-blue-600 hover:text-blue-800">
+                            {{ '编辑' if submission else '提交' }}
+                        </button>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="px-4 py-8 text-center text-sm text-gray-500">
+                        暂无课题选项任务
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 提交弹窗 -->
+<div id="topicSubmissionModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+    <div class="relative top-20 mx-auto p-0 border-0 w-full max-w-2xl shadow-2xl rounded-xl bg-white">
+        <div class="bg-blue-600 px-5 py-3 rounded-t-xl">
+            <div class="flex items-center justify-between">
+                <h3 class="text-base font-semibold text-white">提交课题选项</h3>
+                <button onclick="closeSubmissionModal()" class="text-white hover:text-blue-100">
+                    <span class="material-symbols-outlined text-lg">close</span>
+                </button>
+            </div>
+        </div>
+        <div class="p-5 space-y-4">
+            <div class="text-sm text-gray-600">学员：<span id="submissionStudentName" class="font-medium text-gray-900"></span></div>
+            <div class="text-sm text-gray-600">
+                头脑风暴结论：
+                <div id="submissionBrainstorm" class="mt-2 whitespace-pre-wrap text-sm text-gray-800 border border-gray-200 rounded-lg p-3 min-h-[120px]"></div>
+            </div>
+            <div>
+                <label for="submissionContent" class="block text-sm font-medium text-gray-700 mb-1.5">初版课题选项</label>
+                <textarea id="submissionContent" rows="12"
+                          class="block w-full h-[360px] px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="请输入初版课题选项..."></textarea>
+            </div>
+            <div class="flex justify-end gap-2">
+                <button type="button" onclick="closeSubmissionModal()"
+                        class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    取消
+                </button>
+                <button type="button" onclick="submitTopicOptions()"
+                        class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
+                    保存
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentTaskId = null;
+
+function openSubmissionModal(taskId, studentName, content, conclusion) {
+    currentTaskId = taskId;
+    document.getElementById('submissionStudentName').textContent = studentName || '-';
+    document.getElementById('submissionContent').value = content || '';
+    document.getElementById('submissionBrainstorm').textContent = conclusion || '-';
+    document.getElementById('topicSubmissionModal').classList.remove('hidden');
+}
+
+function closeSubmissionModal() {
+    document.getElementById('topicSubmissionModal').classList.add('hidden');
+    currentTaskId = null;
+}
+
+function submitTopicOptions() {
+    if (!currentTaskId) return;
+    const content = document.getElementById('submissionContent').value.trim();
+    if (!content) {
+        alert('内容不能为空');
+        return;
+    }
+
+    fetch(`/teacher/topic-tasks/${currentTaskId}/submit`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ content })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closeSubmissionModal();
+            location.reload();
+        } else {
+            alert(data.message || '提交失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('提交失败，请重试');
+    });
+}
+</script>
+{% endblock %}
