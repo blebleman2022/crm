@@ -65,9 +65,19 @@ fi
 # 等待进程完全停止
 sleep 2
 
-# 5. 检查是否还有残留进程
+# 5. 执行外键结构修复脚本
 echo ""
-echo "🔍 第5步: 检查残留进程..."
+echo "🛠️  第5步: 修复 teachers 外键结构..."
+if [ -f "fix_teacher_fk_schema.py" ]; then
+    python3 fix_teacher_fk_schema.py
+    echo "✅ 外键结构修复脚本执行完成"
+else
+    echo "⚠️  未找到 fix_teacher_fk_schema.py, 跳过外键结构修复"
+fi
+
+# 6. 检查是否还有残留进程
+echo ""
+echo "🔍 第6步: 检查残留进程..."
 if pgrep -f "python.*run" > /dev/null; then
     echo "⚠️  发现残留进程,正在清理..."
     sudo pkill -9 -f "python.*run" || true
@@ -77,9 +87,9 @@ else
     echo "✅ 没有残留进程"
 fi
 
-# 6. 启动服务
+# 7. 启动服务
 echo ""
-echo "🚀 第6步: 启动服务..."
+echo "🚀 第7步: 启动服务..."
 if command -v systemctl &> /dev/null; then
     sudo systemctl start crm
     echo "✅ 服务已启动 (systemctl)"
@@ -95,27 +105,27 @@ fi
 echo "⏳ 等待服务启动..."
 sleep 5
 
-# 7. 检查服务状态
+# 8. 检查服务状态
 echo ""
-echo "📊 第7步: 检查服务状态..."
+echo "📊 第8步: 检查服务状态..."
 if command -v systemctl &> /dev/null; then
     sudo systemctl status crm --no-pager -l || true
 elif command -v supervisorctl &> /dev/null; then
     sudo supervisorctl status crm || true
 fi
 
-# 8. 运行诊断脚本
+# 9. 运行诊断脚本
 echo ""
-echo "🔍 第8步: 运行诊断脚本..."
+echo "🔍 第9步: 运行诊断脚本..."
 if [ -f "diagnose_fk_issue.py" ]; then
     python3 diagnose_fk_issue.py
 else
     echo "⚠️  诊断脚本不存在,跳过诊断"
 fi
 
-# 9. 查看最新日志
+# 10. 查看最新日志
 echo ""
-echo "📋 第9步: 查看最新日志 (最后20行)..."
+echo "📋 第10步: 查看最新日志 (最后20行)..."
 if command -v journalctl &> /dev/null; then
     sudo journalctl -u crm -n 20 --no-pager
 else
@@ -135,4 +145,3 @@ echo "   sudo journalctl -u crm -n 100 --no-pager"
 echo ""
 echo "💾 数据库备份位置: $BACKUP_FILE"
 echo ""
-
