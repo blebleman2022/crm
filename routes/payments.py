@@ -207,28 +207,32 @@ def reconciliation():
                         if date_str <= end_date:
                             period_paid += float(payment.third_payment) if payment.third_payment else 0
 
-            # 如果没有付款记录，跳过
+            # 如果有时间筛选但没有付款记录，跳过
             if not payment_dates:
-                continue
+                # 如果没有付款记录但有付款对象(payment存在),仍然显示
+                # 这样可以显示已创建但还没有付款日期的记录
+                if not payment:
+                    continue
 
             # 检查是否有付款在时间范围内
-            in_range = False
-            for payment_date in payment_dates:
-                if start_date and end_date:
-                    if start_date <= payment_date <= end_date:
-                        in_range = True
-                        break
-                elif start_date:
-                    if payment_date >= start_date:
-                        in_range = True
-                        break
-                elif end_date:
-                    if payment_date <= end_date:
-                        in_range = True
-                        break
+            if payment_dates:  # 只有当有付款日期时才检查范围
+                in_range = False
+                for payment_date in payment_dates:
+                    if start_date and end_date:
+                        if start_date <= payment_date <= end_date:
+                            in_range = True
+                            break
+                    elif start_date:
+                        if payment_date >= start_date:
+                            in_range = True
+                            break
+                    elif end_date:
+                        if payment_date <= end_date:
+                            in_range = True
+                            break
 
-            if not in_range:
-                continue
+                if not in_range:
+                    continue
 
         monthly_paid = {key: 0 for key in month_keys}
         if payment:
