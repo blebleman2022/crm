@@ -83,6 +83,8 @@ def list_customers():
     if search:
         query = query.filter(
             (Lead.student_name.contains(search)) |
+            (Lead.parent_wechat_display_name.contains(search)) |
+            (Lead.parent_wechat_name.contains(search)) |
             (Lead.contact_info.contains(search))
         )
 
