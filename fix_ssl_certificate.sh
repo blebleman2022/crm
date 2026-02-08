@@ -240,11 +240,33 @@ echo ""
 echo "⏰ 第7步: 配置自动续期..."
 echo "-----------------------------------------------------------"
 
+# 创建续期后钩子脚本
+mkdir -p /etc/letsencrypt/renewal-hooks/deploy
+
+cat > /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh << 'HOOK_EOF'
+#!/bin/bash
+# Certbot 续期后自动重启 Nginx
+echo "$(date): SSL 证书已续期,正在重启 Nginx..." >> /var/log/certbot-renew.log
+
+if nginx -t 2>&1 >> /var/log/certbot-renew.log; then
+    systemctl reload nginx
+    echo "$(date): Nginx 已成功重启" >> /var/log/certbot-renew.log
+else
+    echo "$(date): Nginx 配置测试失败,未重启" >> /var/log/certbot-renew.log
+    exit 1
+fi
+HOOK_EOF
+
+chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
+touch /var/log/certbot-renew.log
+
+echo -e "${GREEN}✅ 续期后钩子脚本已创建${NC}"
+
 # 测试自动续期
-if certbot renew --dry-run; then
+if certbot renew --dry-run --deploy-hook "/etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh" 2>&1 | grep -q "Congratulations"; then
     echo -e "${GREEN}✅ 自动续期配置正确${NC}"
 else
-    echo -e "${YELLOW}⚠️  自动续期测试失败,但证书已更新${NC}"
+    echo -e "${YELLOW}⚠️  自动续期测试有警告,但证书已更新${NC}"
 fi
 
 # 检查 systemd timer
@@ -256,6 +278,12 @@ else
     systemctl start certbot.timer
     echo -e "${GREEN}✅ 已启用自动续期${NC}"
 fi
+
+echo ""
+echo "   自动续期配置:"
+echo "   • 每天检查证书有效期"
+echo "   • 过期前 30 天自动续期"
+echo "   • 续期后自动重启 Nginx"
 
 echo ""
 
