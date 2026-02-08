@@ -10,12 +10,24 @@
         <!-- 筛选条件 -->
         <form method="GET" class="mb-6">
             <input type="hidden" name="tab" id="activeTabInput" value="{{ active_tab or 'summary' }}">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <!-- 搜索框 -->
+                <div>
+                    <label class="sr-only" for="search">搜索</label>
+                    <div class="relative">
+                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                            <span class="material-symbols-outlined text-gray-400">search</span>
+                        </div>
+                        <input class="block w-full rounded-md border-0 py-2.5 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"
+                               id="search" name="search" placeholder="搜索学员姓名或家长微信名" type="search" value="{{ search }}"/>
+                    </div>
+                </div>
+
                 {% if current_user.is_sales_manager() %}
-                <div class="flex items-center gap-4">
-                    <label for="teacher_user_id" class="text-sm font-medium text-gray-700 whitespace-nowrap">筛选班主任:</label>
+                <div>
+                    <label class="sr-only" for="teacher_user_id">筛选班主任</label>
                     <select name="teacher_user_id" id="teacher_user_id"
-                            class="block w-full rounded-md border-0 py-2 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm">
+                            class="block w-full rounded-md border-0 py-2.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm">
                         <option value="">全部班主任</option>
                         {% for teacher in teacher_supervisors %}
                             <option value="{{ teacher.id }}" {% if selected_teacher_id == teacher.id %}selected{% endif %}>
@@ -26,7 +38,7 @@
                 </div>
                 {% endif %}
 
-                <div class="flex items-center gap-4">
+                <div class="flex items-center gap-2">
                     <label for="start_date" class="text-sm font-medium text-gray-700 whitespace-nowrap">付款时间:</label>
                     <input type="month" name="start_date" id="start_date" value="{{ start_date or '' }}"
                            class="block w-full rounded-md border-0 py-2 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm">

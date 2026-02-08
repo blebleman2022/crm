@@ -60,6 +60,7 @@ def reconciliation():
 
     # 获取筛选参数
     teacher_user_id = request.args.get('teacher_user_id', type=int)
+    search = request.args.get('search', '', type=str)
     start_date = request.args.get('start_date', '')
     end_date = request.args.get('end_date', '')
     active_tab = request.args.get('tab', 'summary')
@@ -125,6 +126,14 @@ def reconciliation():
     # 如果是销售管理，可以按班主任筛选
     elif teacher_user_id:
         query = query.filter(Customer.teacher_user_id == teacher_user_id)
+
+    # 搜索过滤
+    if search:
+        query = query.filter(
+            (Lead.student_name.contains(search)) |
+            (Lead.parent_wechat_display_name.contains(search)) |
+            (Lead.parent_wechat_name.contains(search))
+        )
 
     # 执行查询
     results = query.all()
@@ -299,6 +308,7 @@ def reconciliation():
                          detail_month_totals=month_totals,
                          teacher_supervisors=teacher_supervisors,
                          selected_teacher_id=teacher_user_id,
+                         search=search,
                          start_date=start_date,
                          end_date=end_date,
                          active_tab=active_tab)
