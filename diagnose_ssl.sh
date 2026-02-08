@@ -79,17 +79,25 @@ echo ""
 echo "📜 4. SSL 证书检查"
 echo "-----------------------------------------------------------"
 
-# 检查 Let's Encrypt 证书
-if [ -d "/etc/letsencrypt/live/www.sxylab.com" ]; then
+# 检查 Let's Encrypt 证书 (支持多个可能的域名)
+CERT_DIR=""
+for dir in "/etc/letsencrypt/live/sxylab.com" "/etc/letsencrypt/live/www.sxylab.com"; do
+    if [ -d "$dir" ]; then
+        CERT_DIR="$dir"
+        break
+    fi
+done
+
+if [ -n "$CERT_DIR" ]; then
     echo -e "${GREEN}✅ 发现 Let's Encrypt 证书目录${NC}"
-    echo "   路径: /etc/letsencrypt/live/www.sxylab.com"
-    
+    echo "   路径: $CERT_DIR"
+
     # 检查证书文件
-    if [ -f "/etc/letsencrypt/live/www.sxylab.com/fullchain.pem" ]; then
+    if [ -f "$CERT_DIR/fullchain.pem" ]; then
         echo -e "${GREEN}✅ fullchain.pem 存在${NC}"
-        
+
         # 检查证书有效期
-        CERT_FILE="/etc/letsencrypt/live/www.sxylab.com/cert.pem"
+        CERT_FILE="$CERT_DIR/cert.pem"
         if [ -f "$CERT_FILE" ]; then
             echo ""
             echo "   证书详情:"
@@ -124,8 +132,8 @@ if [ -d "/etc/letsencrypt/live/www.sxylab.com" ]; then
     else
         echo -e "${RED}❌ fullchain.pem 不存在${NC}"
     fi
-    
-    if [ -f "/etc/letsencrypt/live/www.sxylab.com/privkey.pem" ]; then
+
+    if [ -f "$CERT_DIR/privkey.pem" ]; then
         echo -e "${GREEN}✅ privkey.pem 存在${NC}"
     else
         echo -e "${RED}❌ privkey.pem 不存在${NC}"
@@ -294,16 +302,23 @@ if ! netstat -tlnp 2>/dev/null | grep -q ":443 "; then
     ISSUES+=("HTTPS 端口 (443) 未监听")
 fi
 
-if [ ! -d "/etc/letsencrypt/live/www.sxylab.com" ]; then
-    ISSUES+=("未找到 SSL 证书")
-elif [ ! -f "/etc/letsencrypt/live/www.sxylab.com/fullchain.pem" ]; then
-    ISSUES+=("SSL 证书文件不完整")
-fi
-
-if [ -f "/etc/letsencrypt/live/www.sxylab.com/cert.pem" ]; then
-    if ! openssl x509 -in "/etc/letsencrypt/live/www.sxylab.com/cert.pem" -noout -checkend 0 2>/dev/null; then
-        ISSUES+=("SSL 证书已过期")
+# 检查证书目录 (支持多个可能的域名)
+CERT_FOUND=false
+for dir in "/etc/letsencrypt/live/sxylab.com" "/etc/letsencrypt/live/www.sxylab.com"; do
+    if [ -d "$dir" ] && [ -f "$dir/fullchain.pem" ]; then
+        CERT_FOUND=true
+        # 检查证书是否过期
+        if [ -f "$dir/cert.pem" ]; then
+            if ! openssl x509 -in "$dir/cert.pem" -noout -checkend 0 2>/dev/null; then
+                ISSUES+=("SSL 证书已过期")
+            fi
+        fi
+        break
     fi
+done
+
+if [ "$CERT_FOUND" = false ]; then
+    ISSUES+=("未找到 SSL 证书")
 fi
 
 if ! command -v certbot &> /dev/null; then
