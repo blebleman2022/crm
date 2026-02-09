@@ -75,6 +75,15 @@
                             线索管理
                         </a>
                     </li>
+                    {% if current_user.is_sales() %}
+                    <li>
+                        <a class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium {% if request.endpoint == 'leads.brainstorm_list' %}text-white bg-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}"
+                           href="{{ url_for('leads.brainstorm_list') }}">
+                            <span class="material-symbols-outlined text-lg {% if request.endpoint == 'leads.brainstorm_list' %}text-white{% else %}text-gray-500{% endif %}">lightbulb</span>
+                            头脑风暴
+                        </a>
+                    </li>
+                    {% endif %}
                     <li>
                         <a class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium {% if request.endpoint in ['consultations.list_consultations', 'consultations.consultation_details'] %}text-white bg-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}"
                            href="{{ url_for('consultations.list_consultations') }}">

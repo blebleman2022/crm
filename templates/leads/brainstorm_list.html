@@ -1,0 +1,299 @@
+{% extends "leads/base.html" %}
+
+{% block title %}头脑风暴 - EduConnect CRM{% endblock %}
+{% block page_title %}头脑风暴{% endblock %}
+
+{% block content %}
+<div class="max-w-full mx-auto px-2 lg:px-4">
+    <div class="bg-white p-3 lg:p-4 rounded-lg shadow-sm mb-4">
+        <form method="GET" class="space-y-3">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                    <label class="sr-only" for="search">搜索</label>
+                    <div class="relative">
+                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                            <span class="material-symbols-outlined text-gray-400">search</span>
+                        </div>
+                        <input class="block w-full rounded-md border-0 py-2.5 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"
+                               id="search" name="search" placeholder="搜索学员姓名或家长微信名" type="search" value="{{ search }}"/>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3 bg-gray-50 p-3 rounded-md flex-wrap">
+                <div class="flex items-center gap-2">
+                    <label class="text-sm font-medium text-gray-700">定金支付时间:</label>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <label for="start_date" class="text-sm font-medium text-gray-700">开始日期:</label>
+                    <input type="date"
+                           id="start_date"
+                           name="start_date"
+                           value="{{ start_date }}"
+                           class="rounded-md border-0 py-1.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"/>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <label for="end_date" class="text-sm font-medium text-gray-700">结束日期:</label>
+                    <input type="date"
+                           id="end_date"
+                           name="end_date"
+                           value="{{ end_date }}"
+                           class="rounded-md border-0 py-1.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"/>
+                </div>
+
+                <button type="submit"
+                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    <span class="material-symbols-outlined mr-1 text-sm">search</span>
+                    查询
+                </button>
+
+                {% if search or start_date or end_date %}
+                <a href="{{ url_for('leads.brainstorm_list') }}"
+                   class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                    <span class="material-symbols-outlined mr-1 text-sm">clear</span>
+                    清除筛选
+                </a>
+                {% endif %}
+            </div>
+        </form>
+
+        <div class="mt-4 overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">学员姓名</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">家长微信名</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">责任销售</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">年级</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">定金支付时间</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">已过天数</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">头脑风暴结论</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">课题选项结论</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 bg-white">
+                    {% for lead in leads.items %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="whitespace-nowrap px-3 py-3 text-sm font-medium text-gray-900">
+                            {{ lead.student_name or '-' }}
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
+                            {{ lead.parent_wechat_display_name or '-' }}
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
+                            {{ lead.sales_user.username if lead.sales_user else '-' }}
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
+                            {% if lead.grade %}
+                                <span class="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                                    {{ lead.grade }}
+                                </span>
+                            {% else %}
+                                <span class="text-gray-400">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
+                            {% if first_payment_dates.get(lead.id) %}
+                                {{ first_payment_dates[lead.id].strftime('%m-%d') }}
+                            {% else %}
+                                <span class="text-gray-400">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-3 text-sm">
+                            {% if lead.brainstorm_days_elapsed is not none %}
+                                {% if lead.brainstorm_days_elapsed >= 7 %}
+                                    <span class="font-semibold text-red-600">{{ lead.brainstorm_days_elapsed }}天</span>
+                                {% elif lead.brainstorm_days_elapsed >= 5 %}
+                                    <span class="font-semibold text-orange-600">{{ lead.brainstorm_days_elapsed }}天</span>
+                                {% else %}
+                                    <span class="text-gray-700">{{ lead.brainstorm_days_elapsed }}天</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-gray-400">未开始</span>
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-3 text-sm">
+                            {% if lead.brainstorm_conclusion and lead.brainstorm_conclusion_at %}
+                                <button type="button" onclick="openBrainstormModal({{ lead.id }}, 'conclusion')" class="text-blue-600 hover:text-blue-800" title="查看头脑风暴结论">
+                                    <span class="material-symbols-outlined">description</span>
+                                </button>
+                            {% else %}
+                                <span class="text-gray-400">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-3 text-sm">
+                            {% if lead.brainstorm_topics and lead.brainstorm_topics_at %}
+                                <button type="button" onclick="openBrainstormModal({{ lead.id }}, 'topics')" class="text-blue-600 hover:text-blue-800" title="查看课题选项结论">
+                                    <span class="material-symbols-outlined">description</span>
+                                </button>
+                            {% else %}
+                                <span class="text-gray-400">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="px-3 py-8 text-center text-sm text-gray-500">
+                            <div class="flex flex-col items-center">
+                                <span class="material-symbols-outlined text-4xl text-gray-300 mb-2">inbox</span>
+                                <p>暂无首笔支付阶段的线索</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if leads.pages > 1 %}
+        <div class="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-4">
+            <div class="flex flex-1 justify-between sm:hidden">
+                {% if leads.has_prev %}
+                    <a href="{{ url_for('leads.brainstorm_list', page=leads.prev_num, search=search, start_date=start_date, end_date=end_date) }}"
+                       class="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">上一页</a>
+                {% endif %}
+                {% if leads.has_next %}
+                    <a href="{{ url_for('leads.brainstorm_list', page=leads.next_num, search=search, start_date=start_date, end_date=end_date) }}"
+                       class="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">下一页</a>
+                {% endif %}
+            </div>
+            <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                <div>
+                    <p class="text-sm text-gray-700">
+                        显示第 <span class="font-medium">{{ (leads.page - 1) * leads.per_page + 1 }}</span> 到
+                        <span class="font-medium">{{ leads.page * leads.per_page if leads.page * leads.per_page < leads.total else leads.total }}</span> 条，
+                        共 <span class="font-medium">{{ leads.total }}</span> 条记录
+                    </p>
+                </div>
+                <div>
+                    <nav class="isolate inline-flex -space-x-px rounded-md shadow-sm">
+                        {% if leads.has_prev %}
+                            <a href="{{ url_for('leads.brainstorm_list', page=leads.prev_num, search=search, start_date=start_date, end_date=end_date) }}"
+                               class="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                                <span class="material-symbols-outlined h-5 w-5">chevron_left</span>
+                            </a>
+                        {% endif %}
+
+                        {% for page_num in leads.iter_pages() %}
+                            {% if page_num %}
+                                {% if page_num != leads.page %}
+                                    <a href="{{ url_for('leads.brainstorm_list', page=page_num, search=search, start_date=start_date, end_date=end_date) }}"
+                                       class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">{{ page_num }}</a>
+                                {% else %}
+                                    <span class="relative z-10 inline-flex items-center bg-blue-600 px-4 py-2 text-sm font-semibold text-white">{{ page_num }}</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-700 ring-1 ring-inset ring-gray-300">…</span>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if leads.has_next %}
+                            <a href="{{ url_for('leads.brainstorm_list', page=leads.next_num, search=search, start_date=start_date, end_date=end_date) }}"
+                               class="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                                <span class="material-symbols-outlined h-5 w-5">chevron_right</span>
+                            </a>
+                        {% endif %}
+                    </nav>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div id="brainstormModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+    <div class="relative top-20 mx-auto p-0 border-0 w-full max-w-2xl shadow-2xl rounded-xl bg-white">
+        <div class="bg-blue-600 px-5 py-3 rounded-t-xl">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <span class="material-symbols-outlined text-white">lightbulb</span>
+                    <h3 id="brainstormModalTitle" class="text-base font-semibold text-white">头脑风暴结论</h3>
+                </div>
+                <button onclick="closeBrainstormModal()" class="text-white hover:text-blue-100">
+                    <span class="material-symbols-outlined text-lg">close</span>
+                </button>
+            </div>
+        </div>
+        <div class="p-5 space-y-4 min-h-[220px]">
+            <textarea id="brainstormContentInput" rows="8"
+                      class="block w-full h-[220px] px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-800 focus:outline-none"
+                      readonly></textarea>
+            <div class="flex items-center justify-end gap-2">
+                <button type="button" onclick="copyBrainstormContent()"
+                        class="inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg text-blue-600 bg-blue-50 hover:bg-blue-100">
+                    <span class="material-symbols-outlined text-sm mr-1">content_copy</span>
+                    复制内容
+                </button>
+                <button type="button" onclick="closeBrainstormModal()"
+                        class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    关闭
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function openBrainstormModal(leadId, focusField) {
+    fetch(`/leads/${leadId}/brainstorm`)
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                alert(data.message || '加载结论失败');
+                return;
+            }
+
+            const isTopics = focusField === 'topics';
+            const content = isTopics ? (data.data.brainstorm_topics || '') : (data.data.brainstorm_conclusion || '');
+            if (!content.trim()) {
+                alert('暂无结论内容');
+                return;
+            }
+
+            document.getElementById('brainstormModalTitle').textContent = isTopics ? '课题选项结论' : '头脑风暴结论';
+            document.getElementById('brainstormContentInput').value = content;
+            document.getElementById('brainstormModal').classList.remove('hidden');
+        })
+        .catch(() => {
+            alert('加载结论失败，请重试');
+        });
+}
+
+function closeBrainstormModal() {
+    document.getElementById('brainstormModal').classList.add('hidden');
+    document.getElementById('brainstormContentInput').value = '';
+}
+
+function copyBrainstormContent() {
+    const content = document.getElementById('brainstormContentInput').value || '';
+    if (!content.trim()) {
+        alert('暂无内容可复制');
+        return;
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(content)
+            .then(() => alert('已复制到剪贴板'))
+            .catch(() => fallbackCopyText(content));
+    } else {
+        fallbackCopyText(content);
+    }
+}
+
+function fallbackCopyText(text) {
+    const tempTextArea = document.createElement('textarea');
+    tempTextArea.value = text;
+    document.body.appendChild(tempTextArea);
+    tempTextArea.select();
+    try {
+        document.execCommand('copy');
+        alert('已复制到剪贴板');
+    } catch (err) {
+        alert('复制失败，请手动复制');
+    }
+    document.body.removeChild(tempTextArea);
+}
+</script>
+{% endblock %}

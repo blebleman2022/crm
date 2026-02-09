@@ -473,6 +473,120 @@ def list_leads():
                          start_date=start_date,
                          end_date=end_date)
 
+@leads_bp.route('/brainstorm')
+@login_required
+@sales_required
+def brainstorm_list():
+    """销售/销售管理头脑风暴列表（只读）"""
+    page = request.args.get('page', 1, type=int)
+    search = request.args.get('search', '', type=str)
+    start_date = request.args.get('start_date', '', type=str)
+    end_date = request.args.get('end_date', '', type=str)
+
+    # 如果只填了开始日期，结束日期默认为当天
+    if start_date and not end_date:
+        end_date = datetime.now().strftime('%Y-%m-%d')
+
+    # 基础查询：参照班主任头脑风暴列表，只显示首笔支付阶段线索
+    query = Lead.query.filter(Lead.stage == '首笔支付')
+
+    # 权限控制：销售只能看自己，销售管理看销售体系内线索
+    if current_user.is_salesperson():
+        query = query.filter(Lead.sales_user_id == current_user.id)
+    elif current_user.is_sales_manager():
+        allowed_ids = db.session.query(User.id).filter(
+            User.role.in_(['sales_manager', 'salesperson']),
+            User.status == True
+        ).subquery()
+        query = query.filter(Lead.sales_user_id.in_(allowed_ids))
+
+    # 搜索过滤（学员姓名或家长微信名）
+    if search:
+        query = query.filter(
+            db.or_(
+                Lead.student_name.contains(search),
+                Lead.parent_wechat_display_name.contains(search)
+            )
+        )
+
+    # 首笔支付时间筛选
+    if start_date:
+        try:
+            start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()
+
+            first_payment_subquery = db.session.query(
+                Payment.lead_id,
+                func.min(Payment.payment_date).label('first_payment_date')
+            ).filter(
+                Payment.payment_date.isnot(None)
+            ).group_by(Payment.lead_id).subquery()
+
+            lead_ids_in_range = db.session.query(first_payment_subquery.c.lead_id).filter(
+                and_(
+                    func.date(first_payment_subquery.c.first_payment_date) >= start_dt,
+                    func.date(first_payment_subquery.c.first_payment_date) <= end_dt
+                )
+            ).all()
+
+            lead_ids = [item[0] for item in lead_ids_in_range]
+            if lead_ids:
+                query = query.filter(Lead.id.in_(lead_ids))
+            else:
+                query = query.filter(Lead.id == -1)
+        except ValueError:
+            pass
+
+    # 按首笔支付时间倒序（无付款记录时按更新时间）
+    first_payment_subquery = db.session.query(
+        Payment.lead_id,
+        func.min(Payment.payment_date).label('first_payment_date')
+    ).group_by(Payment.lead_id).subquery()
+
+    leads = query.outerjoin(
+        first_payment_subquery,
+        Lead.id == first_payment_subquery.c.lead_id
+    ).order_by(
+        first_payment_subquery.c.first_payment_date.desc().nullslast(),
+        Lead.updated_at.desc()
+    ).paginate(
+        page=page, per_page=20, error_out=False
+    )
+
+    # 计算头脑风暴已过天数（以结论保存时间为起点）
+    now = datetime.utcnow()
+    for lead in leads.items:
+        if lead.brainstorm_conclusion_at:
+            if lead.brainstorm_topics_at:
+                delta_days = max((lead.brainstorm_topics_at - lead.brainstorm_conclusion_at).days, 0)
+            else:
+                delta_days = max((now - lead.brainstorm_conclusion_at).days, 0)
+            lead.brainstorm_days_elapsed = delta_days
+        else:
+            lead.brainstorm_days_elapsed = None
+
+    # 批量获取首笔支付日期
+    lead_ids = [lead.id for lead in leads.items]
+    first_payment_dates = {}
+    if lead_ids:
+        rows = db.session.query(
+            Payment.lead_id,
+            func.min(Payment.payment_date).label('first_payment_date')
+        ).filter(
+            Payment.lead_id.in_(lead_ids),
+            Payment.payment_date.isnot(None)
+        ).group_by(Payment.lead_id).all()
+        first_payment_dates = {lead_id: first_date for lead_id, first_date in rows if first_date}
+
+    return render_template(
+        'leads/brainstorm_list.html',
+        leads=leads,
+        search=search,
+        start_date=start_date,
+        end_date=end_date,
+        first_payment_dates=first_payment_dates
+    )
+
 @leads_bp.route('/add', methods=['GET', 'POST'])
 @login_required
 @sales_required
