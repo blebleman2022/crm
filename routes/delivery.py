@@ -651,8 +651,12 @@ def upload_customer_document(customer_id, doc_type):
         return jsonify({'success': False, 'message': f'文件大小超过限制（最大{MAX_DOC_SIZE // 1024 // 1024}MB）'}), 400
 
     try:
-        original_filename = secure_filename(file.filename)
-        file_ext = original_filename.rsplit('.', 1)[1].lower()
+        # 从原始文件名提取扩展名；secure_filename 对中文名可能仅返回 "pdf"（无点）
+        # 这里保留原始文件名用于展示，保存时仍使用系统生成的安全文件名
+        file_ext = file.filename.rsplit('.', 1)[1].lower()
+        original_filename = file.filename.replace('\\', '/').split('/')[-1].strip()
+        if not original_filename:
+            original_filename = secure_filename(file.filename) or f"upload.{file_ext}"
 
         if doc_type == 'other_materials':
             latest_doc = DeliveryDocument.query.filter_by(

@@ -1014,12 +1014,12 @@ function togglePriorityCustomer() {
                             <span class="material-symbols-outlined text-blue-600 mr-2">description</span>
                             <h4 class="text-sm font-semibold text-gray-900">文档上传</h4>
                         </div>
-                        <span class="text-xs text-gray-500">可拖拽文件到对应材料框上传</span>
+                        <span class="text-xs text-gray-500">可拖拽上传，单文件≤10MB</span>
                     </div>
                     <div id="documentsList" class="grid grid-cols-2 gap-3">
                         <!-- 文档上传项将动态生成 -->
                     </div>
-                    <div class="mt-2 text-xs text-gray-500">可选格式：doc、docx、pdf、ppt、pptx</div>
+                    <div class="mt-2 text-xs text-gray-500">可选格式：doc、docx、pdf、ppt、pptx；大小限制：单文件不超过10MB</div>
                 </div>
 
                 <!-- 按钮组 -->
@@ -1236,6 +1236,24 @@ function renderCompetitions(competitions) {
 }
 
 // ========== 文档管理功能（进度更新弹窗） ==========
+const DOC_UPLOAD_MAX_SIZE = 10 * 1024 * 1024; // 10MB
+const DOC_UPLOAD_ALLOWED_EXTENSIONS = ['doc', 'docx', 'pdf', 'ppt', 'pptx'];
+
+function getDocFileValidationError(file) {
+    if (!file || !file.name) {
+        return '未选择文件';
+    }
+    const fileName = file.name.toLowerCase();
+    const ext = fileName.includes('.') ? fileName.split('.').pop() : '';
+    if (!DOC_UPLOAD_ALLOWED_EXTENSIONS.includes(ext)) {
+        return '不支持的文件格式，仅支持: doc, docx, pdf, ppt, pptx';
+    }
+    if (file.size > DOC_UPLOAD_MAX_SIZE) {
+        return '文件大小超过限制（最大10MB）';
+    }
+    return '';
+}
+
 function renderDocuments(customerId, uploadedDocs = {}) {
     const container = document.getElementById('documentsList');
     const docTypes = [
@@ -1371,6 +1389,11 @@ async function uploadDocument(input, customerId, docType) {
 
 async function uploadDocumentFile(file, customerId, docType) {
     if (!file) return;
+    const validationError = getDocFileValidationError(file);
+    if (validationError) {
+        updateDocUploadStatus(docType, 'error', validationError);
+        return;
+    }
     updateDocUploadStatus(docType, 'uploading');
     const formData = new FormData();
     formData.append('file', file);
