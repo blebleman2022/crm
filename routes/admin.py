@@ -532,17 +532,54 @@ def edit_lead_form(lead_id):
     from models import Payment
 
     lead = Lead.query.get_or_404(lead_id)
+    customer = Customer.query.filter_by(lead_id=lead.id).first()
+    current_teacher_user_id = customer.teacher_user_id if customer else None
+    lead_scope = (lead.customer_scope or Lead.SCOPE_PUBLIC).strip().lower()
+    if lead_scope != Lead.SCOPE_PRIVATE:
+        lead_scope = Lead.SCOPE_PUBLIC
+
     # 列出所有销售与销售管理角色
     sales_users = User.query.filter(
         User.role.in_(['sales_manager', 'salesperson']),
         User.status == True
     ).order_by(User.role.desc(), User.username.asc()).all()
 
+    # 可分配班主任（公域线索不显示“仅私域”班主任）
+    teacher_users_query = User.query.filter(
+        User.role == 'teacher_supervisor',
+        User.status == True
+    )
+    if lead_scope == Lead.SCOPE_PUBLIC:
+        teacher_users_query = teacher_users_query.filter(db.or_(
+            User.teacher_scope != User.TEACHER_SCOPE_PRIVATE_ONLY,
+            User.teacher_scope.is_(None),
+            User.teacher_scope == ''
+        ))
+    teacher_users = teacher_users_query.order_by(User.username.asc()).all()
+
+    # 若当前已分配班主任不在筛选结果中，追加以保证可见
+    if current_teacher_user_id and not any(t.id == current_teacher_user_id for t in teacher_users):
+        current_teacher = User.query.filter(
+            User.id == current_teacher_user_id,
+            User.role == 'teacher_supervisor'
+        ).first()
+        if current_teacher:
+            teacher_users.append(current_teacher)
+
     # 获取付款记录
     payments = Payment.query.filter_by(lead_id=lead.id).order_by(Payment.payment_date.desc()).all()
 
     # 返回编辑表单HTML片段
-    return render_template('admin/edit_lead_form.html', lead=lead, sales_users=sales_users, payments=payments)
+    return render_template(
+        'admin/edit_lead_form.html',
+        lead=lead,
+        sales_users=sales_users,
+        payments=payments,
+        teacher_users=teacher_users,
+        current_teacher_user_id=current_teacher_user_id,
+        customer_exists=bool(customer),
+        lead_scope=lead_scope
+    )
 
 @admin_bp.route('/leads/<int:lead_id>/update', methods=['POST'])
 @login_required
@@ -609,6 +646,35 @@ def update_lead(lead_id):
                 lead.contract_amount = Decimal(contract_amount)
             except:
                 return jsonify({'success': False, 'message': '合同金额格式不正确'})
+
+        # 更新班主任（存储在客户表）
+        customer = Customer.query.filter_by(lead_id=lead.id).first()
+        teacher_user_id = request.form.get('teacher_user_id', '').strip()
+        if teacher_user_id:
+            if not customer:
+                return jsonify({'success': False, 'message': '该线索尚未转客户，无法分配班主任'})
+            try:
+                teacher_user_id_int = int(teacher_user_id)
+            except ValueError:
+                return jsonify({'success': False, 'message': '班主任参数格式不正确'})
+
+            teacher = User.query.filter(
+                User.id == teacher_user_id_int,
+                User.role == 'teacher_supervisor',
+                User.status == True
+            ).first()
+            if not teacher:
+                return jsonify({'success': False, 'message': '选择的班主任无效'})
+
+            lead_scope = (lead.customer_scope or Lead.SCOPE_PUBLIC).strip().lower()
+            if lead_scope != Lead.SCOPE_PRIVATE:
+                lead_scope = Lead.SCOPE_PUBLIC
+            if not teacher.can_serve_customer_scope(lead_scope):
+                return jsonify({'success': False, 'message': '该班主任仅可分配私域客户，当前客户为公域客户'})
+
+            customer.teacher_user_id = teacher_user_id_int
+        elif customer:
+            customer.teacher_user_id = None
 
         # 更新时间戳
         lead.updated_at = datetime.now()
