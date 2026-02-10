@@ -93,7 +93,7 @@ def dashboard():
 @login_required
 @teacher_supervisor_required
 def leads_list():
-    """班主任线索管理 - 只显示首笔支付阶段的线索"""
+    """班主任线索管理"""
     page = request.args.get('page', 1, type=int)
     search = request.args.get('search', '', type=str)
     start_date = request.args.get('start_date', '', type=str)
@@ -103,17 +103,16 @@ def leads_list():
     if start_date and not end_date:
         end_date = datetime.now().strftime('%Y-%m-%d')
 
-    # 基础查询：只显示首笔支付阶段的线索
-    query = Lead.query.filter(Lead.stage == '首笔支付')
-
-    # 私域班主任仅查看自己负责客户对应的线索
+    # 基础查询：
+    # - 常规班主任：仅显示首笔支付阶段线索
+    # - 仅私域班主任：显示私域销售体系下所有首笔支付阶段线索
     if current_user.is_private_only_teacher_supervisor():
-        query = query.join(
-            Customer,
-            Customer.lead_id == Lead.id
-        ).filter(
-            Customer.teacher_user_id == current_user.id
+        query = Lead.query.filter(
+            Lead.stage == '首笔支付',
+            Lead.customer_scope == Lead.SCOPE_PRIVATE
         )
+    else:
+        query = Lead.query.filter(Lead.stage == '首笔支付')
 
     # 搜索过滤（学员姓名或家长微信名）
     if search:

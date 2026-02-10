@@ -31,6 +31,8 @@ def can_view_lead_record(lead):
 
     if scope == PRIVATE_SCOPE:
         if current_user.is_teacher_supervisor():
+            if current_user.is_private_only_teacher_supervisor():
+                return True
             return Customer.query.filter(
                 Customer.lead_id == lead.id,
                 Customer.teacher_user_id == current_user.id
