@@ -534,10 +534,23 @@ def list_leads():
 
     # 获取班主任列表（用于转客户时选择）
     # 只包含：teacher_supervisor（班主任）角色
-    teachers = User.query.filter(
+    teachers_query = User.query.filter(
         User.role == 'teacher_supervisor',
         User.status == True
-    ).order_by(User.username).all()
+    )
+    # 销售侧可见性规则：
+    # - 私域销售账号：可见可分配私域客户的班主任（含“公私域都可分配”和“仅私域”）
+    # - 非私域销售账号：不显示“仅私域”班主任
+    if current_user.is_sales() and not is_private_owner_user(current_user):
+        teachers_query = teachers_query.filter(
+            db.or_(
+                User.teacher_scope != User.TEACHER_SCOPE_PRIVATE_ONLY,
+                User.teacher_scope.is_(None),
+                User.teacher_scope == ''
+            )
+        )
+
+    teachers = teachers_query.order_by(User.username).all()
 
     return render_template('leads/list.html',
                          leads=leads,
