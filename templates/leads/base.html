@@ -65,7 +65,7 @@
                         </a>
                     </li>
                     {% endif %}
-                    {% if current_user.role == 'teacher_supervisor' and not is_private_only_teacher %}
+                    {% if current_user.role == 'teacher_supervisor' %}
                     <li>
                         <a class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium {% if request.endpoint == 'delivery.leads_list' %}text-white bg-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}"
                            href="{{ url_for('delivery.leads_list') }}">
