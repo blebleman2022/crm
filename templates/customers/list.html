@@ -128,9 +128,13 @@
         <!-- 客户列表 -->
         <div class="overflow-x-auto">
             {% set hide_tutor_teacher_column = current_user.role == 'teacher_supervisor' and current_user.get_teacher_scope() == 'private_only' %}
+            {% set show_parent_wechat_column = current_user.role == 'teacher_supervisor' %}
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
+                        {% if show_parent_wechat_column %}
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">家长微信名</th>
+                        {% endif %}
                         <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-24">
                             <div class="flex items-center gap-2">
                                 <span>学员姓名</span>
@@ -168,6 +172,11 @@
                 <tbody class="divide-y divide-gray-200 bg-white">
                     {% for customer in customers.items %}
                     <tr class="hover:bg-gray-50">
+                        {% if show_parent_wechat_column %}
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                            {{ customer.lead.parent_wechat_display_name or '-' }}
+                        </td>
+                        {% endif %}
                         <td class="whitespace-nowrap px-3 py-4 text-sm font-medium text-gray-900 w-24">
                             <div class="flex items-center space-x-2">
                                 {% if customer.is_priority %}
