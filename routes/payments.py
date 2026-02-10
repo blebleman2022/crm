@@ -18,8 +18,34 @@ from models import db, Customer, CustomerPayment, User, Lead, SystemConfig
 from functools import wraps
 from datetime import datetime
 from decimal import Decimal
+from sqlalchemy import func
 
 payments_bp = Blueprint('payments', __name__, url_prefix='/payments')
+PUBLIC_SCOPE = Lead.SCOPE_PUBLIC
+PRIVATE_SCOPE = Lead.SCOPE_PRIVATE
+
+
+def is_private_owner_user(user):
+    """是否为私域负责人账号（销售管理）"""
+    return bool(getattr(user, 'is_private_owner', False) and user.is_sales_manager())
+
+
+def resolve_reconciliation_scope(requested_scope):
+    """解析对账scope"""
+    requested_scope = (requested_scope or '').strip().lower()
+    if current_user.is_teacher_supervisor():
+        return requested_scope if requested_scope in [PUBLIC_SCOPE, PRIVATE_SCOPE] else PUBLIC_SCOPE
+    if current_user.is_sales_manager():
+        return PRIVATE_SCOPE if is_private_owner_user(current_user) else PUBLIC_SCOPE
+    return PUBLIC_SCOPE
+
+
+def resolve_manage_scope(requested_scope):
+    """解析付款管理scope（仅班主任）"""
+    requested_scope = (requested_scope or '').strip().lower()
+    if current_user.is_private_only_teacher_supervisor():
+        return PRIVATE_SCOPE
+    return requested_scope if requested_scope in [PUBLIC_SCOPE, PRIVATE_SCOPE] else PUBLIC_SCOPE
 
 # 权限装饰器
 def sales_manager_or_teacher_supervisor_required(f):
@@ -64,6 +90,15 @@ def reconciliation():
     start_date = request.args.get('start_date', '')
     end_date = request.args.get('end_date', '')
     active_tab = request.args.get('tab', 'summary')
+    scope_filter = resolve_reconciliation_scope(request.args.get('scope', '', type=str))
+    can_switch_scope = False
+    if current_user.is_teacher_supervisor():
+        if current_user.is_private_only_teacher_supervisor():
+            scope_filter = PRIVATE_SCOPE
+        else:
+            can_switch_scope = current_user.has_private_customers()
+            if not can_switch_scope:
+                scope_filter = PUBLIC_SCOPE
 
     def parse_month(value):
         return datetime.strptime(value, '%Y-%m')
@@ -120,12 +155,20 @@ def reconciliation():
         User, Customer.teacher_user_id == User.id
     )
 
+    # 对账按scope硬隔离（付款记录优先读快照，无记录则回退客户当前scope）
+    scope_expr = func.coalesce(CustomerPayment.scope_snapshot, Customer.customer_scope, PUBLIC_SCOPE)
+    query = query.filter(scope_expr == scope_filter)
+
     # 如果是班主任，只显示自己负责的客户
     if current_user.is_teacher_supervisor():
         query = query.filter(Customer.teacher_user_id == current_user.id)
     # 如果是销售管理，可以按班主任筛选
     elif teacher_user_id:
         query = query.filter(Customer.teacher_user_id == teacher_user_id)
+
+    # 私域负责人仅看自己名下私域
+    if is_private_owner_user(current_user):
+        query = query.filter(Customer.private_owner_id == current_user.id)
 
     # 搜索过滤
     if search:
@@ -263,6 +306,7 @@ def reconciliation():
 
         payment_data.append({
             'customer_id': customer.id,
+            'customer_scope': customer.customer_scope or PUBLIC_SCOPE,
             'student_name': lead.student_name if lead else '',
             'parent_wechat_name': lead.parent_wechat_display_name if lead else '',
             'has_tutoring': '是' if has_tutoring else '否',
@@ -283,7 +327,9 @@ def reconciliation():
         })
 
     # 获取所有班主任（用于筛选）
-    teacher_supervisors = User.query.filter_by(role='teacher_supervisor', status=True).all()
+    teacher_supervisors = []
+    if current_user.is_sales_manager() and not is_private_owner_user(current_user):
+        teacher_supervisors = User.query.filter_by(role='teacher_supervisor', status=True).all()
 
     totals = {
         'total_amount': sum(item['total_amount'] for item in payment_data),
@@ -311,6 +357,8 @@ def reconciliation():
                          search=search,
                          start_date=start_date,
                          end_date=end_date,
+                         scope_filter=scope_filter,
+                         can_switch_scope=can_switch_scope,
                          active_tab=active_tab)
 
 
@@ -323,6 +371,14 @@ def manage():
     # 获取筛选参数
     start_date = request.args.get('start_date', '')
     end_date = request.args.get('end_date', '')
+    scope_filter = resolve_manage_scope(request.args.get('scope', '', type=str))
+    if current_user.is_private_only_teacher_supervisor():
+        can_switch_scope = False
+        scope_filter = PRIVATE_SCOPE
+    else:
+        can_switch_scope = current_user.has_private_customers()
+        if not can_switch_scope:
+            scope_filter = PUBLIC_SCOPE
 
     # 只查询当前班主任负责的客户
     query = db.session.query(
@@ -334,6 +390,8 @@ def manage():
     ).filter(
         Customer.teacher_user_id == current_user.id
     )
+    scope_expr = func.coalesce(CustomerPayment.scope_snapshot, Customer.customer_scope, PUBLIC_SCOPE)
+    query = query.filter(scope_expr == scope_filter)
 
     results = query.all()
 
@@ -449,7 +507,9 @@ def manage():
     return render_template('payments/manage.html',
                          payment_data=payment_data,
                          start_date=start_date,
-                         end_date=end_date)
+                         end_date=end_date,
+                         scope_filter=scope_filter,
+                         can_switch_scope=can_switch_scope)
 
 
 @payments_bp.route('/update/<int:customer_id>', methods=['POST'])
@@ -468,7 +528,8 @@ def update_payment(customer_id):
     if not payment:
         payment = CustomerPayment(
             customer_id=customer_id,
-            teacher_user_id=current_user.id
+            teacher_user_id=current_user.id,
+            scope_snapshot=customer.customer_scope or PUBLIC_SCOPE
         )
         db.session.add(payment)
 
@@ -576,6 +637,7 @@ def update_payment(customer_id):
                 'message': f'已付款总额（¥{total_paid:,.0f}）不能超过总金额（¥{float(payment.total_amount):,.0f}）'
             }), 400
         
+        payment.scope_snapshot = customer.customer_scope or PUBLIC_SCOPE
         payment.updated_at = datetime.utcnow()
         db.session.commit()
         

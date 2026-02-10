@@ -43,6 +43,8 @@ def login():
         elif current_user.role in ['sales_manager', 'salesperson']:
             return redirect(url_for('leads.dashboard'))
         elif current_user.role == 'teacher_supervisor':
+            if current_user.is_private_only_teacher_supervisor():
+                return redirect(url_for('customers.list_customers'))
             return redirect(url_for('delivery.dashboard'))
         elif current_user.role == 'teacher':
             print(f"[DEBUG] login - 重定向到 teacher.student_list")
@@ -91,6 +93,8 @@ def login():
         elif user.role in ['sales_manager', 'salesperson']:
             return redirect(url_for('leads.dashboard'))
         elif user.role == 'teacher_supervisor':
+            if user.is_private_only_teacher_supervisor():
+                return redirect(url_for('customers.list_customers'))
             return redirect(url_for('delivery.dashboard'))
         elif user.role == 'teacher':
             # 辅导老师显示中文名

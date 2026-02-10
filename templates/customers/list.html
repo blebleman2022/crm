@@ -66,7 +66,34 @@
                 </div>
 
                 <div>
-                    <!-- 占位，保持布局对齐 -->
+                    {% set is_teacher_supervisor = current_user.role == 'teacher_supervisor' %}
+                    {% set is_private_only_teacher = is_teacher_supervisor and current_user.get_teacher_scope() == 'private_only' %}
+                    {% set teacher_has_private_customers = is_teacher_supervisor and not is_private_only_teacher and current_user.has_private_customers() %}
+                    {% if current_user.is_admin() %}
+                    <select class="block w-full rounded-md border-0 py-2.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"
+                            name="scope">
+                        <option value="all" {% if scope_filter == 'all' or not scope_filter %}selected{% endif %}>全部归属</option>
+                        <option value="public" {% if scope_filter == 'public' %}selected{% endif %}>公域客户</option>
+                        <option value="private" {% if scope_filter == 'private' %}selected{% endif %}>私域客户</option>
+                    </select>
+                    {% elif is_teacher_supervisor %}
+                    {% if is_private_only_teacher %}
+                    <input type="hidden" name="scope" value="private">
+                    {% elif teacher_has_private_customers %}
+                    <select class="block w-full rounded-md border-0 py-2.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"
+                            name="scope">
+                        <option value="all" {% if scope_filter == 'all' or not scope_filter %}selected{% endif %}>全部归属</option>
+                        <option value="public" {% if scope_filter == 'public' %}selected{% endif %}>公域客户</option>
+                        <option value="private" {% if scope_filter == 'private' %}selected{% endif %}>私域客户</option>
+                    </select>
+                    {% else %}
+                    <input type="hidden" name="scope" value="public">
+                    {% endif %}
+                    {% elif current_user.is_private_owner %}
+                    <input type="hidden" name="scope" value="private">
+                    {% else %}
+                    <input type="hidden" name="scope" value="public">
+                    {% endif %}
                 </div>
             </div>
 
@@ -146,6 +173,10 @@
                                 <button onclick="showStudentDetailModal({{ customer.id }}, true, {% if current_user.role == 'teacher_supervisor' %}true{% else %}false{% endif %})" class="text-blue-600 hover:text-blue-800 cursor-pointer student-name-cell">
                                     {{ customer.lead.student_name }}
                                 </button>
+                                {% set should_show_scope_badge = current_user.is_admin() or (current_user.role == 'teacher_supervisor' and current_user.get_teacher_scope() != 'private_only') %}
+                                {% if should_show_scope_badge and customer.customer_scope == 'private' %}
+                                    <span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">私域</span>
+                                {% endif %}
                                 {% if customer.lead.additional_requirements %}
                                     <span class="material-symbols-outlined text-red-600 text-sm" title="有额外要求">add_circle</span>
                                 {% endif %}
@@ -273,11 +304,11 @@
         <div class="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-4">
             <div class="flex flex-1 justify-between sm:hidden">
                 {% if customers.has_prev %}
-                    <a href="{{ url_for('customers.list_customers', page=customers.prev_num, search=search, sales=sales_filter, service_type=service_type, exam_year=exam_year_filter, award_level=award_level_filter) }}"
+                    <a href="{{ url_for('customers.list_customers', page=customers.prev_num, search=search, sales=sales_filter, service_type=service_type, exam_year=exam_year_filter, award_level=award_level_filter, scope=scope_filter) }}"
                        class="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">上一页</a>
                 {% endif %}
                 {% if customers.has_next %}
-                    <a href="{{ url_for('customers.list_customers', page=customers.next_num, search=search, sales=sales_filter, service_type=service_type, exam_year=exam_year_filter, award_level=award_level_filter) }}"
+                    <a href="{{ url_for('customers.list_customers', page=customers.next_num, search=search, sales=sales_filter, service_type=service_type, exam_year=exam_year_filter, award_level=award_level_filter, scope=scope_filter) }}"
                        class="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">下一页</a>
                 {% endif %}
             </div>
@@ -292,7 +323,7 @@
                 <div>
                     <nav class="isolate inline-flex -space-x-px rounded-md shadow-sm">
                         {% if customers.has_prev %}
-                            <a href="{{ url_for('customers.list_customers', page=customers.prev_num, search=search, sales=sales_filter, service_type=service_type, exam_year=exam_year_filter, award_level=award_level_filter) }}"
+                            <a href="{{ url_for('customers.list_customers', page=customers.prev_num, search=search, sales=sales_filter, service_type=service_type, exam_year=exam_year_filter, award_level=award_level_filter, scope=scope_filter) }}"
                                class="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
                                 <span class="material-symbols-outlined h-5 w-5">chevron_left</span>
                             </a>
@@ -301,7 +332,7 @@
                         {% for page_num in customers.iter_pages() %}
                             {% if page_num %}
                                 {% if page_num != customers.page %}
-                                    <a href="{{ url_for('customers.list_customers', page=page_num, search=search, sales=sales_filter, service_type=service_type, exam_year=exam_year_filter, award_level=award_level_filter) }}"
+                                    <a href="{{ url_for('customers.list_customers', page=page_num, search=search, sales=sales_filter, service_type=service_type, exam_year=exam_year_filter, award_level=award_level_filter, scope=scope_filter) }}"
                                        class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">{{ page_num }}</a>
                                 {% else %}
                                     <span class="relative z-10 inline-flex items-center bg-blue-600 px-4 py-2 text-sm font-semibold text-white">{{ page_num }}</span>
@@ -312,7 +343,7 @@
                         {% endfor %}
 
                         {% if customers.has_next %}
-                            <a href="{{ url_for('customers.list_customers', page=customers.next_num, search=search, sales=sales_filter, service_type=service_type, exam_year=exam_year_filter, award_level=award_level_filter) }}"
+                            <a href="{{ url_for('customers.list_customers', page=customers.next_num, search=search, sales=sales_filter, service_type=service_type, exam_year=exam_year_filter, award_level=award_level_filter, scope=scope_filter) }}"
                                class="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
                                 <span class="material-symbols-outlined h-5 w-5">chevron_right</span>
                             </a>
@@ -403,9 +434,24 @@
 <script>
 // 当前用户角色
 const currentUserRole = '{{ current_user.role }}';
+const canEditTotalSessions = (currentUserRole === 'admin' || currentUserRole === 'sales_manager');
+
+function applyTotalSessionsPermission() {
+    const totalInput = document.getElementById('totalSessions');
+    if (!totalInput) return;
+
+    if (canEditTotalSessions) {
+        totalInput.readOnly = false;
+        totalInput.classList.remove('bg-gray-100', 'text-gray-500', 'cursor-not-allowed');
+        return;
+    }
+
+    totalInput.readOnly = true;
+    totalInput.classList.add('bg-gray-100', 'text-gray-500', 'cursor-not-allowed');
+}
 
 // 自动提交搜索表单
-document.querySelectorAll('select[name="service_type"], select[name="sales"], select[name="exam_year"], select[name="award_level"]').forEach(select => {
+document.querySelectorAll('select[name="service_type"], select[name="sales"], select[name="exam_year"], select[name="award_level"], select[name="scope"]').forEach(select => {
     select.addEventListener('change', function() {
         this.form.submit();
     });
@@ -697,6 +743,7 @@ function openProgressModal(customerId, salesUserId) {
                         document.getElementById('totalSessions').value = 0;
                         document.getElementById('completedSessions').value = 0;
                     }
+                    applyTotalSessionsPermission();
                 } else {
                     courseProgressSection.classList.add('hidden');
                 }

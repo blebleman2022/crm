@@ -8,8 +8,29 @@
     <div class="bg-white p-6 rounded-lg shadow-sm">
         
         <!-- 筛选条件 -->
+        {% set show_scope_ui = can_switch_scope or current_user.is_sales_manager() or (current_user.is_teacher_supervisor() and current_user.get_teacher_scope() == 'private_only') %}
+        {% if show_scope_ui %}
+        <div class="mb-4 flex items-center gap-2">
+            {% if can_switch_scope %}
+            <a href="{{ url_for('payments.reconciliation', scope='public', tab=active_tab, search=search, start_date=start_date, end_date=end_date) }}"
+               class="inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium {% if scope_filter == 'public' %}bg-blue-600 text-white{% else %}bg-gray-100 text-gray-700 hover:bg-gray-200{% endif %}">
+                公域对账
+            </a>
+            <a href="{{ url_for('payments.reconciliation', scope='private', tab=active_tab, search=search, start_date=start_date, end_date=end_date) }}"
+               class="inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium {% if scope_filter == 'private' %}bg-blue-600 text-white{% else %}bg-gray-100 text-gray-700 hover:bg-gray-200{% endif %}">
+                私域对账
+            </a>
+            {% elif current_user.is_private_owner or (current_user.is_teacher_supervisor() and current_user.get_teacher_scope() == 'private_only') %}
+            <span class="inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium bg-amber-100 text-amber-800">私域对账</span>
+            {% else %}
+            <span class="inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700">公域对账</span>
+            {% endif %}
+        </div>
+        {% endif %}
+
         <form method="GET" class="mb-6">
             <input type="hidden" name="tab" id="activeTabInput" value="{{ active_tab or 'summary' }}">
+            <input type="hidden" name="scope" value="{{ scope_filter }}">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <!-- 搜索框 -->
                 <div>
@@ -23,7 +44,7 @@
                     </div>
                 </div>
 
-                {% if current_user.is_sales_manager() %}
+                {% if current_user.is_sales_manager() and not current_user.is_private_owner %}
                 <div>
                     <label class="sr-only" for="teacher_user_id">筛选班主任</label>
                     <select name="teacher_user_id" id="teacher_user_id"
@@ -54,7 +75,7 @@
                     <span class="material-symbols-outlined mr-1 text-sm">filter_list</span>
                     筛选
                 </button>
-                <a href="{{ url_for('payments.reconciliation') }}"
+                <a href="{{ url_for('payments.reconciliation', scope=scope_filter) }}"
                    class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
                     <span class="material-symbols-outlined mr-1 text-sm">refresh</span>
                     重置

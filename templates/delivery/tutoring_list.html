@@ -62,10 +62,12 @@
                         <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ delivery.customer.lead.contact_info }}</td>
                         <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                             <div class="flex items-center">
+                                {% set total_sessions = delivery.total_sessions or 0 %}
+                                {% set progress = (delivery.completed_sessions / total_sessions * 100) if total_sessions > 0 else 0 %}
                                 <div class="w-16 bg-gray-200 rounded-full h-2 mr-2">
-                                    <div class="bg-green-600 h-2 rounded-full" style="width: {{ (delivery.completed_sessions / 6 * 100)|round }}%"></div>
+                                    <div class="bg-green-600 h-2 rounded-full" style="width: {{ progress|round }}%"></div>
                                 </div>
-                                <span class="text-xs">{{ delivery.completed_sessions }}/6</span>
+                                <span class="text-xs">{{ delivery.completed_sessions }}/{{ total_sessions }}</span>
                             </div>
                         </td>
                         <td class="whitespace-nowrap px-6 py-4 text-sm">

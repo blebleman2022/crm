@@ -25,6 +25,13 @@ def validate_phone(phone):
     pattern = r'^1[3-9]\d{9}$'
     return re.match(pattern, phone) is not None
 
+def normalize_teacher_scope(value):
+    """标准化班主任服务范围"""
+    value = (value or '').strip().lower()
+    if value in User.ALLOWED_TEACHER_SCOPES:
+        return value
+    return User.TEACHER_SCOPE_ALL
+
 def get_service_types_display(service_types_list):
     """将服务类型列表转换为显示文本"""
     if not service_types_list:
@@ -135,6 +142,8 @@ def add_user():
         phone = request.form.get('phone', '').strip()
         role = request.form.get('role', '').strip()
         group_name = request.form.get('group_name', '').strip()
+        is_private_owner = request.form.get('is_private_owner') == 'on'
+        teacher_scope = normalize_teacher_scope(request.form.get('teacher_scope'))
         
         # 验证必填字段
         if not all([username, phone, role]):
@@ -157,6 +166,14 @@ def add_user():
             if admin_count >= 1:
                 flash('系统只允许创建一个管理员账号', 'error')
                 return render_template('admin/add_user.html')
+
+        # 私域负责人仅支持销售体系角色
+        if role not in ['sales_manager', 'salesperson']:
+            is_private_owner = False
+
+        # 班主任服务范围仅支持班主任角色
+        if role != 'teacher_supervisor':
+            teacher_scope = User.TEACHER_SCOPE_ALL
         
         # 创建用户
         try:
@@ -165,7 +182,9 @@ def add_user():
                 phone=phone,
                 role=role,
                 group_name=group_name if group_name else None,
-                status=True
+                status=True,
+                is_private_owner=is_private_owner,
+                teacher_scope=teacher_scope
             )
             db.session.add(user)
             db.session.commit()
@@ -187,14 +206,28 @@ def edit_user(user_id):
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         group_name = request.form.get('group_name', '').strip()
+        requested_private_owner = request.form.get('is_private_owner')
+        requested_teacher_scope = normalize_teacher_scope(request.form.get('teacher_scope'))
 
         if not username:
             flash('用户名为必填项', 'error')
             return render_template('admin/edit_user.html', user=user)
 
+        # 产品规则：私域负责人标记仅允许在“创建用户”时设定
+        # 编辑现有用户时，无论前端是否传参，都不允许切换私域标记
+        if requested_private_owner is not None:
+            incoming_private_owner = requested_private_owner == 'on'
+            if incoming_private_owner != bool(user.is_private_owner):
+                flash('现有账号不能变更为私域负责人，请新建私域账号', 'error')
+                return render_template('admin/edit_user.html', user=user)
+
         try:
             user.username = username
             user.group_name = group_name if group_name else None
+            if user.role == 'teacher_supervisor':
+                user.teacher_scope = requested_teacher_scope
+            else:
+                user.teacher_scope = User.TEACHER_SCOPE_ALL
             user.updated_at = datetime.utcnow()
 
             db.session.commit()

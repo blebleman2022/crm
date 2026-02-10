@@ -9,6 +9,9 @@ db = SQLAlchemy()
 class User(UserMixin, db.Model):
     """用户账号表"""
     __tablename__ = 'users'
+    TEACHER_SCOPE_ALL = 'all'
+    TEACHER_SCOPE_PRIVATE_ONLY = 'private_only'
+    ALLOWED_TEACHER_SCOPES = [TEACHER_SCOPE_ALL, TEACHER_SCOPE_PRIVATE_ONLY]
 
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), nullable=False, comment='用户名')
@@ -16,6 +19,8 @@ class User(UserMixin, db.Model):
     role = db.Column(db.String(20), nullable=False, comment='角色：admin/sales_manager/salesperson/teacher_supervisor/teacher')
     group_name = db.Column(db.String(50), comment='所属组别')
     status = db.Column(db.Boolean, default=True, comment='账号状态：True启用/False禁用')
+    is_private_owner = db.Column(db.Boolean, default=False, comment='是否为私域负责人账号')
+    teacher_scope = db.Column(db.String(20), nullable=False, default=TEACHER_SCOPE_ALL, comment='班主任服务范围：all/private_only')
     created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -46,6 +51,10 @@ class User(UserMixin, db.Model):
         """是否为销售相关角色（包括销售管理和销售）"""
         return self.role in ['sales_manager', 'salesperson']
 
+    def is_private_owner_account(self):
+        """是否为私域负责人账号（仅销售体系可用）"""
+        return bool(self.is_private_owner and self.is_sales())
+
     def is_teacher_supervisor(self):
         """是否为班主任角色（管理客户交付和辅导老师）"""
         return self.role == 'teacher_supervisor'
@@ -53,6 +62,40 @@ class User(UserMixin, db.Model):
     def is_teacher(self):
         """是否为辅导老师角色（实际授课，未来可能废弃此User角色）"""
         return self.role == 'teacher'
+
+    def get_teacher_scope(self):
+        """返回班主任服务范围（无效值回退为all）"""
+        scope = (self.teacher_scope or self.TEACHER_SCOPE_ALL).strip().lower()
+        if scope not in self.ALLOWED_TEACHER_SCOPES:
+            return self.TEACHER_SCOPE_ALL
+        return scope
+
+    def can_serve_customer_scope(self, customer_scope):
+        """班主任是否可服务指定归属域客户"""
+        if not self.is_teacher_supervisor():
+            return True
+
+        normalized_scope = (customer_scope or 'public').strip().lower()
+        if normalized_scope != 'private':
+            normalized_scope = 'public'
+
+        if normalized_scope == 'public' and self.get_teacher_scope() == self.TEACHER_SCOPE_PRIVATE_ONLY:
+            return False
+        return True
+
+    def is_private_only_teacher_supervisor(self):
+        """是否为仅私域班主任账号"""
+        return self.is_teacher_supervisor() and self.get_teacher_scope() == self.TEACHER_SCOPE_PRIVATE_ONLY
+
+    def has_private_customers(self):
+        """班主任是否存在私域客户"""
+        if not self.is_teacher_supervisor():
+            return False
+
+        return db.session.query(Customer.id).filter(
+            Customer.teacher_user_id == self.id,
+            Customer.customer_scope == Lead.SCOPE_PRIVATE
+        ).first() is not None
 
 class Lead(db.Model):
     """学员线索表"""
@@ -64,6 +107,8 @@ class Lead(db.Model):
     STAGE_FIRST_PAYMENT = '首笔支付'
     STAGE_SECOND_PAYMENT = '次笔支付'
     STAGE_FULL_PAYMENT = '全款支付'
+    SCOPE_PUBLIC = 'public'
+    SCOPE_PRIVATE = 'private'
 
     # 所有允许的阶段值
     ALLOWED_STAGES = [
@@ -73,6 +118,7 @@ class Lead(db.Model):
         STAGE_SECOND_PAYMENT,
         STAGE_FULL_PAYMENT
     ]
+    ALLOWED_SCOPES = [SCOPE_PUBLIC, SCOPE_PRIVATE]
 
     id = db.Column(db.Integer, primary_key=True)
     student_name = db.Column(db.String(50), comment='学员姓名')  # 改为可选
@@ -85,8 +131,11 @@ class Lead(db.Model):
     district = db.Column(db.String(20), comment='行政区')
     school = db.Column(db.String(100), comment='学校')
     sales_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, comment='责任销售ID')
+    customer_scope = db.Column(db.String(20), nullable=False, default=SCOPE_PUBLIC, comment='归属域：public/private')
+    private_owner_id = db.Column(db.Integer, db.ForeignKey('users.id'), comment='私域归属人ID')
     stage = db.Column(db.String(50), nullable=False, comment='线索阶段')
     contract_amount = db.Column(Numeric(10, 2), comment='合同金额')
+    contract_total_sessions = db.Column(db.Integer, default=6, comment='合同总课程数（由销售维护）')
 
     # 各阶段时间
     contact_obtained_at = db.Column(db.DateTime, comment='获取联系方式时间')
@@ -113,6 +162,7 @@ class Lead(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # 关联关系（添加级联删除保护）
+    private_owner = db.relationship('User', foreign_keys=[private_owner_id], backref='private_leads', lazy='joined')
     customer = db.relationship('Customer', backref='lead', uselist=False,
                               cascade='all, delete-orphan')
     payments = db.relationship('Payment', backref='lead', lazy='dynamic',
@@ -146,6 +196,10 @@ class Lead(db.Model):
     def get_display_name(self):
         """获取显示名称（优先显示学员姓名，否则显示家长微信号）"""
         return self.student_name if self.student_name else self.parent_wechat_name
+
+    def is_private_scope(self):
+        """是否为私域线索"""
+        return (self.customer_scope or self.SCOPE_PUBLIC) == self.SCOPE_PRIVATE
 
 
 class TopicTask(db.Model):
@@ -195,6 +249,8 @@ class Customer(db.Model):
     lead_id = db.Column(db.Integer, db.ForeignKey('leads.id'), nullable=False, comment='关联线索ID')
     teacher_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), comment='责任班主任ID（User表，role=teacher_supervisor）')
     teacher_id = db.Column(db.Integer, db.ForeignKey('teachers.user_id'), comment='辅导老师ID（User表ID）')
+    customer_scope = db.Column(db.String(20), nullable=False, default=Lead.SCOPE_PUBLIC, comment='归属域：public/private')
+    private_owner_id = db.Column(db.Integer, db.ForeignKey('users.id'), comment='私域归属人ID')
 
     payment_amount = db.Column(Numeric(10, 2), nullable=False, comment='支付金额')
 
@@ -225,6 +281,7 @@ class Customer(db.Model):
 
     # 辅导老师关联：关联到 Teacher 表
     teacher = db.relationship('Teacher', backref=db.backref('customers', lazy='dynamic'))
+    private_owner = db.relationship('User', foreign_keys=[private_owner_id], backref='private_customers', lazy='joined')
 
     # ✨ 通过 @property 从线索表读取合同内容（单一数据源）
     @property
@@ -269,6 +326,10 @@ class Customer(db.Model):
 
     def __repr__(self):
         return f'<Customer {self.lead.student_name if self.lead else self.id}>'
+
+    def is_private_scope(self):
+        """是否为私域客户"""
+        return (self.customer_scope or Lead.SCOPE_PUBLIC) == Lead.SCOPE_PRIVATE
 
 class TutoringDelivery(db.Model):
     """课题辅导服务交付表"""
@@ -384,6 +445,7 @@ class CustomerPayment(db.Model):
 
     third_payment = db.Column(Numeric(10, 2), comment='第三笔付款金额')
     third_payment_date = db.Column(db.Date, comment='第三笔付款时间')
+    scope_snapshot = db.Column(db.String(20), nullable=False, default=Lead.SCOPE_PUBLIC, comment='对账归属快照：public/private')
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

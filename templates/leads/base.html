@@ -51,7 +51,12 @@
             </div>
 
             <nav class="flex-1 overflow-y-auto">
+                {% set is_teacher_supervisor = current_user.is_teacher_supervisor() %}
+                {% set is_private_only_teacher = is_teacher_supervisor and current_user.get_teacher_scope() == 'private_only' %}
+                {% set teacher_has_private_customers = is_teacher_supervisor and not is_private_only_teacher and current_user.has_private_customers() %}
+                {% set show_private_customer_entry = is_teacher_supervisor and teacher_has_private_customers %}
                 <ul class="space-y-1 p-4">
+                    {% if not is_private_only_teacher %}
                     <li>
                         <a class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium {% if request.endpoint in ['leads.dashboard', 'delivery.dashboard'] %}text-white bg-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}"
                            href="{% if current_user.role == 'teacher_supervisor' %}{{ url_for('delivery.dashboard') }}{% else %}{{ url_for('leads.dashboard') }}{% endif %}">
@@ -59,7 +64,8 @@
                             仪表板
                         </a>
                     </li>
-                    {% if current_user.role == 'teacher_supervisor' %}
+                    {% endif %}
+                    {% if current_user.role == 'teacher_supervisor' and not is_private_only_teacher %}
                     <li>
                         <a class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium {% if request.endpoint == 'delivery.leads_list' %}text-white bg-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}"
                            href="{{ url_for('delivery.leads_list') }}">
@@ -67,7 +73,7 @@
                             线索管理
                         </a>
                     </li>
-                    {% else %}
+                    {% elif current_user.role != 'teacher_supervisor' %}
                     <li>
                         <a class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium {% if request.endpoint in ['leads.list_leads', 'leads.add_lead', 'leads.edit_lead'] %}text-white bg-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}"
                            href="{{ url_for('leads.list_leads') }}">
@@ -92,7 +98,7 @@
                         </a>
                     </li>
                     {% endif %}
-                    {% if current_user.role == 'teacher_supervisor' %}
+                    {% if current_user.role == 'teacher_supervisor' and not is_private_only_teacher %}
                     <li>
                         <a class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium {% if request.endpoint in ['teachers.list_teachers', 'teachers.add_teacher', 'teachers.edit_teacher', 'teachers.detail_teacher'] %}text-white bg-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}"
                            href="{{ url_for('teachers.list_teachers') }}">
@@ -111,13 +117,24 @@
                     </li>
                     {% endif %}
                     <li>
-                        <a class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium {% if request.endpoint in ['customers.list_customers', 'customers.edit_customer'] %}text-white bg-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}"
+                        {% set customer_page_active = request.endpoint in ['customers.list_customers', 'customers.edit_customer'] %}
+                        {% set teacher_private_customers_view = show_private_customer_entry and request.endpoint == 'customers.list_customers' and request.args.get('scope') == 'private' %}
+                        <a class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium {% if customer_page_active and not teacher_private_customers_view %}text-white bg-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}"
                            href="{{ url_for('customers.list_customers') }}">
-                            <span class="material-symbols-outlined text-lg {% if request.endpoint in ['customers.list_customers', 'customers.edit_customer'] %}text-white{% else %}text-gray-500{% endif %}">group</span>
+                            <span class="material-symbols-outlined text-lg {% if customer_page_active and not teacher_private_customers_view %}text-white{% else %}text-gray-500{% endif %}">group</span>
                             客户管理
                         </a>
                     </li>
-                    {% if current_user.is_sales_manager() or current_user.is_teacher_supervisor() %}
+                    {% if show_private_customer_entry %}
+                    <li>
+                        <a class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium {% if request.endpoint == 'customers.list_customers' and request.args.get('scope') == 'private' %}text-white bg-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}"
+                           href="{{ url_for('customers.list_customers', scope='private') }}">
+                            <span class="material-symbols-outlined text-lg {% if request.endpoint == 'customers.list_customers' and request.args.get('scope') == 'private' %}text-white{% else %}text-gray-500{% endif %}">lock</span>
+                            私域客户
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if current_user.is_sales_manager() or (current_user.is_teacher_supervisor() and not is_private_only_teacher) %}
                     <li>
                         <a class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium {% if request.endpoint == 'payments.reconciliation' %}text-white bg-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}"
                            href="{{ url_for('payments.reconciliation') }}">
@@ -126,7 +143,7 @@
                         </a>
                     </li>
                     {% endif %}
-                    {% if current_user.is_teacher_supervisor() %}
+                    {% if current_user.is_teacher_supervisor() and not is_private_only_teacher %}
                     <li>
                         <a class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium {% if request.endpoint == 'payments.manage' %}text-white bg-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}"
                            href="{{ url_for('payments.manage') }}">

@@ -14,7 +14,7 @@
                     {{ filter_type }}
                 </span>
                 <span class="ml-2 hidden sm:inline">{{ filter_period }}</span>
-                <a href="{{ url_for('leads.list_leads') }}" class="ml-2 text-blue-600 hover:text-blue-800 text-xs">
+                <a href="{{ url_for('leads.list_leads', scope=scope_filter) }}" class="ml-2 text-blue-600 hover:text-blue-800 text-xs">
                     清除筛选
                 </a>
             </p>
@@ -32,7 +32,7 @@
     <div class="bg-white p-3 lg:p-4 rounded-lg shadow-sm mobile-filters">
         <!-- 搜索和筛选（桌面端一行，移动端自动换行） -->
         <form method="GET" class="space-y-3 lg:space-y-4 mb-4">
-            {% if current_user.is_salesperson() %}
+            {% if current_user.is_salesperson() or current_user.is_private_owner %}
             <!-- 销售角色：只显示搜索和阶段筛选 -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
@@ -101,6 +101,7 @@
                 </div>
             </div>
             {% endif %}
+            <input type="hidden" name="scope" value="{{ scope_filter or '' }}">
 
             <!-- 第二行：时间段筛选 -->
             <div class="flex items-center gap-3 bg-gray-50 p-3 rounded-md">
@@ -180,6 +181,9 @@
                                     <button onclick="showStudentDetailModal({{ lead.id }}, false)" class="text-blue-600 hover:text-blue-800 cursor-pointer">
                                         {{ lead.student_name or '-' }}
                                     </button>
+                                    {% if lead.customer_scope == 'private' %}
+                                        <span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">私域</span>
+                                    {% endif %}
                                     {% if lead.additional_requirements %}
                                         <span class="material-symbols-outlined text-red-600 text-sm" title="有额外要求">add_circle</span>
                                     {% endif %}
@@ -297,7 +301,9 @@
                                     <span class="text-gray-400">-</span>
                                 {% endif %}
                             </td>
-                            <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">{{ lead.sales_user.username }}</td>
+                            <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
+                                {{ lead.sales_user.username }}
+                            </td>
                             <td class="whitespace-nowrap px-3 py-3 text-sm">
                                 {% if lead.stage == '获取联系方式' %}
                                     <span class="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800">{{ lead.stage }}</span>
@@ -321,7 +327,7 @@
                                         {% set can_convert = true %}
                                     {% endif %}
                                     {% if can_convert %}
-                                        <button onclick="convertToCustomer({{ lead.id }}, '{{ lead.student_name }}')"
+                                        <button onclick='convertToCustomer({{ lead.id }}, {{ (lead.student_name or "")|tojson|forceescape }}, {{ (lead.customer_scope or "public")|tojson|forceescape }})'
                                                 class="text-green-600 hover:text-green-800">转客户</button>
                                     {% endif %}
                                 </div>
@@ -338,11 +344,11 @@
         <div class="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-4">
             <div class="flex flex-1 justify-between sm:hidden">
                 {% if leads.has_prev %}
-                    <a href="{{ url_for('leads.list_leads', page=leads.prev_num, search=search, stage=stage_filter, sales=sales_filter, lead_source=lead_source_filter) }}"
+                    <a href="{{ url_for('leads.list_leads', page=leads.prev_num, search=search, stage=stage_filter, sales=sales_filter, lead_source=lead_source_filter, scope=scope_filter) }}"
                        class="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">上一页</a>
                 {% endif %}
                 {% if leads.has_next %}
-                    <a href="{{ url_for('leads.list_leads', page=leads.next_num, search=search, stage=stage_filter, sales=sales_filter, lead_source=lead_source_filter) }}"
+                    <a href="{{ url_for('leads.list_leads', page=leads.next_num, search=search, stage=stage_filter, sales=sales_filter, lead_source=lead_source_filter, scope=scope_filter) }}"
                        class="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">下一页</a>
                 {% endif %}
             </div>
@@ -357,7 +363,7 @@
                 <div>
                     <nav class="isolate inline-flex -space-x-px rounded-md shadow-sm">
                         {% if leads.has_prev %}
-                            <a href="{{ url_for('leads.list_leads', page=leads.prev_num, search=search, stage=stage_filter, sales=sales_filter, lead_source=lead_source_filter) }}"
+                            <a href="{{ url_for('leads.list_leads', page=leads.prev_num, search=search, stage=stage_filter, sales=sales_filter, lead_source=lead_source_filter, scope=scope_filter) }}"
                                class="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
                                 <span class="material-symbols-outlined h-5 w-5">chevron_left</span>
                             </a>
@@ -366,7 +372,7 @@
                         {% for page_num in leads.iter_pages() %}
                             {% if page_num %}
                                 {% if page_num != leads.page %}
-                                    <a href="{{ url_for('leads.list_leads', page=page_num, search=search, stage=stage_filter, sales=sales_filter, lead_source=lead_source_filter) }}"
+                                    <a href="{{ url_for('leads.list_leads', page=page_num, search=search, stage=stage_filter, sales=sales_filter, lead_source=lead_source_filter, scope=scope_filter) }}"
                                        class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">{{ page_num }}</a>
                                 {% else %}
                                     <span class="relative z-10 inline-flex items-center bg-blue-600 px-4 py-2 text-sm font-semibold text-white">{{ page_num }}</span>
@@ -377,7 +383,7 @@
                         {% endfor %}
                         
                         {% if leads.has_next %}
-                            <a href="{{ url_for('leads.list_leads', page=leads.next_num, search=search, stage=stage_filter, sales=sales_filter, lead_source=lead_source_filter) }}"
+                            <a href="{{ url_for('leads.list_leads', page=leads.next_num, search=search, stage=stage_filter, sales=sales_filter, lead_source=lead_source_filter, scope=scope_filter) }}"
                                class="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
                                 <span class="material-symbols-outlined h-5 w-5">chevron_right</span>
                             </a>
@@ -422,9 +428,58 @@ function editLead(leadId, leadSalesUserId) {
 
 let currentConvertLeadId = null;
 let currentConvertStudentName = null;
+let currentConvertScope = 'public';
+
+function normalizeScope(scope) {
+    return scope === 'private' ? 'private' : 'public';
+}
+
+function resetConvertTeacherOptions() {
+    const teacherSelect = document.getElementById('convertTeacherSelect');
+    const teacherOptions = teacherSelect.querySelectorAll('option[data-teacher-scope]');
+    teacherOptions.forEach(option => {
+        option.hidden = false;
+        option.disabled = false;
+    });
+
+    const hint = document.getElementById('convertTeacherScopeHint');
+    hint.classList.add('hidden');
+    hint.textContent = '';
+}
+
+function applyConvertTeacherScopeFilter(scope) {
+    const normalizedScope = normalizeScope(scope);
+    const teacherSelect = document.getElementById('convertTeacherSelect');
+    const teacherOptions = teacherSelect.querySelectorAll('option[data-teacher-scope]');
+    let availableCount = 0;
+
+    teacherOptions.forEach(option => {
+        const teacherScope = option.dataset.teacherScope || 'all';
+        const isAllowed = normalizedScope === 'private' || teacherScope !== 'private_only';
+        option.hidden = !isAllowed;
+        option.disabled = !isAllowed;
+        if (isAllowed) {
+            availableCount += 1;
+        }
+    });
+
+    const selectedOption = teacherSelect.options[teacherSelect.selectedIndex];
+    if (selectedOption && selectedOption.disabled) {
+        teacherSelect.value = '';
+    }
+
+    const hint = document.getElementById('convertTeacherScopeHint');
+    if (normalizedScope === 'public' && availableCount === 0) {
+        hint.textContent = '当前无可分配的公域班主任，请先在用户管理中新增或调整班主任服务范围。';
+        hint.classList.remove('hidden');
+    } else {
+        hint.classList.add('hidden');
+        hint.textContent = '';
+    }
+}
 
 // 转换为客户 - 显示班主任选择模态框
-function convertToCustomer(leadId, studentName) {
+function convertToCustomer(leadId, studentName, scope) {
     // 权限检查：普通销售没有转客户权限
     const currentUserRole = '{{ current_user.role }}';
     if (currentUserRole === 'salesperson') {
@@ -434,6 +489,9 @@ function convertToCustomer(leadId, studentName) {
 
     currentConvertLeadId = leadId;
     currentConvertStudentName = studentName;
+    currentConvertScope = normalizeScope(scope);
+    resetConvertTeacherOptions();
+    applyConvertTeacherScopeFilter(currentConvertScope);
     document.getElementById('convertToCustomerModal').classList.remove('hidden');
 }
 
@@ -441,8 +499,10 @@ function convertToCustomer(leadId, studentName) {
 function hideConvertModal() {
     currentConvertLeadId = null;
     currentConvertStudentName = null;
+    currentConvertScope = 'public';
     document.getElementById('convertToCustomerModal').classList.add('hidden');
     document.getElementById('convertTeacherSelect').value = '';
+    resetConvertTeacherOptions();
 }
 
 // 确认转换为客户
@@ -493,9 +553,13 @@ function confirmConvertToCustomer() {
                     <select id="convertTeacherSelect" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                         <option value="">暂不分配（待分配）</option>
                         {% for teacher in teachers %}
-                            <option value="{{ teacher.id }}">{{ teacher.username }}</option>
+                            {% set teacher_scope = teacher.teacher_scope or 'all' %}
+                            <option value="{{ teacher.id }}" data-teacher-scope="{{ teacher_scope }}">
+                                {{ teacher.username }}{% if teacher_scope == 'private_only' %}（仅私域）{% endif %}
+                            </option>
                         {% endfor %}
                     </select>
+                    <p id="convertTeacherScopeHint" class="mt-2 hidden text-sm text-amber-600"></p>
                 </div>
             </div>
             <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">

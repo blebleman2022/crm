@@ -69,8 +69,8 @@
                                             <input type="number" min="0"
                                                    class="course-progress-completed w-16 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                                             <span class="text-xs text-gray-400">已完</span>
-                                            <input type="number" min="0"
-                                                   class="course-progress-total w-16 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            <input type="number" min="0" readonly
+                                                   class="course-progress-total w-16 px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-500 cursor-not-allowed">
                                             <span class="text-xs text-gray-400">总</span>
                                         </div>
                                         <div class="mt-2 flex items-center gap-2">
@@ -88,11 +88,11 @@
                                      data-customer-id="{{ student.id }}"
                                      data-thesis-name="{{ student.thesis_name or '' }}"
                                      data-completed="0"
-                                     data-total="6">
+                                     data-total="{{ student.lead.contract_total_sessions or 6 }}">
                                     <div class="course-progress-view flex-1 cursor-pointer text-blue-600 hover:text-blue-900 hover:opacity-80"
                                          onclick="startCourseProgressEdit({{ student.id }})">
                                         <div class="text-sm font-medium text-blue-600">
-                                            <span class="course-progress-text">0/6</span>
+                                            <span class="course-progress-text">0/{{ student.lead.contract_total_sessions or 6 }}</span>
                                         </div>
                                         <div class="course-progress-bar-wrap hidden"></div>
                                     </div>
@@ -101,8 +101,8 @@
                                             <input type="number" min="0"
                                                    class="course-progress-completed w-16 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                                             <span class="text-xs text-gray-400">已完</span>
-                                            <input type="number" min="0"
-                                                   class="course-progress-total w-16 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            <input type="number" min="0" readonly
+                                                   class="course-progress-total w-16 px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-500 cursor-not-allowed">
                                             <span class="text-xs text-gray-400">总</span>
                                         </div>
                                         <div class="mt-2 flex items-center gap-2">
@@ -1223,7 +1223,7 @@ function startCourseProgressEdit(customerId) {
 
     view.classList.add('hidden');
     edit.classList.remove('hidden');
-    totalInput.focus();
+    completedInput.focus();
 }
 
 function cancelCourseProgressEdit(customerId) {
@@ -1258,7 +1258,6 @@ async function saveCourseProgressInline(customerId) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 thesis_name: wrapper.dataset.thesisName || '',
-                total_sessions: totalSessions,
                 completed_sessions: completedSessions
             })
         });

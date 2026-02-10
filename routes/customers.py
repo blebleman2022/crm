@@ -9,6 +9,97 @@ import os
 from werkzeug.utils import secure_filename
 
 customers_bp = Blueprint('customers', __name__)
+PUBLIC_SCOPE = Lead.SCOPE_PUBLIC
+PRIVATE_SCOPE = Lead.SCOPE_PRIVATE
+
+
+def normalize_scope(value, default=''):
+    """标准化scope参数"""
+    value = (value or '').strip().lower()
+    if value in [PUBLIC_SCOPE, PRIVATE_SCOPE]:
+        return value
+    return default
+
+
+def is_private_owner_user(user):
+    """是否为私域负责人账号"""
+    return bool(getattr(user, 'is_private_owner', False) and user.is_sales())
+
+
+def customer_scope_value(customer):
+    """返回客户scope（带默认值）"""
+    return (customer.customer_scope or PUBLIC_SCOPE).strip()
+
+def invalid_teacher_scope_message(scope):
+    """班主任范围校验失败提示"""
+    if scope == PUBLIC_SCOPE:
+        return '该班主任仅可分配私域客户，当前客户为公域客户'
+    return '选择的班主任服务范围不匹配当前客户归属域'
+
+def can_assign_teacher_supervisor_to_scope(teacher, scope):
+    """班主任是否可分配到指定scope客户"""
+    return bool(
+        teacher and
+        teacher.role == 'teacher_supervisor' and
+        teacher.status and
+        teacher.can_serve_customer_scope(scope)
+    )
+
+
+def can_view_customer_record(customer):
+    """当前用户是否可查看该客户"""
+    scope = customer_scope_value(customer)
+
+    if current_user.is_admin():
+        return True
+
+    if scope == PRIVATE_SCOPE:
+        if current_user.is_teacher_supervisor():
+            return customer.teacher_user_id == current_user.id
+        return is_private_owner_user(current_user) and customer.private_owner_id == current_user.id
+
+    if current_user.is_teacher_supervisor():
+        return customer.teacher_user_id == current_user.id
+
+    if current_user.is_salesperson():
+        return bool(
+            customer.lead and
+            customer.lead.sales_user_id == current_user.id and
+            customer.teacher_user_id is not None
+        )
+
+    if current_user.is_sales_manager():
+        if is_private_owner_user(current_user):
+            return False
+        return bool(customer.lead and customer.lead.sales_user and customer.lead.sales_user.is_sales())
+
+    if current_user.role == 'teacher':
+        return bool(
+            customer.teacher_id and
+            getattr(current_user, 'teacher_profile', None) and
+            customer.teacher_id == current_user.teacher_profile.user_id
+        )
+
+    return False
+
+
+def can_update_progress(customer):
+    """当前用户是否可更新客户进度"""
+    if current_user.is_admin():
+        return True
+
+    if current_user.is_teacher_supervisor():
+        return customer.teacher_user_id == current_user.id
+
+    if current_user.is_sales_manager():
+        scope = customer_scope_value(customer)
+        if scope == PRIVATE_SCOPE:
+            return is_private_owner_user(current_user) and customer.private_owner_id == current_user.id
+        if is_private_owner_user(current_user):
+            return False
+        return bool(customer.lead and customer.lead.sales_user_id == current_user.id)
+
+    return False
 
 def sales_or_admin_required(f):
     """销售管理、班主任或管理员权限装饰器"""
@@ -27,17 +118,44 @@ def get_sales_users():
         User.role.in_(['sales_manager', 'salesperson'])
     ).all()
 
-def get_teachers():
-    """获取所有启用的班主任"""
-    return User.query.filter(
+def get_teachers(scope=None, include_user_id=None):
+    """获取可分配班主任列表（支持按客户scope过滤）"""
+    query = User.query.filter(
         User.status == True,
         User.role == 'teacher_supervisor'
-    ).all()
+    )
+
+    normalized_scope = normalize_scope(scope)
+    if normalized_scope == PUBLIC_SCOPE:
+        query = query.filter(db.or_(
+            User.teacher_scope != User.TEACHER_SCOPE_PRIVATE_ONLY,
+            User.teacher_scope.is_(None),
+            User.teacher_scope == ''
+        ))
+
+    teachers = query.order_by(User.username).all()
+
+    if include_user_id:
+        exists = any(teacher.id == include_user_id for teacher in teachers)
+        if not exists:
+            extra_teacher = User.query.filter(
+                User.id == include_user_id,
+                User.role == 'teacher_supervisor',
+                User.status == True
+            ).first()
+            if extra_teacher:
+                teachers.append(extra_teacher)
+
+    return teachers
 
 @customers_bp.route('/list')
 @login_required
 def list_customers():
     """客户列表"""
+    if not (current_user.is_admin() or current_user.is_sales() or current_user.is_teacher_supervisor()):
+        flash('您没有权限访问此页面', 'error')
+        return redirect(url_for('auth.login'))
+
     page = request.args.get('page', 1, type=int)
     search = request.args.get('search', '', type=str)
     sales_filter = request.args.get('sales', '', type=str)  # 销售筛选
@@ -45,6 +163,7 @@ def list_customers():
     completed = request.args.get('completed', '', type=str)  # 已完成筛选
     exam_year_filter = request.args.get('exam_year', '', type=str)  # 中高考时间筛选
     award_level_filter = request.args.get('award_level', '', type=str)  # 奖项要求筛选
+    requested_scope_filter = normalize_scope(request.args.get('scope', '', type=str))
 
     # 时间段筛选参数（按客户新增时间）
     start_date = request.args.get('start_date', '', type=str)
@@ -59,25 +178,53 @@ def list_customers():
         db.joinedload(Customer.teacher_user),
         db.joinedload(Customer.teacher)
     )
+    effective_scope_filter = requested_scope_filter or ''
 
-    # 权限控制
-    if current_user.role == 'teacher_supervisor':
-        # 班主任只能看到自己负责的客户
-        query = query.filter(Customer.teacher_user_id == current_user.id)
-    elif current_user.is_salesperson():
-        # 销售角色只能看到自己负责且已分配班主任的客户
+    # 权限控制 + scope控制
+    if is_private_owner_user(current_user):
+        # 私域负责人仅看自己私域客户
         query = query.filter(
-            (Lead.sales_user_id == current_user.id) &
-            (Customer.teacher_user_id.isnot(None))
+            Customer.customer_scope == PRIVATE_SCOPE,
+            Customer.private_owner_id == current_user.id
         )
+        effective_scope_filter = PRIVATE_SCOPE
+    elif current_user.role == 'teacher_supervisor':
+        # 班主任只看自己负责的客户
+        # 仅私域班主任强制只看私域，不允许切换scope
+        query = query.filter(Customer.teacher_user_id == current_user.id)
+        if current_user.is_private_only_teacher_supervisor():
+            query = query.filter(Customer.customer_scope == PRIVATE_SCOPE)
+            effective_scope_filter = PRIVATE_SCOPE
+        elif not current_user.has_private_customers():
+            query = query.filter(Customer.customer_scope == PUBLIC_SCOPE)
+            effective_scope_filter = PUBLIC_SCOPE
+        elif requested_scope_filter:
+            query = query.filter(Customer.customer_scope == requested_scope_filter)
+            effective_scope_filter = requested_scope_filter
+        else:
+            effective_scope_filter = 'all'
+    elif current_user.is_salesperson():
+        # 普通销售只能看到自己负责且已分配班主任的公域客户
+        query = query.filter(
+            Lead.sales_user_id == current_user.id,
+            Customer.teacher_user_id.isnot(None),
+            Customer.customer_scope == PUBLIC_SCOPE
+        )
+        effective_scope_filter = PUBLIC_SCOPE
     elif current_user.is_sales_manager():
-        # 销售管理可以看到所有销售和销售管理负责的客户（参照线索列表逻辑）
+        # 销售管理仅看销售体系公域客户
         allowed_ids = db.session.query(User.id).filter(
             User.role.in_(['sales_manager', 'salesperson']),
             User.status == True
         ).subquery()
-        query = query.filter(Lead.sales_user_id.in_(allowed_ids))
-    # 管理员可以看到所有客户，不需要额外过滤
+        query = query.filter(
+            Lead.sales_user_id.in_(allowed_ids),
+            Customer.customer_scope == PUBLIC_SCOPE
+        )
+        effective_scope_filter = PUBLIC_SCOPE
+    elif current_user.is_admin() and requested_scope_filter:
+        query = query.filter(Customer.customer_scope == requested_scope_filter)
+        effective_scope_filter = requested_scope_filter
 
     # 搜索过滤
     if search:
@@ -89,7 +236,7 @@ def list_customers():
         )
 
     # 销售筛选
-    if sales_filter:
+    if sales_filter and not is_private_owner_user(current_user):
         query = query.filter(Lead.sales_user_id == sales_filter)
 
     # 服务类型筛选
@@ -152,10 +299,13 @@ def list_customers():
     ).paginate(page=page, per_page=20, error_out=False)
 
     # 获取所有销售用户用于筛选
-    sales_users = User.query.filter(
-        User.role.in_(['sales_manager', 'salesperson']),
-        User.status == True
-    ).order_by(User.username).all()
+    if is_private_owner_user(current_user):
+        sales_users = [current_user]
+    else:
+        sales_users = User.query.filter(
+            User.role.in_(['sales_manager', 'salesperson']),
+            User.status == True
+        ).order_by(User.username).all()
 
     # 为当前页的客户批量查询次笔付款时间（性能优化）
     from models import Payment
@@ -228,6 +378,7 @@ def list_customers():
                          customers=customers,
                          search=search,
                          sales_filter=sales_filter,
+                         scope_filter=effective_scope_filter,
                          service_type=service_type,
                          completed=completed,
                          sales_users=sales_users,
@@ -245,9 +396,7 @@ def list_customers():
 def customer_detail(customer_id):
     """客户详情"""
     customer = Customer.query.get_or_404(customer_id)
-
-    # 如果是班主任，只能查看自己负责的客户
-    if current_user.role == 'teacher_supervisor' and customer.teacher_user_id != current_user.id:
+    if not can_view_customer_record(customer):
         flash('您没有权限查看此客户', 'error')
         return redirect(url_for('customers.list_customers'))
 
@@ -259,6 +408,28 @@ def customer_detail(customer_id):
 def edit_customer(customer_id):
     """编辑客户"""
     customer = Customer.query.get_or_404(customer_id)
+    if not can_view_customer_record(customer):
+        flash('您没有权限编辑此客户', 'error')
+        return redirect(url_for('customers.list_customers'))
+
+    customer_scope = customer_scope_value(customer)
+
+    def render_edit_page():
+        sales_users = get_sales_users()
+        teacher_users = get_teachers(scope=customer_scope, include_user_id=customer.teacher_user_id)
+        # 查询 Teacher 对象（辅导老师列表）
+        teacher_users_active = User.query.filter(User.status == True, User.role == 'teacher').all()
+        teacher_user_ids = [u.id for u in teacher_users_active]
+        teachers = Teacher.query.filter(Teacher.user_id.in_(teacher_user_ids)).all() if teacher_user_ids else []
+        competitions = CompetitionName.query.all()
+        return render_template(
+            'customers/edit.html',
+            customer=customer,
+            sales_users=sales_users,
+            teacher_users=teacher_users,
+            teachers=teachers,
+            competitions=competitions
+        )
 
     if request.method == 'POST':
         # 获取表单数据
@@ -279,15 +450,7 @@ def edit_customer(customer_id):
 
         if not all(required_fields):
             flash('请填写所有必填字段', 'error')
-            sales_users = get_sales_users()
-            teacher_users = get_teachers()
-            # 查询 Teacher 对象（辅导老师列表）
-            teacher_users_active = User.query.filter(User.status == True, User.role == 'teacher').all()
-            teacher_user_ids = [u.id for u in teacher_users_active]
-            teachers = Teacher.query.filter(Teacher.user_id.in_(teacher_user_ids)).all() if teacher_user_ids else []
-            competitions = CompetitionName.query.all()
-            return render_template('customers/edit.html', customer=customer,
-                                 sales_users=sales_users, teacher_users=teacher_users, teachers=teachers, competitions=competitions)
+            return render_edit_page()
 
         # 验证销售用户
         sales_user = User.query.filter(
@@ -297,15 +460,7 @@ def edit_customer(customer_id):
         ).first()
         if not sales_user:
             flash('选择的销售用户无效', 'error')
-            sales_users = get_sales_users()
-            teacher_users = get_teachers()
-            # 查询 Teacher 对象（辅导老师列表）
-            teacher_users_active = User.query.filter(User.status == True, User.role == 'teacher').all()
-            teacher_user_ids = [u.id for u in teacher_users_active]
-            teachers = Teacher.query.filter(Teacher.user_id.in_(teacher_user_ids)).all() if teacher_user_ids else []
-            competitions = CompetitionName.query.all()
-            return render_template('customers/edit.html', customer=customer,
-                                 sales_users=sales_users, teacher_users=teacher_users, teachers=teachers, competitions=competitions)
+            return render_edit_page()
 
         # 验证班主任（可选）- 允许teacher_supervisor角色
         if teacher_user_id:
@@ -316,15 +471,13 @@ def edit_customer(customer_id):
             ).first()
             if not teacher:
                 flash('选择的班主任无效', 'error')
-                sales_users = get_sales_users()
-                teacher_users = get_teachers()
-                # 查询 Teacher 对象（辅导老师列表）
-                teacher_users_active = User.query.filter(User.status == True, User.role == 'teacher').all()
-                teacher_user_ids = [u.id for u in teacher_users_active]
-                teachers = Teacher.query.filter(Teacher.user_id.in_(teacher_user_ids)).all() if teacher_user_ids else []
-                competitions = CompetitionName.query.all()
-                return render_template('customers/edit.html', customer=customer,
-                                     sales_users=sales_users, teacher_users=teacher_users, teachers=teachers, competitions=competitions)
+                return render_edit_page()
+            if (
+                teacher_user_id != customer.teacher_user_id and
+                not can_assign_teacher_supervisor_to_scope(teacher, customer_scope)
+            ):
+                flash(invalid_teacher_scope_message(customer_scope), 'error')
+                return render_edit_page()
 
         try:
             # 更新线索信息
@@ -382,15 +535,7 @@ def edit_customer(customer_id):
             flash(f'更新客户失败: {str(e)}', 'error')
 
     # GET 请求，显示编辑表单
-    sales_users = get_sales_users()
-    teacher_users = get_teachers()
-    # 查询 Teacher 对象（辅导老师列表）
-    teacher_users_active = User.query.filter(User.status == True, User.role == 'teacher').all()
-    teacher_user_ids = [u.id for u in teacher_users_active]
-    teachers = Teacher.query.filter(Teacher.user_id.in_(teacher_user_ids)).all() if teacher_user_ids else []
-    competitions = CompetitionName.query.all()  # 获取所有竞赛项目
-    return render_template('customers/edit.html', customer=customer,
-                         sales_users=sales_users, teacher_users=teacher_users, teachers=teachers, competitions=competitions)
+    return render_edit_page()
 
 @customers_bp.route('/<int:customer_id>/assign_teacher', methods=['POST'])
 @login_required
@@ -398,19 +543,28 @@ def edit_customer(customer_id):
 def assign_teacher(customer_id):
     """分配班主任"""
     customer = Customer.query.get_or_404(customer_id)
+    if not can_view_customer_record(customer):
+        return jsonify({'success': False, 'message': '您没有权限操作该客户'}), 403
+
+    if not (current_user.is_admin() or current_user.is_sales_manager()):
+        return jsonify({'success': False, 'message': '您没有权限分配班主任'}), 403
+
     teacher_id = request.json.get('teacher_id')
 
     if not teacher_id:
         return jsonify({'success': False, 'message': '请选择班主任'})
 
-    # 允许销售管理和班主任角色被分配为班主任
+    # 仅允许分配给班主任角色
     teacher = User.query.filter(
         User.id == teacher_id,
-        User.role.in_(['teacher', 'sales']),
+        User.role == 'teacher_supervisor',
         User.status == True
     ).first()
     if not teacher:
         return jsonify({'success': False, 'message': '选择的班主任无效'})
+    scope = customer_scope_value(customer)
+    if not can_assign_teacher_supervisor_to_scope(teacher, scope):
+        return jsonify({'success': False, 'message': invalid_teacher_scope_message(scope)})
     
     try:
         customer.teacher_user_id = teacher_id
@@ -437,12 +591,15 @@ def assign_teacher(customer_id):
 def get_customer_progress(customer_id):
     """获取客户进度信息"""
     customer = Customer.query.get_or_404(customer_id)
+    if not can_view_customer_record(customer):
+        return jsonify({'success': False, 'message': '您没有权限查看此客户'}), 403
 
     # 构建返回数据
     customer_data = {
         'id': customer.id,
         'lead_id': customer.lead_id,
         'student_name': customer.lead.student_name,
+        'customer_scope': customer.customer_scope or PUBLIC_SCOPE,
         'customer_notes': customer.customer_notes,
         'is_priority': customer.is_priority,
         'thesis_name': customer.thesis_name,  # 添加课题名称
@@ -474,8 +631,8 @@ def customer_api(customer_id):
     """客户API详情 - 用于弹窗显示"""
     customer = Customer.query.get_or_404(customer_id)
 
-    # 权限检查：班主任只能查看自己负责的客户
-    if current_user.role == 'teacher_supervisor' and customer.teacher_user_id != current_user.id:
+    # 权限检查：按归属域和角色控制
+    if not can_view_customer_record(customer):
         return jsonify({
             'success': False,
             'message': '您没有权限查看此客户'
@@ -501,6 +658,7 @@ def customer_api(customer_id):
         'id': customer.id,
         'lead_id': customer.lead_id,
         'student_name': customer.lead.student_name,
+        'customer_scope': customer.customer_scope or PUBLIC_SCOPE,
         'parent_wechat_display_name': customer.lead.parent_wechat_display_name,
         'parent_wechat_name': customer.lead.parent_wechat_name,
         'contact_info': customer.lead.contact_info,
@@ -544,10 +702,14 @@ def customer_api(customer_id):
 def update_customer_progress(customer_id):
     """更新客户进度"""
     customer = Customer.query.get_or_404(customer_id)
+    if not can_view_customer_record(customer):
+        return jsonify({'success': False, 'message': '您没有权限更新该客户'}), 403
+    if not can_update_progress(customer):
+        return jsonify({'success': False, 'message': '您没有权限更新该客户进度'}), 403
 
     try:
-        data = request.get_json()
-        total_sessions = data.get('total_sessions', 0)
+        data = request.get_json() or {}
+        requested_total_sessions = data.get('total_sessions')
         completed_sessions = data.get('completed_sessions', 0)
         notes = data.get('notes', '')
         thesis_name = data.get('thesis_name', '')
@@ -568,10 +730,37 @@ def update_customer_progress(customer_id):
         customer.updated_at = datetime.utcnow()
 
         # 更新或创建课程进度记录
+        default_total_sessions = customer.lead.contract_total_sessions if customer.lead and customer.lead.contract_total_sessions else 6
         if not customer.tutoring_delivery:
-            tutoring_delivery = TutoringDelivery(customer_id=customer.id)
+            tutoring_delivery = TutoringDelivery(
+                customer_id=customer.id,
+                total_sessions=default_total_sessions,
+                completed_sessions=0,
+                remaining_sessions=default_total_sessions
+            )
             db.session.add(tutoring_delivery)
             customer.tutoring_delivery = tutoring_delivery
+
+        # 班主任/辅导老师不能修改总课程数，总课程数由销售维护
+        if current_user.role in ['teacher_supervisor', 'teacher']:
+            total_sessions = customer.tutoring_delivery.total_sessions or default_total_sessions
+        else:
+            if requested_total_sessions is None:
+                total_sessions = customer.tutoring_delivery.total_sessions or default_total_sessions
+            else:
+                try:
+                    total_sessions = int(requested_total_sessions)
+                except (TypeError, ValueError):
+                    return jsonify({'success': False, 'message': '总课程数量格式错误'}), 400
+
+        try:
+            completed_sessions = int(completed_sessions)
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'message': '已完成数量格式错误'}), 400
+        if total_sessions < 0 or completed_sessions < 0:
+            return jsonify({'success': False, 'message': '课程数量不能为负数'}), 400
+        if completed_sessions > total_sessions:
+            return jsonify({'success': False, 'message': '已完成数量不能大于总课程数量'}), 400
 
         customer.tutoring_delivery.total_sessions = total_sessions
         customer.tutoring_delivery.completed_sessions = completed_sessions
@@ -594,6 +783,10 @@ def toggle_customer_priority(customer_id):
     """切换客户重点关注状态"""
     try:
         customer = Customer.query.get_or_404(customer_id)
+        if not can_view_customer_record(customer):
+            return jsonify({'success': False, 'message': '您没有权限操作该客户'}), 403
+        if not (current_user.is_admin() or current_user.is_sales_manager() or current_user.is_teacher_supervisor()):
+            return jsonify({'success': False, 'message': '您没有权限操作该客户'}), 403
 
         # 获取请求数据
         data = request.get_json()
@@ -627,6 +820,8 @@ def get_customer_competitions(customer_id):
     """获取客户的所有赛事"""
     try:
         customer = Customer.query.get_or_404(customer_id)
+        if not can_view_customer_record(customer):
+            return jsonify({'success': False, 'message': '无权限查看此客户的赛事'}), 403
 
         # 权限检查：班主任只能查看自己负责的客户
         if current_user.role == 'teacher_supervisor' and customer.teacher_user_id != current_user.id:
@@ -1108,6 +1303,8 @@ def get_course_record_images(customer_id):
     """获取客户的课程记录图片列表"""
     try:
         customer = Customer.query.get_or_404(customer_id)
+        if not can_view_customer_record(customer):
+            return jsonify({'success': False, 'message': '无权限查看此客户的图片'}), 403
 
         images = CourseRecordImage.query.filter_by(customer_id=customer_id).order_by(CourseRecordImage.created_at.desc()).all()
 
@@ -1134,6 +1331,8 @@ def get_award_certificate_images(customer_id):
     """获取客户的获奖证书图片列表"""
     try:
         customer = Customer.query.get_or_404(customer_id)
+        if not can_view_customer_record(customer):
+            return jsonify({'success': False, 'message': '无权限查看此客户的图片'}), 403
 
         images = AwardCertificateImage.query.filter_by(customer_id=customer_id).order_by(AwardCertificateImage.created_at.desc()).all()
 

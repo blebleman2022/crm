@@ -94,6 +94,10 @@ def dashboard():
 @teacher_supervisor_required
 def leads_list():
     """班主任线索管理 - 只显示首笔支付阶段的线索"""
+    if current_user.is_private_only_teacher_supervisor():
+        flash('仅私域班主任无需线索管理，请在客户管理中查看私域客户', 'info')
+        return redirect(url_for('customers.list_customers'))
+
     page = request.args.get('page', 1, type=int)
     search = request.args.get('search', '', type=str)
     start_date = request.args.get('start_date', '', type=str)
@@ -363,9 +367,11 @@ def edit_tutoring(delivery_id):
         next_class_date = request.form.get('next_class_date', '').strip()
         delivery_notes = request.form.get('delivery_notes', '').strip()
         
+        total_sessions = delivery.total_sessions or 6
+
         # 验证课时数
-        if completed_sessions < 0 or completed_sessions > 6:
-            flash('已上课时数必须在0-6之间', 'error')
+        if completed_sessions < 0 or completed_sessions > total_sessions:
+            flash(f'已上课时数必须在0-{total_sessions}之间', 'error')
             return render_template('delivery/edit_tutoring.html', delivery=delivery)
         
         try:
@@ -389,7 +395,7 @@ def edit_tutoring(delivery_id):
 
             # 更新交付信息
             delivery.completed_sessions = completed_sessions
-            delivery.remaining_sessions = 6 - completed_sessions
+            delivery.remaining_sessions = total_sessions - completed_sessions
             delivery.thesis_status = thesis_status
             delivery.last_class_date = last_class
             delivery.next_class_date = next_class

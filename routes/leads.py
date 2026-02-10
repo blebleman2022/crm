@@ -1,13 +1,76 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from functools import wraps
-from models import User, Lead, Customer, Payment, db
+from models import User, Lead, Customer, Payment, TutoringDelivery, db
 from datetime import datetime, date, timedelta
 from decimal import Decimal
 from sqlalchemy import func, and_
 import re
 
 leads_bp = Blueprint('leads', __name__)
+PUBLIC_SCOPE = Lead.SCOPE_PUBLIC
+PRIVATE_SCOPE = Lead.SCOPE_PRIVATE
+
+
+def is_private_owner_user(user):
+    """是否为私域负责人账号"""
+    return bool(getattr(user, 'is_private_owner', False) and user.is_sales())
+
+
+def lead_scope(lead):
+    """返回线索归属域（带默认值）"""
+    return (lead.customer_scope or PUBLIC_SCOPE).strip()
+
+
+def can_view_lead_record(lead):
+    """当前用户是否可查看该线索"""
+    scope = lead_scope(lead)
+
+    if current_user.is_admin():
+        return True
+
+    if scope == PRIVATE_SCOPE:
+        return is_private_owner_user(current_user) and lead.private_owner_id == current_user.id
+
+    if current_user.is_teacher_supervisor():
+        return True
+
+    if current_user.is_salesperson():
+        return lead.sales_user_id == current_user.id
+
+    if current_user.is_sales_manager():
+        if is_private_owner_user(current_user):
+            return False
+        return bool(lead.sales_user and lead.sales_user.is_sales())
+
+    return False
+
+
+def can_edit_lead_record(lead):
+    """当前用户是否可编辑该线索"""
+    scope = lead_scope(lead)
+
+    if current_user.is_admin():
+        return True
+
+    if scope == PRIVATE_SCOPE:
+        return is_private_owner_user(current_user) and lead.private_owner_id == current_user.id
+
+    if current_user.is_sales():
+        return lead.sales_user_id == current_user.id and not is_private_owner_user(current_user)
+
+    return False
+
+
+def apply_sales_dashboard_scope(query):
+    """仪表板统计口径过滤（销售体系按账号视角）"""
+    if not current_user.is_sales():
+        return query
+
+    query = query.filter(Lead.sales_user_id == current_user.id)
+    if is_private_owner_user(current_user):
+        return query.filter(Lead.customer_scope == PRIVATE_SCOPE, Lead.private_owner_id == current_user.id)
+    return query.filter(Lead.customer_scope == PUBLIC_SCOPE)
 
 def sales_required(f):
     """销售管理权限装饰器"""
@@ -143,9 +206,8 @@ def dashboard():
             Lead.contract_amount.isnot(None)
         )
 
-        # 权限控制：销售相关角色只能看到自己的数据
-        if current_user.is_sales():
-            contract_query = contract_query.filter(Lead.sales_user_id == current_user.id)
+        # 权限控制：销售相关角色按账号口径统计
+        contract_query = apply_sales_dashboard_scope(contract_query)
 
         contract_amount_result = contract_query.scalar()
         total_contract_amount = float(contract_amount_result or 0)
@@ -160,9 +222,8 @@ def dashboard():
             )
         )
 
-        # 权限控制：销售相关角色只能看到自己的数据
-        if current_user.is_sales():
-            contract_query = contract_query.filter(Lead.sales_user_id == current_user.id)
+        # 权限控制：销售相关角色按账号口径统计
+        contract_query = apply_sales_dashboard_scope(contract_query)
 
         contract_amount_result = contract_query.scalar()
         total_contract_amount = float(contract_amount_result or 0)
@@ -175,27 +236,24 @@ def dashboard():
         # 2. 首笔客户数 - 处于"首笔支付"阶段的所有客户
         first_payment_query = db.session.query(Lead.id).filter(Lead.stage == '首笔支付')
 
-        # 权限控制：销售相关角色只能看到自己的数据
-        if current_user.is_sales():
-            first_payment_query = first_payment_query.filter(Lead.sales_user_id == current_user.id)
+        # 权限控制：销售相关角色按账号口径统计
+        first_payment_query = apply_sales_dashboard_scope(first_payment_query)
 
         first_payment_customers = first_payment_query.count()
 
         # 3. 付款客户数 - 所有有付款记录的客户
         paid_customers_query = db.session.query(Lead.id).join(Payment)
 
-        # 权限控制：销售相关角色只能看到自己的数据
-        if current_user.is_sales():
-            paid_customers_query = paid_customers_query.filter(Lead.sales_user_id == current_user.id)
+        # 权限控制：销售相关角色按账号口径统计
+        paid_customers_query = apply_sales_dashboard_scope(paid_customers_query)
 
         paid_customers = paid_customers_query.distinct().count()
 
         # 4. 付款金额 - 所有付款记录的总金额
         payment_amount_query = db.session.query(func.sum(Payment.amount)).join(Lead)
 
-        # 权限控制：销售相关角色只能看到自己的数据
-        if current_user.is_sales():
-            payment_amount_query = payment_amount_query.filter(Lead.sales_user_id == current_user.id)
+        # 权限控制：销售相关角色按账号口径统计
+        payment_amount_query = apply_sales_dashboard_scope(payment_amount_query)
 
         total_payment_amount = payment_amount_query.scalar() or 0
 
@@ -211,9 +269,8 @@ def dashboard():
             )
         )
 
-        # 权限控制：销售相关角色只能看到自己的数据
-        if current_user.is_sales():
-            first_payment_query = first_payment_query.filter(Lead.sales_user_id == current_user.id)
+        # 权限控制：销售相关角色按账号口径统计
+        first_payment_query = apply_sales_dashboard_scope(first_payment_query)
 
         first_payment_customers = first_payment_query.count()
 
@@ -225,9 +282,8 @@ def dashboard():
             )
         )
 
-        # 权限控制：销售相关角色只能看到自己的数据
-        if current_user.is_sales():
-            paid_customers_query = paid_customers_query.filter(Lead.sales_user_id == current_user.id)
+        # 权限控制：销售相关角色按账号口径统计
+        paid_customers_query = apply_sales_dashboard_scope(paid_customers_query)
 
         paid_customers = paid_customers_query.distinct().count()
 
@@ -239,9 +295,8 @@ def dashboard():
             )
         )
 
-        # 权限控制：销售相关角色只能看到自己的数据
-        if current_user.is_sales():
-            payment_amount_query = payment_amount_query.filter(Lead.sales_user_id == current_user.id)
+        # 权限控制：销售相关角色按账号口径统计
+        payment_amount_query = apply_sales_dashboard_scope(payment_amount_query)
 
         total_payment_amount = payment_amount_query.scalar() or 0
 
@@ -261,11 +316,16 @@ def dashboard():
 @leads_list_access_required
 def list_leads():
     """线索列表"""
+    if current_user.is_private_only_teacher_supervisor():
+        flash('仅私域班主任无需线索管理，请在客户管理中查看私域客户', 'info')
+        return redirect(url_for('customers.list_customers'))
+
     page = request.args.get('page', 1, type=int)
     search = request.args.get('search', '', type=str)
     stage_filter = request.args.get('stage', '', type=str)
     sales_filter = request.args.get('sales', '', type=str)
     lead_source_filter = request.args.get('lead_source', '', type=str)
+    scope_filter = request.args.get('scope', '', type=str).strip()
 
     # 时间段筛选参数
     date_type = request.args.get('date_type', '', type=str)  # first_payment, second_payment, full_payment
@@ -285,20 +345,39 @@ def list_leads():
     contract_date_end = request.args.get('contract_date_end', '', type=str)
 
     query = Lead.query
+    effective_scope_filter = scope_filter if scope_filter in [PUBLIC_SCOPE, PRIVATE_SCOPE] else ''
 
-    # 权限控制：销售角色只能看到自己负责的线索
-    if current_user.is_salesperson():
-        query = query.filter(Lead.sales_user_id == current_user.id)
+    # 权限控制：私域负责人仅可查看自己私域
+    if is_private_owner_user(current_user):
+        query = query.filter(
+            Lead.customer_scope == PRIVATE_SCOPE,
+            Lead.private_owner_id == current_user.id
+        )
+        effective_scope_filter = PRIVATE_SCOPE
+    elif current_user.is_salesperson():
+        # 普通销售仅可查看自己负责的公域线索
+        query = query.filter(
+            Lead.sales_user_id == current_user.id,
+            Lead.customer_scope == PUBLIC_SCOPE
+        )
+        effective_scope_filter = PUBLIC_SCOPE
     elif current_user.is_sales_manager():
-        # 
-        # 
-        # 
+        # 销售管理仅查看销售体系的公域线索
         allowed_ids = db.session.query(User.id).filter(
             User.role.in_(['sales_manager', 'salesperson']),
             User.status == True
         ).subquery()
-        query = query.filter(Lead.sales_user_id.in_(allowed_ids))
-    # 管理员可以看到所有线索，不需要额外过滤
+        query = query.filter(
+            Lead.sales_user_id.in_(allowed_ids),
+            Lead.customer_scope == PUBLIC_SCOPE
+        )
+        effective_scope_filter = PUBLIC_SCOPE
+    elif current_user.is_teacher_supervisor():
+        # 班主任在线索管理只看公域，私域通过独立客户入口查看
+        query = query.filter(Lead.customer_scope == PUBLIC_SCOPE)
+        effective_scope_filter = PUBLIC_SCOPE
+    elif current_user.is_admin() and effective_scope_filter:
+        query = query.filter(Lead.customer_scope == effective_scope_filter)
 
     # 搜索过滤
     if search:
@@ -314,7 +393,7 @@ def list_leads():
         query = query.filter_by(stage=stage_filter)
 
     # 销售过滤
-    if sales_filter:
+    if sales_filter and not is_private_owner_user(current_user):
         query = query.filter_by(sales_user_id=sales_filter)
 
     # 线索来源过滤
@@ -428,7 +507,10 @@ def list_leads():
             lead.brainstorm_days_elapsed = None
     
     # 获取所有销售人员用于筛选
-    sales_users = User.query.filter(User.role.in_(['sales_manager', 'salesperson']), User.status == True).all()
+    if is_private_owner_user(current_user):
+        sales_users = [current_user]
+    else:
+        sales_users = User.query.filter(User.role.in_(['sales_manager', 'salesperson']), User.status == True).all()
 
     # 线索阶段选项
     stages = ['获取联系方式', '线下见面', '首笔支付', '次笔支付', '全款支付']
@@ -463,6 +545,7 @@ def list_leads():
                          stage_filter=stage_filter,
                          sales_filter=sales_filter,
                          lead_source_filter=lead_source_filter,
+                         scope_filter=effective_scope_filter,
                          sales_users=sales_users,
                          stages=stages,
                          lead_sources=lead_sources,
@@ -490,15 +573,26 @@ def brainstorm_list():
     # 基础查询：参照班主任头脑风暴列表，只显示首笔支付阶段线索
     query = Lead.query.filter(Lead.stage == '首笔支付')
 
-    # 权限控制：销售只能看自己，销售管理看销售体系内线索
-    if current_user.is_salesperson():
-        query = query.filter(Lead.sales_user_id == current_user.id)
+    # 权限控制：私域负责人仅看自己私域；普通销售体系仅看公域
+    if is_private_owner_user(current_user):
+        query = query.filter(
+            Lead.customer_scope == PRIVATE_SCOPE,
+            Lead.private_owner_id == current_user.id
+        )
+    elif current_user.is_salesperson():
+        query = query.filter(
+            Lead.sales_user_id == current_user.id,
+            Lead.customer_scope == PUBLIC_SCOPE
+        )
     elif current_user.is_sales_manager():
         allowed_ids = db.session.query(User.id).filter(
             User.role.in_(['sales_manager', 'salesperson']),
             User.status == True
         ).subquery()
-        query = query.filter(Lead.sales_user_id.in_(allowed_ids))
+        query = query.filter(
+            Lead.sales_user_id.in_(allowed_ids),
+            Lead.customer_scope == PUBLIC_SCOPE
+        )
 
     # 搜索过滤（学员姓名或家长微信名）
     if search:
@@ -606,6 +700,7 @@ def add_lead():
         contact_obtained_at = request.form.get('contact_obtained_at', '').strip()
         meeting_at = request.form.get('meeting_at', '').strip()
         meeting_location = request.form.get('meeting_location', '').strip()
+        is_private_mode = is_private_owner_user(current_user)
 
         # 处理自定义线索来源
         if source == '其他':
@@ -650,7 +745,9 @@ def add_lead():
                     return render_template('leads/add.html', sales_users=get_available_sales_users_for_assignment(current_user))
 
         # 如果没有指定销售，分配给当前用户
-        if not assigned_sales_id:
+        if is_private_mode:
+            assigned_sales_id = current_user.id
+        elif not assigned_sales_id:
             assigned_sales_id = current_user.id
 
         # 验证销售人员
@@ -664,6 +761,11 @@ def add_lead():
         # 检查权限：销售角色只能分配给自己
         if current_user.is_salesperson() and assigned_sales_id != current_user.id:
             flash('您只能创建分配给自己的线索', 'error')
+            return render_template('leads/add.html', sales_users=get_available_sales_users_for_assignment(current_user))
+
+        # 私域负责人账号只能创建自己的私域线索
+        if is_private_mode and assigned_sales_id != current_user.id:
+            flash('私域账号只能创建分配给自己的线索', 'error')
             return render_template('leads/add.html', sales_users=get_available_sales_users_for_assignment(current_user))
 
         # 阶段将通过自动更新逻辑设置
@@ -705,6 +807,8 @@ def add_lead():
                 district=district if district else None,
                 school=school if school else None,
                 sales_user_id=assigned_sales_id,
+                customer_scope=PRIVATE_SCOPE if is_private_mode else PUBLIC_SCOPE,
+                private_owner_id=current_user.id if is_private_mode else None,
                 stage='获取联系方式',  # 临时设置，稍后会自动更新
                 contract_amount=None,  # 合同金额在后续通过专门接口设置
                 service_types='["tutoring"]'  # 默认设置为课题辅导
@@ -744,7 +848,8 @@ def add_lead():
                     # 如果创建沟通记录失败，不影响线索创建
                     print(f"创建沟通记录失败: {str(e)}")
 
-            flash(f'线索 {parent_wechat_display_name} 创建成功，已分配给 {sales_user.username}', 'success')
+            scope_label = '私域' if is_private_mode else '公域'
+            flash(f'{scope_label}线索 {parent_wechat_display_name} 创建成功，已分配给 {sales_user.username}', 'success')
             return redirect(url_for('leads.list_leads'))
         except Exception as e:
             db.session.rollback()
@@ -765,8 +870,16 @@ def check_phone():
     if not phone:
         return jsonify({'exists': False})
 
-    # 查找是否存在相同手机号的线索
-    existing_lead = Lead.query.filter(Lead.contact_info.like(f'{phone}%')).first()
+    # 查找是否存在相同手机号的线索（按可见范围检查）
+    query = Lead.query.filter(Lead.contact_info.like(f'{phone}%'))
+    if is_private_owner_user(current_user):
+        query = query.filter(
+            Lead.customer_scope == PRIVATE_SCOPE,
+            Lead.private_owner_id == current_user.id
+        )
+    else:
+        query = query.filter(Lead.customer_scope == PUBLIC_SCOPE)
+    existing_lead = query.first()
 
     if existing_lead:
         return jsonify({
@@ -791,6 +904,13 @@ def check_wechat():
 
     # 查找是否存在相同微信号的线索
     query = Lead.query.filter_by(parent_wechat_name=wechat_name)
+    if is_private_owner_user(current_user):
+        query = query.filter(
+            Lead.customer_scope == PRIVATE_SCOPE,
+            Lead.private_owner_id == current_user.id
+        )
+    else:
+        query = query.filter(Lead.customer_scope == PUBLIC_SCOPE)
     if lead_id:
         query = query.filter(Lead.id != lead_id)
 
@@ -811,6 +931,9 @@ def get_sales_users():
 
 def get_available_sales_users_for_assignment(current_user):
     """根据当前用户角色获取可分配的销售人员列表"""
+    if is_private_owner_user(current_user):
+        # 私域负责人仅可分配给自己
+        return [current_user]
     if current_user.is_admin() or current_user.is_sales_manager():
         # 管理员和销售管理可以分配给任何销售人员
         return get_sales_users()
@@ -851,9 +974,9 @@ def edit_lead(lead_id):
     """编辑线索"""
     lead = Lead.query.get_or_404(lead_id)
 
-    # 权限检查：销售角色只能查看和编辑自己负责的线索
-    if current_user.is_sales() and lead.sales_user_id != current_user.id and not current_user.is_admin():
-        flash('您只能查看和编辑自己负责的线索', 'error')
+    # 权限检查：按归属域和角色控制
+    if not can_view_lead_record(lead):
+        flash('您没有权限查看该线索', 'error')
         return redirect(url_for('leads.list_leads'))
 
     # 阶段映射
@@ -869,6 +992,10 @@ def edit_lead(lead_id):
     reverse_stage_mapping = {v: k for k, v in stage_mapping.items()}
 
     if request.method == 'POST':
+        if not can_edit_lead_record(lead):
+            flash('您没有权限编辑该线索', 'error')
+            return redirect(url_for('leads.list_leads'))
+
         # 检查基本信息是否已锁定
         basic_info_locked = is_basic_info_locked(lead)
 
@@ -941,6 +1068,7 @@ def edit_lead(lead_id):
         competition_award_level = request.form.get('competition_award_level', '').strip()
         competition_count = request.form.get('competition_count', '').strip()
         additional_requirements = request.form.get('additional_requirements', '').strip()
+        contract_total_sessions_str = request.form.get('contract_total_sessions', '').strip()
 
         # 检查是否确认转换为客户
         confirm_convert = request.form.get('confirm_convert') == 'true'
@@ -983,6 +1111,23 @@ def edit_lead(lead_id):
             if not competition_count or int(competition_count) < 1:
                 flash('选择了竞赛辅导服务，必须填写申报赛事数量', 'error')
                 return render_template('leads/edit.html', lead=lead, sales_users=get_sales_users(), is_basic_info_locked=is_basic_info_locked, is_field_locked=is_field_locked_for_template)
+
+        # 验证课程数量（仅在勾选课题辅导时要求1-200；未勾选时自动清零）
+        has_tutoring = 'tutoring' in service_types
+        if has_tutoring:
+            try:
+                contract_total_sessions = int(contract_total_sessions_str) if contract_total_sessions_str else (
+                    lead.contract_total_sessions if lead.contract_total_sessions is not None else 6
+                )
+            except (ValueError, TypeError):
+                flash('课程数量格式错误', 'error')
+                return render_template('leads/edit.html', lead=lead, sales_users=get_sales_users(), is_basic_info_locked=is_basic_info_locked, is_field_locked=is_field_locked_for_template)
+
+            if contract_total_sessions < 1 or contract_total_sessions > 200:
+                flash('选择了课题辅导服务，课程数量必须在1-200之间', 'error')
+                return render_template('leads/edit.html', lead=lead, sales_users=get_sales_users(), is_basic_info_locked=is_basic_info_locked, is_field_locked=is_field_locked_for_template)
+        else:
+            contract_total_sessions = 0
 
         # 验证家长微信号是否重复（只在未锁定且有值时验证）
         if not is_field_locked(lead.parent_wechat_name, current_user) and parent_wechat_name:
@@ -1045,10 +1190,29 @@ def edit_lead(lead_id):
             lead.competition_award_level = competition_award_level if competition_award_level else None
             lead.competition_count = int(competition_count) if competition_count else None
             lead.additional_requirements = additional_requirements if additional_requirements else None
+            lead.contract_total_sessions = contract_total_sessions
 
             # 如果年级发生变化，且该线索已转为客户，则自动更新客户的 exam_year
             customer = Customer.query.filter_by(lead_id=lead.id).first()
             if customer:
+                delivery = customer.tutoring_delivery
+                if not delivery:
+                    delivery = TutoringDelivery(
+                        customer_id=customer.id,
+                        total_sessions=contract_total_sessions,
+                        completed_sessions=0,
+                        remaining_sessions=contract_total_sessions
+                    )
+                    db.session.add(delivery)
+                else:
+                    completed = delivery.completed_sessions or 0
+                    if completed > contract_total_sessions:
+                        flash(f'课程数量不能小于已完成数量（{completed}）', 'error')
+                        return render_template('leads/edit.html', lead=lead, sales_users=get_sales_users(), is_basic_info_locked=is_basic_info_locked, is_field_locked=is_field_locked_for_template)
+                    delivery.total_sessions = contract_total_sessions
+                    delivery.update_remaining_sessions()
+                    delivery.updated_at = datetime.utcnow()
+
                 from utils.exam_calculator import calculate_exam_year
 
                 # 重新计算中高考年份
@@ -1185,6 +1349,9 @@ def edit_lead(lead_id):
 def lead_detail(lead_id):
     """线索详情"""
     lead = Lead.query.get_or_404(lead_id)
+    if not can_view_lead_record(lead):
+        flash('您没有权限查看该线索', 'error')
+        return redirect(url_for('leads.list_leads'))
     return render_template('leads/detail.html', lead=lead)
 
 @leads_bp.route('/<int:lead_id>/payments')
@@ -1194,8 +1361,8 @@ def lead_payments(lead_id):
     """获取线索的付款明细 - 用于弹窗显示"""
     lead = Lead.query.get_or_404(lead_id)
 
-    # 权限检查：销售人员只能查看自己负责的线索，销售管理可以查看所有
-    if current_user.is_salesperson() and lead.sales_user_id != current_user.id:
+    # 权限检查：按归属域和角色控制
+    if not can_view_lead_record(lead):
         return jsonify({'success': False, 'message': '您没有权限查看此线索的付款明细'}), 403
 
     # 获取付款记录
@@ -1230,6 +1397,10 @@ def lead_payments(lead_id):
 def lead_api(lead_id):
     """线索API详情 - 用于弹窗显示（销售、管理员、班主任均可查看）"""
     lead = Lead.query.get_or_404(lead_id)
+    if not (current_user.is_sales() or current_user.is_admin() or current_user.is_teacher_supervisor()):
+        return jsonify({'success': False, 'message': '您没有权限查看此线索'}), 403
+    if not can_view_lead_record(lead):
+        return jsonify({'success': False, 'message': '您没有权限查看此线索'}), 403
 
     # 计算已付款总额
     payments = Payment.query.filter_by(lead_id=lead.id).all()
@@ -1262,6 +1433,7 @@ def lead_api(lead_id):
         'sales_user': lead.sales_user.username if lead.sales_user else None,
         'stage': lead.stage,
         'contract_amount': float(lead.contract_amount) if lead.contract_amount else None,
+        'contract_total_sessions': lead.contract_total_sessions if lead.contract_total_sessions is not None else 6,
         'paid_amount': float(paid_amount),
         'service_types': lead.get_service_types_list(),
         # 奖项和额外要求优先从线索表读取，如果已转为客户则从客户表读取
@@ -1284,8 +1456,11 @@ def manage_brainstorm(lead_id):
     """头脑风暴结论与课题选项（班主任可编辑）"""
     lead = Lead.query.get_or_404(lead_id)
 
-    # 访问权限：销售/管理员/班主任可查看；销售仅限本人线索
-    if current_user.is_salesperson() and lead.sales_user_id != current_user.id:
+    if not (current_user.is_sales() or current_user.is_admin() or current_user.is_teacher_supervisor()):
+        return jsonify({'success': False, 'message': '您没有权限查看此线索'}), 403
+
+    # 访问权限：按归属域和角色控制
+    if not can_view_lead_record(lead):
         return jsonify({'success': False, 'message': '您没有权限查看此线索'}), 403
 
     if request.method == 'GET':
@@ -1347,15 +1522,18 @@ def convert_to_customer(lead_id):
     """将线索转换为客户 - 销售管理和管理员可操作"""
     lead = Lead.query.get_or_404(lead_id)
 
+    if not can_edit_lead_record(lead):
+        return jsonify({'success': False, 'message': '您没有权限操作该线索'})
+
     # 权限控制：
     # - 管理员：可以为所有线索转客户
     # - 销售管理：可以为所有销售角色（普通销售和销售管理）负责的线索转客户
     # - 普通销售：没有转客户权限
-    if current_user.is_salesperson():
+    if current_user.is_salesperson() and not is_private_owner_user(current_user):
         return jsonify({'success': False, 'message': '您没有权限操作转客户功能，请联系销售管理'})
     
     # 销售管理只能为销售角色负责的线索转客户（不能为管理员、班主任等其他角色负责的线索转客户）
-    if current_user.is_sales_manager():
+    if current_user.is_sales_manager() and not is_private_owner_user(current_user):
         lead_owner = User.query.get(lead.sales_user_id)
         if not lead_owner or not lead_owner.is_sales():
             return jsonify({'success': False, 'message': '您只能为销售角色负责的线索转客户'})
@@ -1370,12 +1548,12 @@ def convert_to_customer(lead_id):
 
     try:
         from datetime import datetime, date
-        from models import TutoringDelivery
         from utils.exam_calculator import calculate_exam_year
 
         # 获取必填的班主任ID
         data = request.get_json() or {}
         teacher_id = data.get('teacher_id')
+        scope = lead_scope(lead)
 
         # 班主任ID为必填项
         if not teacher_id:
@@ -1389,6 +1567,8 @@ def convert_to_customer(lead_id):
         ).first()
         if not teacher:
             return jsonify({'success': False, 'message': '选择的班主任无效'})
+        if not teacher.can_serve_customer_scope(scope):
+            return jsonify({'success': False, 'message': '该班主任仅可分配私域客户，当前客户为公域客户'})
 
         # 根据年级自动计算中高考年份
         exam_year = calculate_exam_year(lead.grade)
@@ -1401,10 +1581,12 @@ def convert_to_customer(lead_id):
         insert_sql = text("""
             INSERT INTO customers (
                 lead_id, sales_user_id, teacher_user_id, payment_amount,
-                exam_year, converted_at, award_requirement, created_at, updated_at, is_priority
+                exam_year, converted_at, award_requirement, created_at, updated_at, is_priority,
+                customer_scope, private_owner_id
             ) VALUES (
                 :lead_id, :sales_user_id, :teacher_user_id, :payment_amount,
-                :exam_year, :converted_at, :award_requirement, :created_at, :updated_at, :is_priority
+                :exam_year, :converted_at, :award_requirement, :created_at, :updated_at, :is_priority,
+                :customer_scope, :private_owner_id
             )
         """)
 
@@ -1421,15 +1603,23 @@ def convert_to_customer(lead_id):
             'award_requirement': lead.competition_award_level or '无',  # 兼容旧字段
             'created_at': now,
             'updated_at': now,
-            'is_priority': False
+            'is_priority': False,
+            'customer_scope': scope,
+            'private_owner_id': lead.private_owner_id
         })
 
         # 获取新插入的customer_id
         customer_id = result.lastrowid
         db.session.flush()
 
-        # 创建交付记录（因为班主任是必填的）
-        tutoring_delivery = TutoringDelivery(customer_id=customer_id)
+        # 创建交付记录（总课程数由销售维护，默认6）
+        total_sessions = lead.contract_total_sessions if lead.contract_total_sessions is not None else 6
+        tutoring_delivery = TutoringDelivery(
+            customer_id=customer_id,
+            total_sessions=total_sessions,
+            completed_sessions=0,
+            remaining_sessions=total_sessions
+        )
         db.session.add(tutoring_delivery)
 
         # 赛事记录通过 customer_competitions 表管理，这里不需要自动创建
@@ -1464,8 +1654,8 @@ def add_payment():
         if not lead:
             return jsonify({'success': False, 'message': '线索不存在'})
 
-        # 权限控制：销售角色只能为自己负责的线索操作付款
-        if current_user.is_sales() and lead.sales_user_id != current_user.id:
+        # 权限控制：按归属域和角色控制
+        if not can_edit_lead_record(lead):
             return jsonify({'success': False, 'message': '您只能为自己负责的线索操作付款'})
 
         # 解析付款日期
@@ -1517,8 +1707,8 @@ def delete_payment(payment_id):
         # 获取关联的线索
         lead = payment.lead
 
-        # 权限控制：销售角色只能为自己负责的线索操作付款
-        if current_user.is_sales() and lead and lead.sales_user_id != current_user.id:
+        # 权限控制：按归属域和角色控制
+        if lead and not can_edit_lead_record(lead):
             return jsonify({'success': False, 'message': '您只能为自己负责的线索操作付款'})
 
         db.session.delete(payment)
@@ -1551,8 +1741,8 @@ def update_contract_amount():
         lead = Lead.query.get(lead_id)
         if not lead:
             return jsonify({'success': False, 'message': '线索不存在'})
-        # 权限控制：销售相关角色不能更改他人负责的线索
-        if (current_user.is_sales_manager() or current_user.is_salesperson()) and lead.sales_user_id != current_user.id:
+        # 权限控制：按归属域和角色控制
+        if not can_edit_lead_record(lead):
             return jsonify({'success': False, 'message': '您不能更改他人负责的线索信息'})
 
         # 解析合同金额
@@ -1574,3 +1764,59 @@ def update_contract_amount():
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'更新合同金额失败: {str(e)}'})
+
+@leads_bp.route('/update_contract_total_sessions', methods=['POST'])
+@login_required
+@sales_required
+def update_contract_total_sessions():
+    """更新合同总课程数（由销售维护）"""
+    try:
+        lead_id = request.form.get('lead_id', type=int)
+        total_sessions = request.form.get('contract_total_sessions', type=int)
+
+        if not lead_id or total_sessions is None:
+            return jsonify({'success': False, 'message': '线索ID和课程数量为必填项'})
+
+        lead = Lead.query.get(lead_id)
+        if not lead:
+            return jsonify({'success': False, 'message': '线索不存在'})
+
+        # 权限控制：按归属域和角色控制
+        if not can_edit_lead_record(lead):
+            return jsonify({'success': False, 'message': '您不能更改他人负责的线索信息'})
+
+        if total_sessions < 1 or total_sessions > 200:
+            return jsonify({'success': False, 'message': '课程数量必须在1-200之间'})
+
+        # 若线索已转客户，同步更新交付总课时（保持销售端为唯一维护入口）
+        customer = lead.customer
+        if customer:
+            delivery = customer.tutoring_delivery
+            if not delivery:
+                delivery = TutoringDelivery(
+                    customer_id=customer.id,
+                    total_sessions=total_sessions,
+                    completed_sessions=0,
+                    remaining_sessions=total_sessions
+                )
+                db.session.add(delivery)
+            else:
+                completed = delivery.completed_sessions or 0
+                if completed > total_sessions:
+                    return jsonify({
+                        'success': False,
+                        'message': f'课程数量不能小于已完成数量（{completed}）'
+                    })
+                delivery.total_sessions = total_sessions
+                delivery.update_remaining_sessions()
+                delivery.updated_at = datetime.utcnow()
+
+        lead.contract_total_sessions = total_sessions
+        lead.updated_at = datetime.utcnow()
+        db.session.commit()
+
+        return jsonify({'success': True, 'message': '课程数量更新成功'})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'更新课程数量失败: {str(e)}'})

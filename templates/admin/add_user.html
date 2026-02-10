@@ -62,6 +62,28 @@
                 <p class="mt-2 text-sm text-gray-500">用于组织内部管理，可以按部门或团队进行分组。</p>
             </div>
 
+            <div>
+                <label class="block text-sm font-medium text-gray-700">私域账号设置</label>
+                <div class="mt-2 flex items-center">
+                    <input type="checkbox" name="is_private_owner" id="is_private_owner"
+                           class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                    <label for="is_private_owner" class="ml-2 text-sm text-gray-700">设为私域负责人（仅销售角色有效）</label>
+                </div>
+                <p class="mt-2 text-sm text-gray-500">勾选后，该账号默认只处理私域客户数据。私域状态只能在创建时设定，创建后不可修改。</p>
+            </div>
+
+            <div id="teacherScopeSection">
+                <label for="teacher_scope" class="block text-sm font-medium text-gray-700">班主任服务范围</label>
+                <div class="mt-1">
+                    <select name="teacher_scope" id="teacher_scope"
+                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                        <option value="all">公私域都可分配</option>
+                        <option value="private_only">仅私域客户</option>
+                    </select>
+                </div>
+                <p class="mt-2 text-sm text-gray-500">仅对班主任角色生效。设置为“仅私域客户”后，该班主任将无法被分配给公域客户。</p>
+            </div>
+
             <div class="flex items-center justify-between pt-6 border-t border-gray-200">
                 <a href="{{ url_for('admin.users') }}"
                    class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
@@ -85,6 +107,30 @@ document.getElementById('phone').addEventListener('input', function(e) {
     }
     e.target.value = value;
 });
+
+// 私域账号仅支持销售体系角色
+const roleSelect = document.getElementById('role');
+const privateOwnerCheckbox = document.getElementById('is_private_owner');
+const teacherScopeSection = document.getElementById('teacherScopeSection');
+const teacherScopeSelect = document.getElementById('teacher_scope');
+
+function syncRoleToggles() {
+    const isSalesRole = ['sales_manager', 'salesperson'].includes(roleSelect.value);
+    const isTeacherSupervisor = roleSelect.value === 'teacher_supervisor';
+
+    privateOwnerCheckbox.disabled = !isSalesRole;
+    if (!isSalesRole) {
+        privateOwnerCheckbox.checked = false;
+    }
+
+    teacherScopeSection.classList.toggle('hidden', !isTeacherSupervisor);
+    teacherScopeSelect.disabled = !isTeacherSupervisor;
+    if (!isTeacherSupervisor) {
+        teacherScopeSelect.value = 'all';
+    }
+}
+roleSelect.addEventListener('change', syncRoleToggles);
+syncRoleToggles();
 
 // 表单验证
 document.querySelector('form').addEventListener('submit', function(e) {

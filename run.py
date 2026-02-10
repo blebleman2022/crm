@@ -463,6 +463,182 @@ def init_database(app):
                     else:
                         print(f"⚠️ {column_label}字段添加失败: {e}")
 
+            # 添加合同总课程数字段（由销售维护）
+            try:
+                db.session.execute(text("ALTER TABLE leads ADD COLUMN contract_total_sessions INTEGER DEFAULT 6"))
+                db.session.commit()
+                print("✅ contract_total_sessions字段添加成功")
+            except Exception as e:
+                if "duplicate column name" in str(e):
+                    print("✅ contract_total_sessions字段已存在")
+                else:
+                    print(f"⚠️ contract_total_sessions字段添加失败: {e}")
+
+            # 初始化历史数据的总课程数默认值
+            try:
+                db.session.execute(text("""
+                    UPDATE leads
+                    SET contract_total_sessions = 6
+                    WHERE contract_total_sessions IS NULL OR contract_total_sessions <= 0
+                """))
+                db.session.commit()
+                print("✅ 已初始化历史线索的总课程数默认值（6）")
+            except Exception as e:
+                print(f"⚠️ 初始化contract_total_sessions失败: {e}")
+                db.session.rollback()
+
+            # 添加用户私域负责人标记
+            try:
+                db.session.execute(text("ALTER TABLE users ADD COLUMN is_private_owner BOOLEAN DEFAULT 0"))
+                db.session.commit()
+                print("✅ is_private_owner字段添加成功")
+            except Exception as e:
+                if "duplicate column name" in str(e):
+                    print("✅ is_private_owner字段已存在")
+                else:
+                    print(f"⚠️ is_private_owner字段添加失败: {e}")
+
+            try:
+                db.session.execute(text("""
+                    UPDATE users
+                    SET is_private_owner = 0
+                    WHERE is_private_owner IS NULL
+                """))
+                db.session.commit()
+                print("✅ 已初始化用户私域负责人标记默认值（0）")
+            except Exception as e:
+                print(f"⚠️ 初始化is_private_owner失败: {e}")
+                db.session.rollback()
+
+            # 添加班主任服务范围字段
+            try:
+                db.session.execute(text("ALTER TABLE users ADD COLUMN teacher_scope VARCHAR(20) DEFAULT 'all'"))
+                db.session.commit()
+                print("✅ teacher_scope字段添加成功")
+            except Exception as e:
+                if "duplicate column name" in str(e).lower():
+                    print("✅ teacher_scope字段已存在")
+                else:
+                    print(f"⚠️ teacher_scope字段添加失败: {e}")
+
+            try:
+                db.session.execute(text("""
+                    UPDATE users
+                    SET teacher_scope = 'all'
+                    WHERE teacher_scope IS NULL
+                       OR teacher_scope = ''
+                       OR teacher_scope NOT IN ('all', 'private_only')
+                """))
+                db.session.commit()
+                print("✅ 已初始化班主任服务范围默认值（all）")
+            except Exception as e:
+                print(f"⚠️ 初始化teacher_scope失败: {e}")
+                db.session.rollback()
+
+            # 添加线索私域字段
+            for column_name, column_sql, column_label in [
+                ("customer_scope", "VARCHAR(20) DEFAULT 'public'", "leads.customer_scope"),
+                ("private_owner_id", "INTEGER", "leads.private_owner_id")
+            ]:
+                try:
+                    db.session.execute(text(f"ALTER TABLE leads ADD COLUMN {column_name} {column_sql}"))
+                    db.session.commit()
+                    print(f"✅ {column_label}字段添加成功")
+                except Exception as e:
+                    if "duplicate column name" in str(e):
+                        print(f"✅ {column_label}字段已存在")
+                    else:
+                        print(f"⚠️ {column_label}字段添加失败: {e}")
+
+            try:
+                db.session.execute(text("""
+                    UPDATE leads
+                    SET customer_scope = 'public'
+                    WHERE customer_scope IS NULL OR customer_scope = ''
+                """))
+                db.session.commit()
+                print("✅ 已初始化线索归属域默认值（public）")
+            except Exception as e:
+                print(f"⚠️ 初始化leads.customer_scope失败: {e}")
+                db.session.rollback()
+
+            # 添加客户私域字段
+            for column_name, column_sql, column_label in [
+                ("customer_scope", "VARCHAR(20) DEFAULT 'public'", "customers.customer_scope"),
+                ("private_owner_id", "INTEGER", "customers.private_owner_id")
+            ]:
+                try:
+                    db.session.execute(text(f"ALTER TABLE customers ADD COLUMN {column_name} {column_sql}"))
+                    db.session.commit()
+                    print(f"✅ {column_label}字段添加成功")
+                except Exception as e:
+                    if "duplicate column name" in str(e):
+                        print(f"✅ {column_label}字段已存在")
+                    else:
+                        print(f"⚠️ {column_label}字段添加失败: {e}")
+
+            try:
+                db.session.execute(text("""
+                    UPDATE customers
+                    SET customer_scope = (
+                        SELECT COALESCE(leads.customer_scope, 'public')
+                        FROM leads
+                        WHERE leads.id = customers.lead_id
+                    )
+                    WHERE customer_scope IS NULL OR customer_scope = ''
+                """))
+                db.session.execute(text("""
+                    UPDATE customers
+                    SET private_owner_id = (
+                        SELECT leads.private_owner_id
+                        FROM leads
+                        WHERE leads.id = customers.lead_id
+                    )
+                    WHERE private_owner_id IS NULL
+                """))
+                db.session.execute(text("""
+                    UPDATE customers
+                    SET customer_scope = 'public'
+                    WHERE customer_scope IS NULL OR customer_scope = ''
+                """))
+                db.session.commit()
+                print("✅ 已完成客户归属域和私域归属人历史数据初始化")
+            except Exception as e:
+                print(f"⚠️ 初始化customers私域字段失败: {e}")
+                db.session.rollback()
+
+            # 对账表添加归属快照字段
+            try:
+                db.session.execute(text("ALTER TABLE customer_payments ADD COLUMN scope_snapshot VARCHAR(20) DEFAULT 'public'"))
+                db.session.commit()
+                print("✅ customer_payments.scope_snapshot字段添加成功")
+            except Exception as e:
+                if "duplicate column name" in str(e):
+                    print("✅ customer_payments.scope_snapshot字段已存在")
+                else:
+                    print(f"⚠️ customer_payments.scope_snapshot字段添加失败: {e}")
+
+            try:
+                db.session.execute(text("""
+                    UPDATE customer_payments
+                    SET scope_snapshot = (
+                        SELECT COALESCE(customers.customer_scope, 'public')
+                        FROM customers
+                        WHERE customers.id = customer_payments.customer_id
+                    )
+                    WHERE scope_snapshot IS NULL OR scope_snapshot = ''
+                """))
+                db.session.execute(text("""
+                    UPDATE customer_payments
+                    SET scope_snapshot = 'public'
+                    WHERE scope_snapshot IS NULL OR scope_snapshot = ''
+                """))
+                db.session.commit()
+                print("✅ 已完成对账归属快照历史数据初始化")
+            except Exception as e:
+                print(f"⚠️ 初始化customer_payments.scope_snapshot失败: {e}")
+                db.session.rollback()
+
             # 添加头脑风暴字段
             for column_name, column_type, column_label in [
                 ("brainstorm_conclusion", "TEXT", "brainstorm_conclusion"),
@@ -616,8 +792,9 @@ def main():
             print("生产环境请使用: gunicorn -w 4 -b 0.0.0.0:8000 run:app")
         else:
             # 开发环境直接启动
+            host = os.environ.get('HOST', '0.0.0.0').strip() or '0.0.0.0'
             app.run(
-                host='0.0.0.0',
+                host=host,
                 port=int(os.environ.get('PORT', 5002)),
                 debug=(config_name == 'development')
             )

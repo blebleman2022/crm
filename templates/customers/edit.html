@@ -67,7 +67,7 @@
                                             <option value="">请选择班主任（可选）</option>
                                             {% for user in teacher_users %}
                                             <option value="{{ user.id }}" {% if user.id == customer.teacher_user_id %}selected{% endif %}>
-                                                {{ user.username }}
+                                                {{ user.username }}{% if user.teacher_scope == 'private_only' %}（仅私域）{% endif %}
                                             </option>
                                             {% endfor %}
                                         </select>

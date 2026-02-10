@@ -277,7 +277,8 @@ def get_student_api(customer_id):
 
     # 获取 TutoringDelivery 获取课时信息
     tutoring_delivery = TutoringDelivery.query.filter_by(customer_id=customer_id).first()
-    total_sessions = tutoring_delivery.total_sessions if tutoring_delivery else 0
+    default_total_sessions = student.lead.contract_total_sessions if student.lead and student.lead.contract_total_sessions else 6
+    total_sessions = tutoring_delivery.total_sessions if tutoring_delivery else default_total_sessions
     completed_sessions = tutoring_delivery.completed_sessions if tutoring_delivery else 0
 
     # 获取赛事信息
@@ -708,19 +709,39 @@ def update_course_progress(customer_id):
     if student.teacher_id != teacher.user_id:
         return jsonify({'success': False, 'message': '无权操作此学生'})
 
-    data = request.get_json()
+    data = request.get_json() or {}
 
     # 更新课题名称
     student.thesis_name = data.get('thesis_name')
 
+    default_total_sessions = student.lead.contract_total_sessions if student.lead and student.lead.contract_total_sessions else 6
+
     # 更新或创建课程交付记录
     delivery = student.tutoring_delivery
     if not delivery:
-        delivery = TutoringDelivery(customer_id=customer_id)
+        delivery = TutoringDelivery(
+            customer_id=customer_id,
+            total_sessions=default_total_sessions,
+            completed_sessions=0,
+            remaining_sessions=default_total_sessions
+        )
         db.session.add(delivery)
 
-    delivery.total_sessions = data.get('total_sessions', 6)
-    delivery.completed_sessions = data.get('completed_sessions', 0)
+    # 辅导老师不能修改总课程数，总课程数由销售维护
+    total_sessions = delivery.total_sessions or default_total_sessions
+    completed_sessions = data.get('completed_sessions', 0)
+    try:
+        completed_sessions = int(completed_sessions)
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'message': '已完成数量格式错误'}), 400
+
+    if completed_sessions < 0:
+        return jsonify({'success': False, 'message': '已完成数量不能为负数'}), 400
+    if completed_sessions > total_sessions:
+        return jsonify({'success': False, 'message': '已完成数量不能大于总课程数量'}), 400
+
+    delivery.total_sessions = total_sessions
+    delivery.completed_sessions = completed_sessions
     delivery.update_remaining_sessions()
 
     db.session.commit()
