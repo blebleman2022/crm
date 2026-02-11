@@ -9,6 +9,25 @@ import os
 
 delivery_bp = Blueprint('delivery', __name__)
 
+
+def normalized_lead_scope(lead):
+    """标准化线索归属域"""
+    scope = (lead.customer_scope or Lead.SCOPE_PUBLIC).strip().lower()
+    return Lead.SCOPE_PRIVATE if scope == Lead.SCOPE_PRIVATE else Lead.SCOPE_PUBLIC
+
+
+def teacher_can_access_lead_scope(lead):
+    """班主任是否可访问该线索（按服务范围限制）"""
+    if not current_user.is_teacher_supervisor():
+        return False
+
+    scope = normalized_lead_scope(lead)
+    if current_user.is_public_only_teacher_supervisor() and scope == Lead.SCOPE_PRIVATE:
+        return False
+    if current_user.is_private_only_teacher_supervisor() and scope == Lead.SCOPE_PUBLIC:
+        return False
+    return True
+
 def sort_teachers_by_pinyin(teachers):
     """按姓名拼音首字母排序（无库时退化为原始字符串排序）"""
     try:
@@ -105,11 +124,19 @@ def leads_list():
 
     # 基础查询：
     # - 常规班主任：仅显示首笔支付阶段线索
-    # - 仅私域班主任：显示私域销售体系下所有首笔支付阶段线索
+    # - 仅公域班主任：仅显示公域首笔支付线索
+    # - 仅私域班主任：仅显示私域首笔支付线索
     if current_user.is_private_only_teacher_supervisor():
         query = Lead.query.filter(
             Lead.stage == '首笔支付',
             Lead.customer_scope == Lead.SCOPE_PRIVATE
+        )
+    elif current_user.is_public_only_teacher_supervisor():
+        # 公域班主任仅看公域线索，且屏蔽私域负责人提交的数据
+        query = Lead.query.filter(
+            Lead.stage == '首笔支付',
+            Lead.customer_scope == Lead.SCOPE_PUBLIC,
+            Lead.private_owner_id.is_(None)
         )
     else:
         query = Lead.query.filter(Lead.stage == '首笔支付')
@@ -241,6 +268,8 @@ def leads_list():
 @teacher_supervisor_required
 def manage_topic_tasks(lead_id):
     lead = Lead.query.get_or_404(lead_id)
+    if not teacher_can_access_lead_scope(lead):
+        return jsonify({'success': False, 'message': '您没有权限访问该线索'}), 403
 
     if request.method == 'GET':
         tasks = TopicTask.query.filter_by(lead_id=lead.id).all()
