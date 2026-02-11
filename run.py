@@ -6,9 +6,9 @@ EduConnect CRM 启动脚本
 
 import os
 import sys
-from flask import Flask
+from flask import Flask, request, render_template
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager
+from flask_login import LoginManager, current_user
 
 def create_app(config_name=None):
     """应用工厂函数"""
@@ -95,6 +95,36 @@ def create_app(config_name=None):
     app.register_blueprint(data_export_bp, url_prefix='/data_export')
     app.register_blueprint(payments_bp, url_prefix='/payments')
     app.register_blueprint(teacher_bp)  # 新增：老师端路由（已包含url_prefix）
+
+    def is_maintenance_mode_enabled():
+        """读取维护模式开关"""
+        try:
+            from models import SystemConfig
+
+            config = SystemConfig.query.filter_by(config_key='maintenance_mode').first()
+            value = str(config.config_value or '').strip().lower() if config else ''
+            return value in {'1', 'true', 'on', 'yes', 'enabled'}
+        except Exception:
+            return False
+
+    @app.before_request
+    def enforce_maintenance_mode():
+        """维护模式全站拦截（保留管理员入口用于恢复）"""
+        endpoint = request.endpoint or ''
+        if endpoint.startswith('static'):
+            return None
+
+        if not is_maintenance_mode_enabled():
+            return None
+
+        if endpoint == 'health_check':
+            return None
+
+        if endpoint in {'admin.dashboard', 'admin.toggle_maintenance_mode'} and \
+                current_user.is_authenticated and current_user.is_admin():
+            return None
+
+        return render_template('maintenance.html'), 503
 
     # 添加全局模板函数
     @app.context_processor
@@ -527,7 +557,7 @@ def init_database(app):
                     SET teacher_scope = 'all'
                     WHERE teacher_scope IS NULL
                        OR teacher_scope = ''
-                       OR teacher_scope NOT IN ('all', 'private_only')
+                       OR teacher_scope NOT IN ('all', 'public_only', 'private_only')
                 """))
                 db.session.commit()
                 print("✅ 已初始化班主任服务范围默认值（all）")

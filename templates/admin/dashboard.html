@@ -127,9 +127,15 @@
                 <div class="space-y-4">
                     <div class="flex items-center justify-between">
                         <span class="text-sm text-gray-600">系统运行状态</span>
+                        {% if maintenance_mode_enabled %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                            维护中
+                        </span>
+                        {% else %}
                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                             正常运行
                         </span>
+                        {% endif %}
                     </div>
                     <div class="flex items-center justify-between">
                         <span class="text-sm text-gray-600">数据库连接</span>
@@ -140,6 +146,24 @@
                     <div class="flex items-center justify-between">
                         <span class="text-sm text-gray-600">在线用户</span>
                         <span class="text-sm font-medium text-gray-900">{{ active_users }}</span>
+                    </div>
+                    <div class="pt-3 border-t border-gray-200">
+                        <form method="POST" action="{{ url_for('admin.toggle_maintenance_mode') }}">
+                            {% if maintenance_mode_enabled %}
+                            <input type="hidden" name="maintenance_mode" value="off">
+                            <button type="submit"
+                                    class="w-full inline-flex items-center justify-center px-4 py-2 border border-amber-300 rounded-md shadow-sm text-sm font-medium text-amber-700 bg-amber-50 hover:bg-amber-100">
+                                退出维护状态
+                            </button>
+                            {% else %}
+                            <input type="hidden" name="maintenance_mode" value="on">
+                            <button type="submit"
+                                    onclick="return confirm('确认进入维护状态？开启后，大部分页面会显示“网站正在维护中”。')"
+                                    class="w-full inline-flex items-center justify-center px-4 py-2 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100">
+                                进入维护状态
+                            </button>
+                            {% endif %}
+                        </form>
                     </div>
                 </div>
             </div>

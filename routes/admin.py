@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from functools import wraps
-from models import User, LoginLog, Lead, Customer, db
+from models import User, LoginLog, Lead, Customer, SystemConfig, db
 from datetime import datetime, timedelta
 import re
 import os
@@ -31,6 +31,11 @@ def normalize_teacher_scope(value):
     if value in User.ALLOWED_TEACHER_SCOPES:
         return value
     return User.TEACHER_SCOPE_ALL
+
+
+def is_config_enabled(value):
+    """将系统配置值转换为布尔开关"""
+    return str(value or '').strip().lower() in {'1', 'true', 'on', 'yes', 'enabled'}
 
 def get_service_types_display(service_types_list):
     """将服务类型列表转换为显示文本"""
@@ -76,6 +81,10 @@ def dashboard():
     total_leads = Lead.query.count()
     total_customers = Customer.query.count()
 
+    # 维护模式状态
+    maintenance_config = SystemConfig.query.filter_by(config_key='maintenance_mode').first()
+    maintenance_mode_enabled = is_config_enabled(maintenance_config.config_value if maintenance_config else None)
+
     return render_template('admin/dashboard.html',
                          total_users=total_users,
                          active_users=active_users,
@@ -87,7 +96,49 @@ def dashboard():
                          teacher_count=teacher_count,
                          admin_count=admin_count,
                          total_leads=total_leads,
-                         total_customers=total_customers)
+                         total_customers=total_customers,
+                         maintenance_mode_enabled=maintenance_mode_enabled)
+
+
+@admin_bp.route('/maintenance/toggle', methods=['POST'])
+@login_required
+@admin_required
+def toggle_maintenance_mode():
+    """切换全站维护模式"""
+    desired_mode = (request.form.get('maintenance_mode') or '').strip().lower()
+
+    try:
+        config = SystemConfig.query.filter_by(config_key='maintenance_mode').first()
+        current_enabled = is_config_enabled(config.config_value if config else None)
+
+        if desired_mode in {'on', '1', 'true'}:
+            target_enabled = True
+        elif desired_mode in {'off', '0', 'false'}:
+            target_enabled = False
+        else:
+            target_enabled = not current_enabled
+
+        if config is None:
+            config = SystemConfig(
+                config_key='maintenance_mode',
+                description='全站维护模式开关（on/off）'
+            )
+            db.session.add(config)
+
+        config.config_value = 'on' if target_enabled else 'off'
+        config.updated_by = current_user.id
+        config.updated_at = datetime.utcnow()
+        db.session.commit()
+
+        if target_enabled:
+            flash('系统已进入维护状态，除管理员入口外其余页面将显示维护提示', 'success')
+        else:
+            flash('系统已退出维护状态，访问已恢复', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'维护状态更新失败: {str(e)}', 'error')
+
+    return redirect(url_for('admin.dashboard'))
 
 @admin_bp.route('/users')
 @login_required
@@ -206,20 +257,11 @@ def edit_user(user_id):
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         group_name = request.form.get('group_name', '').strip()
-        requested_private_owner = request.form.get('is_private_owner')
         requested_teacher_scope = normalize_teacher_scope(request.form.get('teacher_scope'))
 
         if not username:
             flash('用户名为必填项', 'error')
             return render_template('admin/edit_user.html', user=user)
-
-        # 产品规则：私域负责人标记仅允许在“创建用户”时设定
-        # 编辑现有用户时，无论前端是否传参，都不允许切换私域标记
-        if requested_private_owner is not None:
-            incoming_private_owner = requested_private_owner == 'on'
-            if incoming_private_owner != bool(user.is_private_owner):
-                flash('现有账号不能变更为私域负责人，请新建私域账号', 'error')
-                return render_template('admin/edit_user.html', user=user)
 
         try:
             user.username = username
@@ -544,7 +586,7 @@ def edit_lead_form(lead_id):
         User.status == True
     ).order_by(User.role.desc(), User.username.asc()).all()
 
-    # 可分配班主任（公域线索不显示“仅私域”班主任）
+    # 可分配班主任（按线索归属域过滤班主任服务范围）
     teacher_users_query = User.query.filter(
         User.role == 'teacher_supervisor',
         User.status == True
@@ -552,6 +594,12 @@ def edit_lead_form(lead_id):
     if lead_scope == Lead.SCOPE_PUBLIC:
         teacher_users_query = teacher_users_query.filter(db.or_(
             User.teacher_scope != User.TEACHER_SCOPE_PRIVATE_ONLY,
+            User.teacher_scope.is_(None),
+            User.teacher_scope == ''
+        ))
+    elif lead_scope == Lead.SCOPE_PRIVATE:
+        teacher_users_query = teacher_users_query.filter(db.or_(
+            User.teacher_scope != User.TEACHER_SCOPE_PUBLIC_ONLY,
             User.teacher_scope.is_(None),
             User.teacher_scope == ''
         ))

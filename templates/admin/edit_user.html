@@ -60,24 +60,13 @@
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-gray-700">私域账号设置</label>
-                <div class="mt-2">
-                    {% if user.is_private_owner %}
-                    <span class="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">私域负责人</span>
-                    {% else %}
-                    <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700">公域账号</span>
-                    {% endif %}
-                </div>
-                <p class="mt-2 text-sm text-gray-500">私域负责人只能在创建用户时设置，现有账号不可修改该状态。如需私域账号，请新建用户。</p>
-            </div>
-
-            <div>
                 <label for="teacher_scope" class="block text-sm font-medium text-gray-700">班主任服务范围</label>
                 <div class="mt-1">
                     {% if user.role == 'teacher_supervisor' %}
                     <select name="teacher_scope" id="teacher_scope"
                             class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
                         <option value="all" {% if (user.teacher_scope or 'all') == 'all' %}selected{% endif %}>公私域都可分配</option>
+                        <option value="public_only" {% if user.teacher_scope == 'public_only' %}selected{% endif %}>仅公域客户</option>
                         <option value="private_only" {% if user.teacher_scope == 'private_only' %}selected{% endif %}>仅私域客户</option>
                     </select>
                     {% else %}
@@ -85,7 +74,7 @@
                            class="block w-full rounded-md border-gray-300 bg-gray-50 shadow-sm sm:text-sm">
                     {% endif %}
                 </div>
-                <p class="mt-2 text-sm text-gray-500">仅班主任可配置。设置为“仅私域客户”后，将无法在公域客户中被选择。</p>
+                <p class="mt-2 text-sm text-gray-500">仅班主任可配置。设置为“仅公域客户/仅私域客户”后，仅可服务对应归属域数据。</p>
             </div>
 
             <div class="flex items-center justify-between pt-6 border-t border-gray-200">
