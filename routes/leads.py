@@ -42,9 +42,7 @@ def can_view_lead_record(lead):
     if current_user.is_teacher_supervisor():
         return True
 
-    if current_user.is_salesperson():
-        return lead.sales_user_id == current_user.id
-
+    # 公域销售管理可以看到所有公域销售的线索（只读）
     if current_user.is_sales_manager():
         if is_private_owner_user(current_user):
             return False
@@ -361,15 +359,8 @@ def list_leads():
             Lead.private_owner_id == current_user.id
         )
         effective_scope_filter = PRIVATE_SCOPE
-    elif current_user.is_salesperson():
-        # 普通销售仅可查看自己负责的公域线索
-        query = query.filter(
-            Lead.sales_user_id == current_user.id,
-            Lead.customer_scope == PUBLIC_SCOPE
-        )
-        effective_scope_filter = PUBLIC_SCOPE
     elif current_user.is_sales_manager():
-        # 销售管理仅查看销售体系的公域线索
+        # 公域销售管理可看所有公域销售的线索（只读，只能编辑自己的）
         allowed_ids = db.session.query(User.id).filter(
             User.role.in_(['sales_manager', 'salesperson']),
             User.status == True
@@ -593,18 +584,14 @@ def brainstorm_list():
     # 基础查询：参照班主任头脑风暴列表，只显示首笔支付阶段线索
     query = Lead.query.filter(Lead.stage == '首笔支付')
 
-    # 权限控制：私域负责人仅看自己私域；普通销售体系仅看公域
+    # 权限控制：私域销售管理仅看自己私域；公域销售管理看所有公域
     if is_private_owner_user(current_user):
         query = query.filter(
             Lead.customer_scope == PRIVATE_SCOPE,
             Lead.private_owner_id == current_user.id
         )
-    elif current_user.is_salesperson():
-        query = query.filter(
-            Lead.sales_user_id == current_user.id,
-            Lead.customer_scope == PUBLIC_SCOPE
-        )
     elif current_user.is_sales_manager():
+        # 公域销售管理可看所有公域销售的线索
         allowed_ids = db.session.query(User.id).filter(
             User.role.in_(['sales_manager', 'salesperson']),
             User.status == True
@@ -778,10 +765,7 @@ def add_lead():
             flash('选择的销售人员无效', 'error')
             return render_template('leads/add.html', sales_users=get_available_sales_users_for_assignment(current_user))
 
-        # 检查权限：销售角色只能分配给自己
-        if current_user.is_salesperson() and assigned_sales_id != current_user.id:
-            flash('您只能创建分配给自己的线索', 'error')
-            return render_template('leads/add.html', sales_users=get_available_sales_users_for_assignment(current_user))
+        # 注：销售管理角色可以分配给任何销售人员，无需额外限制
 
         # 私域负责人账号只能创建自己的私域线索
         if is_private_mode and assigned_sales_id != current_user.id:
@@ -957,9 +941,6 @@ def get_available_sales_users_for_assignment(current_user):
     if current_user.is_admin() or current_user.is_sales_manager():
         # 管理员和销售管理可以分配给任何销售人员
         return get_sales_users()
-    elif current_user.is_salesperson():
-        # 销售只能分配给自己
-        return [current_user]
     else:
         return []
 
@@ -1547,20 +1528,15 @@ def convert_to_customer(lead_id):
 
     # 权限控制：
     # - 管理员：可以为所有线索转客户
-    # - 销售管理：可以为所有销售角色（普通销售和销售管理）负责的线索转客户
-    # - 普通销售：没有转客户权限
-    if current_user.is_salesperson() and not is_private_owner_user(current_user):
-        return jsonify({'success': False, 'message': '您没有权限操作转客户功能，请联系销售管理'})
-    
-    # 销售管理只能为销售角色负责的线索转客户（不能为管理员、班主任等其他角色负责的线索转客户）
+    # - 销售管理：可以为自己负责的线索转客户
     if current_user.is_sales_manager() and not is_private_owner_user(current_user):
         lead_owner = User.query.get(lead.sales_user_id)
         if not lead_owner or not lead_owner.is_sales():
             return jsonify({'success': False, 'message': '您只能为销售角色负责的线索转客户'})
 
-    # 检查线索是否已经是次笔支付或全款支付阶段
-    if lead.stage not in ['次笔支付', '全款支付']:
-        return jsonify({'success': False, 'message': '只有次笔支付或全款支付阶段的线索才能转换为客户'})
+    # 首笔支付后即可转客户（分配班主任）
+    if lead.stage not in ['首笔支付', '次笔支付', '全款支付']:
+        return jsonify({'success': False, 'message': '只有首笔支付及以后阶段的线索才能转换为客户'})
 
     # 检查是否已经转换过
     if lead.customer:
@@ -1598,15 +1574,19 @@ def convert_to_customer(lead_id):
         # 使用原生SQL插入以避免SQLAlchemy验证问题
         from sqlalchemy import text
 
+        # 根据当前付款笔数确定客户阶段
+        payments_count = Payment.query.filter_by(lead_id=lead.id).count()
+        initial_phase = 'service_delivery' if payments_count >= 2 else 'brainstorm'
+
         insert_sql = text("""
             INSERT INTO customers (
                 lead_id, sales_user_id, teacher_user_id, payment_amount,
                 exam_year, converted_at, award_requirement, created_at, updated_at, is_priority,
-                customer_scope, private_owner_id
+                customer_scope, private_owner_id, phase
             ) VALUES (
                 :lead_id, :sales_user_id, :teacher_user_id, :payment_amount,
                 :exam_year, :converted_at, :award_requirement, :created_at, :updated_at, :is_priority,
-                :customer_scope, :private_owner_id
+                :customer_scope, :private_owner_id, :phase
             )
         """)
 
@@ -1616,21 +1596,23 @@ def convert_to_customer(lead_id):
             'sales_user_id': lead.sales_user_id,
             'teacher_user_id': teacher_id,
             'payment_amount': 0,
-            # ✨ 不再复制 competition_award_level 和 additional_requirements
-            # 这些字段通过 customer.lead 关联从线索表读取，保证单一数据源
             'exam_year': exam_year,
             'converted_at': now,
-            'award_requirement': lead.competition_award_level or '无',  # 兼容旧字段
+            'award_requirement': lead.competition_award_level or '无',
             'created_at': now,
             'updated_at': now,
             'is_priority': False,
             'customer_scope': scope,
-            'private_owner_id': lead.private_owner_id
+            'private_owner_id': lead.private_owner_id,
+            'phase': initial_phase
         })
 
         # 获取新插入的customer_id
         customer_id = result.lastrowid
         db.session.flush()
+
+        # 同步设置 Lead.teacher_user_id
+        lead.teacher_user_id = teacher_id
 
         # 创建交付记录（总课程数由销售维护，默认6）
         total_sessions = lead.contract_total_sessions if lead.contract_total_sessions is not None else 6
@@ -1642,11 +1624,10 @@ def convert_to_customer(lead_id):
         )
         db.session.add(tutoring_delivery)
 
-        # 赛事记录通过 customer_competitions 表管理，这里不需要自动创建
-
         db.session.commit()
 
-        message = f'线索 {lead.student_name} 已成功转换为客户，已分配给班主任 {teacher.username}'
+        phase_label = '头脑风暴' if initial_phase == 'brainstorm' else '服务交付'
+        message = f'线索 {lead.student_name} 已成功转换为客户（{phase_label}阶段），已分配给班主任 {teacher.username}'
 
         return jsonify({'success': True, 'message': message})
     except Exception as e:
@@ -1705,6 +1686,12 @@ def add_payment():
         # 自动更新线索的支付时间
         update_lead_payment_times(lead)
 
+        # 自动切换客户阶段：次笔支付后自动从"头脑风暴"转为"服务交付"
+        if lead.customer:
+            payments_count = Payment.query.filter_by(lead_id=lead.id).count()
+            if payments_count >= 2 and lead.customer.phase == Customer.PHASE_BRAINSTORM:
+                lead.customer.phase = Customer.PHASE_SERVICE_DELIVERY
+
         db.session.commit()
 
         return jsonify({'success': True, 'message': '付款记录添加成功'})
@@ -1735,6 +1722,14 @@ def delete_payment(payment_id):
 
         # 自动更新线索的支付时间
         update_lead_payment_times(lead)
+
+        # 删除付款后重新检查客户阶段（可能需要回退到头脑风暴）
+        if lead and lead.customer:
+            payments_count = Payment.query.filter_by(lead_id=lead.id).count()
+            if payments_count < 2:
+                lead.customer.phase = Customer.PHASE_BRAINSTORM
+            else:
+                lead.customer.phase = Customer.PHASE_SERVICE_DELIVERY
 
         db.session.commit()
 

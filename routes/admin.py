@@ -71,9 +71,8 @@ def dashboard():
         db.func.date(LoginLog.login_time) == today
     ).count()
 
-    # 角色分布
-    sales_manager_count = User.query.filter_by(role='sales_manager', status=True).count()
-    salesperson_count = User.query.filter_by(role='salesperson', status=True).count()
+    # 角色分布（salesperson已合并到sales_manager）
+    sales_manager_count = User.query.filter(User.role.in_(['sales_manager', 'salesperson']), User.status == True).count()
     teacher_count = User.query.filter_by(role='teacher', status=True).count()
     admin_count = User.query.filter_by(role='admin', status=True).count()
 
@@ -92,7 +91,6 @@ def dashboard():
                          recent_logins=recent_logins,
                          today_logins=today_logins,
                          sales_manager_count=sales_manager_count,
-                         salesperson_count=salesperson_count,
                          teacher_count=teacher_count,
                          admin_count=admin_count,
                          total_leads=total_leads,
@@ -218,8 +216,8 @@ def add_user():
                 flash('系统只允许创建一个管理员账号', 'error')
                 return render_template('admin/add_user.html')
 
-        # 私域负责人仅支持销售体系角色
-        if role not in ['sales_manager', 'salesperson']:
+        # 私域负责人仅支持销售管理角色
+        if role != 'sales_manager':
             is_private_owner = False
 
         # 班主任服务范围仅支持班主任角色
@@ -598,11 +596,10 @@ def edit_lead_form(lead_id):
             User.teacher_scope == ''
         ))
     elif lead_scope == Lead.SCOPE_PRIVATE:
-        teacher_users_query = teacher_users_query.filter(db.or_(
-            User.teacher_scope != User.TEACHER_SCOPE_PUBLIC_ONLY,
-            User.teacher_scope.is_(None),
-            User.teacher_scope == ''
-        ))
+        # 私域线索可分配给：仅私域班主任 或 公私域都可分配的班主任
+        # 即排除那些只能服务公域的班主任（但当前设计中不存在这样的scope）
+        # 所以这里实际上是允许所有班主任
+        pass
     teacher_users = teacher_users_query.order_by(User.username.asc()).all()
 
     # 若当前已分配班主任不在筛选结果中，追加以保证可见

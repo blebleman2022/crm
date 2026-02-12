@@ -112,7 +112,7 @@ def dashboard():
 @login_required
 @teacher_supervisor_required
 def leads_list():
-    """班主任线索管理"""
+    """头脑风暴 - 班主任只看销售分配给自己的线索（已转客户且处于头脑风暴阶段）"""
     page = request.args.get('page', 1, type=int)
     search = request.args.get('search', '', type=str)
     start_date = request.args.get('start_date', '', type=str)
@@ -122,24 +122,13 @@ def leads_list():
     if start_date and not end_date:
         end_date = datetime.now().strftime('%Y-%m-%d')
 
-    # 基础查询：
-    # - 常规班主任：仅显示首笔支付阶段线索
-    # - 仅公域班主任：仅显示公域首笔支付线索
-    # - 仅私域班主任：仅显示私域首笔支付线索
-    if current_user.is_private_only_teacher_supervisor():
-        query = Lead.query.filter(
-            Lead.stage == '首笔支付',
-            Lead.customer_scope == Lead.SCOPE_PRIVATE
-        )
-    elif current_user.is_public_only_teacher_supervisor():
-        # 公域班主任仅看公域线索，且屏蔽私域负责人提交的数据
-        query = Lead.query.filter(
-            Lead.stage == '首笔支付',
-            Lead.customer_scope == Lead.SCOPE_PUBLIC,
-            Lead.private_owner_id.is_(None)
-        )
-    else:
-        query = Lead.query.filter(Lead.stage == '首笔支付')
+    # 基础查询：班主任只看分配给自己的线索（通过 teacher_user_id 关联）
+    # 且对应客户处于头脑风暴阶段
+    query = Lead.query.filter(
+        Lead.teacher_user_id == current_user.id
+    ).join(Customer, Customer.lead_id == Lead.id).filter(
+        Customer.phase == Customer.PHASE_BRAINSTORM
+    )
 
     # 搜索过滤（学员姓名或家长微信名）
     if search:

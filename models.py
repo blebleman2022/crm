@@ -44,11 +44,11 @@ class User(UserMixin, db.Model):
         return self.role == 'sales_manager'
 
     def is_salesperson(self):
-        """是否为销售角色"""
-        return self.role == 'salesperson'
+        """[已废弃] 是否为销售角色 - salesperson角色已合并到sales_manager"""
+        return self.role in ['salesperson', 'sales_manager']
 
     def is_sales(self):
-        """是否为销售相关角色（包括销售管理和销售）"""
+        """是否为销售相关角色（只包括销售管理）"""
         return self.role in ['sales_manager', 'salesperson']
 
     def is_private_owner_account(self):
@@ -86,6 +86,14 @@ class User(UserMixin, db.Model):
     def is_private_only_teacher_supervisor(self):
         """是否为仅私域班主任账号"""
         return self.is_teacher_supervisor() and self.get_teacher_scope() == self.TEACHER_SCOPE_PRIVATE_ONLY
+
+    def is_public_only_teacher_supervisor(self):
+        """是否为仅公域班主任账号（teacher_scope不是private_only）"""
+        if not self.is_teacher_supervisor():
+            return False
+        scope = self.get_teacher_scope()
+        # 仅公域班主任：scope为'all'或其他非'private_only'的值
+        return scope != self.TEACHER_SCOPE_PRIVATE_ONLY
 
     def has_private_customers(self):
         """班主任是否存在私域客户"""
@@ -131,6 +139,7 @@ class Lead(db.Model):
     district = db.Column(db.String(20), comment='行政区')
     school = db.Column(db.String(100), comment='学校')
     sales_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, comment='责任销售ID')
+    teacher_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), comment='分配的班主任ID（首笔支付后由销售分配）')
     customer_scope = db.Column(db.String(20), nullable=False, default=SCOPE_PUBLIC, comment='归属域：public/private')
     private_owner_id = db.Column(db.Integer, db.ForeignKey('users.id'), comment='私域归属人ID')
     stage = db.Column(db.String(50), nullable=False, comment='线索阶段')
@@ -162,6 +171,7 @@ class Lead(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # 关联关系（添加级联删除保护）
+    teacher_user = db.relationship('User', foreign_keys=[teacher_user_id], backref='assigned_leads', lazy='joined')
     private_owner = db.relationship('User', foreign_keys=[private_owner_id], backref='private_leads', lazy='joined')
     customer = db.relationship('Customer', backref='lead', uselist=False,
                               cascade='all, delete-orphan')
@@ -245,9 +255,14 @@ class Customer(db.Model):
     """成交客户表"""
     __tablename__ = 'customers'
 
+    # 客户阶段常量
+    PHASE_BRAINSTORM = 'brainstorm'           # 头脑风暴阶段（次笔支付前）
+    PHASE_SERVICE_DELIVERY = 'service_delivery'  # 服务交付阶段（次笔支付后）
+
     id = db.Column(db.Integer, primary_key=True)
     lead_id = db.Column(db.Integer, db.ForeignKey('leads.id'), nullable=False, comment='关联线索ID')
     teacher_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), comment='责任班主任ID（User表，role=teacher_supervisor）')
+    phase = db.Column(db.String(30), nullable=False, default=PHASE_BRAINSTORM, comment='客户阶段：brainstorm/service_delivery')
     teacher_id = db.Column(db.Integer, db.ForeignKey('teachers.user_id'), comment='辅导老师ID（User表ID）')
     customer_scope = db.Column(db.String(20), nullable=False, default=Lead.SCOPE_PUBLIC, comment='归属域：public/private')
     private_owner_id = db.Column(db.Integer, db.ForeignKey('users.id'), comment='私域归属人ID')

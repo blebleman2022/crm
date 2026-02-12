@@ -782,6 +782,95 @@ def init_database(app):
                 print(f"⚠️ topic_submissions表创建失败: {e}")
                 db.session.rollback()
 
+            # ========== 业务规则重构迁移 ==========
+
+            # 1. Lead表新增 teacher_user_id 字段
+            try:
+                db.session.execute(text("ALTER TABLE leads ADD COLUMN teacher_user_id INTEGER REFERENCES users(id)"))
+                db.session.commit()
+                print("✅ leads.teacher_user_id字段添加成功")
+            except Exception as e:
+                if "duplicate column name" in str(e).lower():
+                    print("✅ leads.teacher_user_id字段已存在")
+                else:
+                    print(f"⚠️ leads.teacher_user_id字段添加失败: {e}")
+                db.session.rollback()
+
+            # 2. Customer表新增 phase 字段
+            try:
+                db.session.execute(text("ALTER TABLE customers ADD COLUMN phase VARCHAR(30) NOT NULL DEFAULT 'brainstorm'"))
+                db.session.commit()
+                print("✅ customers.phase字段添加成功")
+            except Exception as e:
+                if "duplicate column name" in str(e).lower():
+                    print("✅ customers.phase字段已存在")
+                else:
+                    print(f"⚠️ customers.phase字段添加失败: {e}")
+                db.session.rollback()
+
+            # 3. 将所有 salesperson 角色升级为 sales_manager
+            try:
+                result = db.session.execute(text("""
+                    UPDATE users SET role = 'sales_manager'
+                    WHERE role = 'salesperson'
+                """))
+                db.session.commit()
+                upgraded = result.rowcount
+                if upgraded > 0:
+                    print(f"✅ 已将 {upgraded} 个 salesperson 升级为 sales_manager")
+                else:
+                    print("✅ 无需升级 salesperson（已全部为 sales_manager）")
+            except Exception as e:
+                print(f"⚠️ 升级salesperson失败: {e}")
+                db.session.rollback()
+
+            # 4. 回填 Lead.teacher_user_id（从已有的 Customer.teacher_user_id 回填）
+            try:
+                db.session.execute(text("""
+                    UPDATE leads
+                    SET teacher_user_id = (
+                        SELECT customers.teacher_user_id
+                        FROM customers
+                        WHERE customers.lead_id = leads.id
+                          AND customers.teacher_user_id IS NOT NULL
+                    )
+                    WHERE teacher_user_id IS NULL
+                      AND EXISTS (
+                          SELECT 1 FROM customers
+                          WHERE customers.lead_id = leads.id
+                            AND customers.teacher_user_id IS NOT NULL
+                      )
+                """))
+                db.session.commit()
+                print("✅ 已回填 Lead.teacher_user_id（从 Customer.teacher_user_id）")
+            except Exception as e:
+                print(f"⚠️ 回填Lead.teacher_user_id失败: {e}")
+                db.session.rollback()
+
+            # 5. 根据付款笔数设置 Customer.phase
+            try:
+                # 有2笔及以上付款的客户 → service_delivery
+                db.session.execute(text("""
+                    UPDATE customers
+                    SET phase = 'service_delivery'
+                    WHERE lead_id IN (
+                        SELECT lead_id FROM payments
+                        GROUP BY lead_id
+                        HAVING COUNT(*) >= 2
+                    )
+                """))
+                # 其余客户保持 brainstorm（默认值）
+                db.session.execute(text("""
+                    UPDATE customers
+                    SET phase = 'brainstorm'
+                    WHERE phase IS NULL OR phase = ''
+                """))
+                db.session.commit()
+                print("✅ 已根据付款笔数设置 Customer.phase")
+            except Exception as e:
+                print(f"⚠️ 设置Customer.phase失败: {e}")
+                db.session.rollback()
+
         except Exception as e:
             print(f"❌ 数据库迁移失败: {e}")
             db.session.rollback()
@@ -826,7 +915,8 @@ def main():
             app.run(
                 host=host,
                 port=int(os.environ.get('PORT', 5002)),
-                debug=(config_name == 'development')
+                debug=(config_name == 'development'),
+                use_reloader=False  # 禁用自动重载,避免Windows下watchdog问题
             )
     
     elif command == 'test':

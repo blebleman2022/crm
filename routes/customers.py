@@ -61,16 +61,10 @@ def can_view_customer_record(customer):
     if current_user.is_teacher_supervisor():
         return customer.teacher_user_id == current_user.id
 
-    if current_user.is_salesperson():
-        return bool(
-            customer.lead and
-            customer.lead.sales_user_id == current_user.id and
-            customer.teacher_user_id is not None
-        )
-
     if current_user.is_sales_manager():
         if is_private_owner_user(current_user):
             return False
+        # 公域销售管理可以看到所有公域销售的客户（只读）
         return bool(customer.lead and customer.lead.sales_user and customer.lead.sales_user.is_sales())
 
     if current_user.role == 'teacher':
@@ -163,6 +157,7 @@ def list_customers():
     completed = request.args.get('completed', '', type=str)  # 已完成筛选
     exam_year_filter = request.args.get('exam_year', '', type=str)  # 中高考时间筛选
     award_level_filter = request.args.get('award_level', '', type=str)  # 奖项要求筛选
+    phase_filter = request.args.get('phase', '', type=str)  # 客户阶段筛选
     requested_scope_filter = normalize_scope(request.args.get('scope', '', type=str))
 
     # 时间段筛选参数（按客户新增时间）
@@ -203,16 +198,8 @@ def list_customers():
             effective_scope_filter = requested_scope_filter
         else:
             effective_scope_filter = 'all'
-    elif current_user.is_salesperson():
-        # 普通销售只能看到自己负责且已分配班主任的公域客户
-        query = query.filter(
-            Lead.sales_user_id == current_user.id,
-            Customer.teacher_user_id.isnot(None),
-            Customer.customer_scope == PUBLIC_SCOPE
-        )
-        effective_scope_filter = PUBLIC_SCOPE
     elif current_user.is_sales_manager():
-        # 销售管理仅看销售体系公域客户
+        # 公域销售管理可看所有公域销售的客户（只读，只能编辑自己的）
         allowed_ids = db.session.query(User.id).filter(
             User.role.in_(['sales_manager', 'salesperson']),
             User.status == True
@@ -225,6 +212,10 @@ def list_customers():
     elif current_user.is_admin() and requested_scope_filter:
         query = query.filter(Customer.customer_scope == requested_scope_filter)
         effective_scope_filter = requested_scope_filter
+
+    # 客户阶段筛选
+    if phase_filter in [Customer.PHASE_BRAINSTORM, Customer.PHASE_SERVICE_DELIVERY]:
+        query = query.filter(Customer.phase == phase_filter)
 
     # 搜索过滤
     if search:
@@ -389,7 +380,8 @@ def list_customers():
                          competition_award_achieved=competition_award_achieved,
                          exam_year_filter=exam_year_filter,
                          award_level_filter=award_level_filter,
-                         exam_years=exam_years)
+                         exam_years=exam_years,
+                         phase_filter=phase_filter)
 
 @customers_bp.route('/<int:customer_id>/detail')
 @login_required

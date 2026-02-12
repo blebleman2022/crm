@@ -69,8 +69,8 @@
                     <li>
                         <a class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium {% if request.endpoint == 'delivery.leads_list' %}text-white bg-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}"
                            href="{{ url_for('delivery.leads_list') }}">
-                            <span class="material-symbols-outlined text-lg {% if request.endpoint == 'delivery.leads_list' %}text-white{% else %}text-gray-500{% endif %}">campaign</span>
-                            线索管理
+                            <span class="material-symbols-outlined text-lg {% if request.endpoint == 'delivery.leads_list' %}text-white{% else %}text-gray-500{% endif %}">lightbulb</span>
+                            头脑风暴
                         </a>
                     </li>
                     {% elif current_user.role != 'teacher_supervisor' %}
@@ -122,7 +122,7 @@
                         <a class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium {% if customer_page_active and not teacher_private_customers_view %}text-white bg-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}"
                            href="{{ url_for('customers.list_customers') }}">
                             <span class="material-symbols-outlined text-lg {% if customer_page_active and not teacher_private_customers_view %}text-white{% else %}text-gray-500{% endif %}">group</span>
-                            客户管理
+                            服务交付
                         </a>
                     </li>
                     {% if show_private_customer_entry %}

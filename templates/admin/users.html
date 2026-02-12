@@ -37,7 +37,6 @@
                     <option value="">所有角色</option>
                     <option value="admin" {% if role_filter == 'admin' %}selected{% endif %}>管理员</option>
                     <option value="sales_manager" {% if role_filter == 'sales_manager' %}selected{% endif %}>销售管理</option>
-                    <option value="salesperson" {% if role_filter == 'salesperson' %}selected{% endif %}>销售</option>
                     <option value="teacher_supervisor" {% if role_filter == 'teacher_supervisor' %}selected{% endif %}>班主任</option>
                 </select>
             </div>
@@ -84,7 +83,7 @@
                                     <span class="ml-1 inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">私域</span>
                                 {% endif %}
                             {% elif user.role == 'salesperson' %}
-                                <span class="inline-flex items-center rounded-full bg-cyan-100 px-2.5 py-0.5 text-xs font-medium text-cyan-800">销售</span>
+                                <span class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">销售管理</span>
                                 {% if user.is_private_owner %}
                                     <span class="ml-1 inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">私域</span>
                                 {% endif %}

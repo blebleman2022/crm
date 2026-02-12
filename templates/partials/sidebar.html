@@ -35,12 +35,12 @@
                 </div>
             </div>
             
-            <!-- 客户管理 -->
+            <!-- 服务交付 -->
             {% if current_user.is_sales() or current_user.is_admin() %}
             <div class="space-y-1">
                 <div class="flex items-center px-4 py-2 text-sm font-medium text-gray-300">
                     <span class="material-symbols-outlined mr-3">groups</span>
-                    客户管理
+                    服务交付
                 </div>
                 <div class="ml-8 space-y-1">
                     <a href="{{ url_for('customers.list_customers') }}"
@@ -185,12 +185,12 @@
                     </div>
                 </div>
 
-                <!-- 客户管理 -->
+                <!-- 服务交付 -->
                 {% if current_user.is_sales() or current_user.is_admin() %}
                 <div class="space-y-1">
                     <div class="flex items-center px-4 py-2 text-sm font-medium text-gray-300">
                         <span class="material-symbols-outlined mr-3">groups</span>
-                        客户管理
+                        服务交付
                     </div>
                     <div class="ml-8 space-y-1">
                         <a href="{{ url_for('customers.list_customers') }}"

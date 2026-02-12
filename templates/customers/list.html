@@ -1,7 +1,7 @@
 {% extends "leads/base.html" %}
 
-{% block title %}客户管理 - EduConnect CRM{% endblock %}
-{% block page_title %}客户管理{% endblock %}
+{% block title %}服务交付 - EduConnect CRM{% endblock %}
+{% block page_title %}服务交付{% endblock %}
 
 {% block content %}
 <div class="max-w-7xl mx-auto">
@@ -43,8 +43,17 @@
                 </div>
             </div>
 
-            <!-- 第二行：中高考时间、奖项要求 -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <!-- 第二行：客户阶段、中高考时间、奖项要求 -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <select class="block w-full rounded-md border-0 py-2.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"
+                            name="phase">
+                        <option value="">所有阶段</option>
+                        <option value="brainstorm" {% if phase_filter == 'brainstorm' %}selected{% endif %}>头脑风暴</option>
+                        <option value="service_delivery" {% if phase_filter == 'service_delivery' %}selected{% endif %}>服务交付</option>
+                    </select>
+                </div>
+
                 <div>
                     <select class="block w-full rounded-md border-0 py-2.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"
                             name="exam_year">
@@ -144,6 +153,7 @@
                             </div>
                         </th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500" style="max-width: 150px;">学校</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">阶段</th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">责任销售</th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">班主任</th>
                         {% if not hide_tutor_teacher_column %}
@@ -197,6 +207,15 @@
                         <td class="px-6 py-4 text-sm text-gray-500" style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                             {% if customer.lead.school %}
                                 <span title="{{ customer.lead.school }}">{{ customer.lead.school }}</span>
+                            {% else %}
+                                <span class="text-gray-400">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm">
+                            {% if customer.phase == 'brainstorm' %}
+                                <span class="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800">头脑风暴</span>
+                            {% elif customer.phase == 'service_delivery' %}
+                                <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">服务交付</span>
                             {% else %}
                                 <span class="text-gray-400">-</span>
                             {% endif %}

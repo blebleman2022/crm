@@ -235,10 +235,10 @@
                 <span class="material-symbols-outlined text-blue-600 mr-3">info</span>
                 <div>
                     <h3 class="text-lg font-medium text-blue-900">待转化客户</h3>
-                    <p class="text-blue-700">该线索尚未转化为客户，可在次笔支付后进行转化。</p>
+                    <p class="text-blue-700">该线索尚未转化为客户，可在首笔支付后进行转化。</p>
                 </div>
             </div>
-            {% if lead.stage == '次笔支付' %}
+            {% if lead.stage in ['首笔支付', '次笔支付', '全款支付'] %}
             <button onclick="convertToCustomer({{ lead.id }})" 
                     class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
                 <span class="material-symbols-outlined mr-2">person_add</span>

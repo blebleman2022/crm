@@ -40,15 +40,13 @@
                         <option value="">请选择角色</option>
                         <option value="admin">管理员</option>
                         <option value="sales_manager">销售管理</option>
-                        <option value="salesperson">销售</option>
                         <option value="teacher_supervisor">班主任</option>
                     </select>
                 </div>
                 <p class="mt-2 text-sm text-gray-500">
                     <strong>管理员</strong>：系统全权限；
-                    <strong>销售管理</strong>：线索和客户管理、付款管理、转客户；
-                    <strong>销售</strong>：线索管理（仅自己负责的）；
-                    <strong>班主任</strong>：服务交付管理、辅导老师管理
+                    <strong>销售管理</strong>：线索和客户管理、付款管理、转客户（分公域/私域）；
+                    <strong>班主任</strong>：头脑风暴、服务交付管理
                 </p>
             </div>
 
@@ -115,7 +113,7 @@ const teacherScopeSection = document.getElementById('teacherScopeSection');
 const teacherScopeSelect = document.getElementById('teacher_scope');
 
 function syncRoleToggles() {
-    const isSalesRole = ['sales_manager', 'salesperson'].includes(roleSelect.value);
+    const isSalesRole = roleSelect.value === 'sales_manager';
     const isTeacherSupervisor = roleSelect.value === 'teacher_supervisor';
 
     privateOwnerCheckbox.disabled = !isSalesRole;

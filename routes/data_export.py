@@ -152,7 +152,7 @@ def download_data():
                                 role_map = {
                                     'admin': '管理员',
                                     'sales_manager': '销售管理',
-                                    'salesperson': '销售专员',
+                                    'salesperson': '销售管理',
                                     'teacher_supervisor': '班主任',
                                     'teacher': '老师'
                                 }

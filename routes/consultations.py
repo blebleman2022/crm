@@ -42,16 +42,17 @@ def list_consultations():
         query = db.session.query(Lead).filter(Lead.meeting_at.isnot(None))
 
         # 权限过滤
-        if current_user.role == 'salesperson':
-            # 销售只能看到自己负责的线索
-            query = query.filter(Lead.sales_user_id == current_user.id)
-        elif current_user.role == 'sales_manager':
-            # 销售管理可以看到所有销售和销售管理负责的线索
-            allowed_ids = db.session.query(User.id).filter(
-                User.role.in_(['sales_manager', 'salesperson']),
-                User.status == True
-            ).subquery()
-            query = query.filter(Lead.sales_user_id.in_(allowed_ids))
+        if current_user.is_sales_manager():
+            if current_user.is_private_owner:
+                # 私域销售管理只能看到自己负责的线索
+                query = query.filter(Lead.sales_user_id == current_user.id)
+            else:
+                # 公域销售管理可以看到所有公域销售的线索
+                allowed_ids = db.session.query(User.id).filter(
+                    User.role.in_(['sales_manager', 'salesperson']),
+                    User.status == True
+                ).subquery()
+                query = query.filter(Lead.sales_user_id.in_(allowed_ids))
         # admin角色可以看到所有
 
         leads_with_meetings = query.order_by(Lead.meeting_at.desc()).all()

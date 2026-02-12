@@ -31,6 +31,7 @@ instance/*_backup_*.db
 .venv
 env/
 venv/
+venv_win/
 ENV/
 env.bak/
 venv.bak/

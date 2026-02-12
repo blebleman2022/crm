@@ -32,8 +32,8 @@
     <div class="bg-white p-3 lg:p-4 rounded-lg shadow-sm mobile-filters">
         <!-- 搜索和筛选（桌面端一行，移动端自动换行） -->
         <form method="GET" class="space-y-3 lg:space-y-4 mb-4">
-            {% if current_user.is_salesperson() or current_user.is_private_owner %}
-            <!-- 销售角色：只显示搜索和阶段筛选 -->
+            {% if current_user.is_private_owner %}
+            <!-- 私域销售：只显示搜索和阶段筛选 -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                     <label class="sr-only" for="search">搜索</label>
@@ -323,7 +323,7 @@
                                     <button onclick="editLead({{ lead.id }}, {{ lead.sales_user_id }})"
                                             class="text-blue-600 hover:text-blue-800 bg-transparent border-none cursor-pointer">编辑</button>
                                     {% set can_convert = false %}
-                                    {% if not lead.customer and lead.stage in ['次笔支付', '全款支付'] %}
+                                    {% if not lead.customer and lead.stage in ['首笔支付', '次笔支付', '全款支付'] %}
                                         {% set can_convert = true %}
                                     {% endif %}
                                     {% if can_convert %}
@@ -416,8 +416,8 @@ function editLead(leadId, leadSalesUserId) {
         return;
     }
 
-    // 销售相关角色只能编辑自己负责的线索
-    if ((currentUserRole === 'sales_manager' || currentUserRole === 'salesperson') && leadSalesUserId !== currentUserId) {
+    // 销售管理只能编辑自己负责的线索（公域销售可看所有但只能编辑自己的）
+    if (currentUserRole === 'sales_manager' && leadSalesUserId !== currentUserId) {
         alert('不能更改其他销售负责的线索信息');
         return;
     }
@@ -480,13 +480,6 @@ function applyConvertTeacherScopeFilter(scope) {
 
 // 转换为客户 - 显示班主任选择模态框
 function convertToCustomer(leadId, studentName, scope) {
-    // 权限检查：普通销售没有转客户权限
-    const currentUserRole = '{{ current_user.role }}';
-    if (currentUserRole === 'salesperson') {
-        alert('您没有权限操作转客户功能，请联系销售管理');
-        return;
-    }
-
     currentConvertLeadId = leadId;
     currentConvertStudentName = studentName;
     currentConvertScope = normalizeScope(scope);
