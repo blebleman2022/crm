@@ -1,0 +1,17 @@
+[0;1;32m●[0m crm.service - EduConnect CRM Application
+     Loaded: loaded (]8;;file://iZuf69hbdqliku9isirlemZ/etc/systemd/system/crm.service/etc/systemd/system/crm.service]8;;; [0;1;32menabled[0m; preset: [0;1;32menabled[0m)
+     Active: [0;1;32mactive (running)[0m since Wed 2026-02-11 01:12:51 CST; 1min 19s ago
+   Main PID: 56722 (gunicorn)
+     Status: "[0;1;36mGunicorn arbiter booted[0m"
+      Tasks: 5 (limit: 1857)
+     Memory: 158.7M (peak: 159.2M)
+        CPU: 965ms
+     CGroup: /system.slice/crm.service
+             ├─[0;38;5;245m56722 /root/crm/venv/bin/python3 /root/crm/venv/bin/gunicorn --workers 4 --bind 0.0.0.0:5000 --timeout 120 --access-logfile /root/crm/logs/access.log --error-logfile /root/crm/logs/error.log --log-level info run:app[0m
+             ├─[0;38;5;245m56726 /root/crm/venv/bin/python3 /root/crm/venv/bin/gunicorn --workers 4 --bind 0.0.0.0:5000 --timeout 120 --access-logfile /root/crm/logs/access.log --error-logfile /root/crm/logs/error.log --log-level info run:app[0m
+             ├─[0;38;5;245m56727 /root/crm/venv/bin/python3 /root/crm/venv/bin/gunicorn --workers 4 --bind 0.0.0.0:5000 --timeout 120 --access-logfile /root/crm/logs/access.log --error-logfile /root/crm/logs/error.log --log-level info run:app[0m
+             ├─[0;38;5;245m56728 /root/crm/venv/bin/python3 /root/crm/venv/bin/gunicorn --workers 4 --bind 0.0.0.0:5000 --timeout 120 --access-logfile /root/crm/logs/access.log --error-logfile /root/crm/logs/error.log --log-level info run:app[0m
+             └─[0;38;5;245m56729 /root/crm/venv/bin/python3 /root/crm/venv/bin/gunicorn --workers 4 --bind 0.0.0.0:5000 --timeout 120 --access-logfile /root/crm/logs/access.log --error-logfile /root/crm/logs/error.log --log-level info run:app[0m
+
+Feb 11 01:12:49 iZuf69hbdqliku9isirlemZ systemd[1]: Starting crm.service - EduConnect CRM Application...
+Feb 11 01:12:51 iZuf69hbdqliku9isirlemZ systemd[1]: Started crm.service - EduConnect CRM Application.
