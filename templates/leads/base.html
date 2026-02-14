@@ -53,8 +53,6 @@
             <nav class="flex-1 overflow-y-auto">
                 {% set is_teacher_supervisor = current_user.is_teacher_supervisor() %}
                 {% set is_private_only_teacher = is_teacher_supervisor and current_user.get_teacher_scope() == 'private_only' %}
-                {% set teacher_has_private_customers = is_teacher_supervisor and not is_private_only_teacher and current_user.has_private_customers() %}
-                {% set show_private_customer_entry = is_teacher_supervisor and teacher_has_private_customers %}
                 <ul class="space-y-1 p-4">
                     {% if not is_private_only_teacher %}
                     <li>
@@ -71,6 +69,14 @@
                            href="{{ url_for('delivery.leads_list') }}">
                             <span class="material-symbols-outlined text-lg {% if request.endpoint == 'delivery.leads_list' %}text-white{% else %}text-gray-500{% endif %}">lightbulb</span>
                             头脑风暴
+                        </a>
+                    </li>
+                    <li>
+                        {% set customer_page_active = request.endpoint in ['customers.list_customers', 'customers.edit_customer'] %}
+                        <a class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium {% if customer_page_active %}text-white bg-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}"
+                           href="{{ url_for('customers.list_customers') }}">
+                            <span class="material-symbols-outlined text-lg {% if customer_page_active %}text-white{% else %}text-gray-500{% endif %}">group</span>
+                            服务交付
                         </a>
                     </li>
                     {% elif current_user.role != 'teacher_supervisor' %}
@@ -116,21 +122,13 @@
                         </a>
                     </li>
                     {% endif %}
+                    {% if current_user.role != 'teacher_supervisor' %}
                     <li>
                         {% set customer_page_active = request.endpoint in ['customers.list_customers', 'customers.edit_customer'] %}
-                        {% set teacher_private_customers_view = show_private_customer_entry and request.endpoint == 'customers.list_customers' and request.args.get('scope') == 'private' %}
-                        <a class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium {% if customer_page_active and not teacher_private_customers_view %}text-white bg-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}"
+                        <a class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium {% if customer_page_active %}text-white bg-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}"
                            href="{{ url_for('customers.list_customers') }}">
-                            <span class="material-symbols-outlined text-lg {% if customer_page_active and not teacher_private_customers_view %}text-white{% else %}text-gray-500{% endif %}">group</span>
+                            <span class="material-symbols-outlined text-lg {% if customer_page_active %}text-white{% else %}text-gray-500{% endif %}">group</span>
                             服务交付
-                        </a>
-                    </li>
-                    {% if show_private_customer_entry %}
-                    <li>
-                        <a class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium {% if request.endpoint == 'customers.list_customers' and request.args.get('scope') == 'private' %}text-white bg-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}"
-                           href="{{ url_for('customers.list_customers', scope='private') }}">
-                            <span class="material-symbols-outlined text-lg {% if request.endpoint == 'customers.list_customers' and request.args.get('scope') == 'private' %}text-white{% else %}text-gray-500{% endif %}">lock</span>
-                            私域客户
                         </a>
                     </li>
                     {% endif %}
@@ -157,17 +155,17 @@
             </nav>
         </aside>
 
-        <div class="flex flex-1 flex-col lg:ml-0 ml-0">
+        <div class="flex flex-1 min-w-0 flex-col lg:ml-0 ml-0">
             <!-- Header -->
             <header class="flex h-16 shrink-0 items-center justify-between whitespace-nowrap border-b border-gray-200 px-4 lg:px-10 bg-white">
-                <div class="flex items-center gap-4 lg:gap-8">
+                <div class="flex min-w-0 items-center gap-4 lg:gap-8">
                     <!-- 移动端标题简化 -->
-                    <h1 class="text-lg lg:text-2xl font-bold text-gray-900">
+                    <h1 class="truncate text-lg lg:text-2xl font-bold text-gray-900">
                         <span class="hidden sm:inline">{% block page_title %}{% if current_user.role == 'teacher_supervisor' %}服务交付{% else %}线索管理{% endif %}{% endblock %}</span>
                         <span class="sm:hidden">{% if current_user.role == 'teacher_supervisor' %}交付{% else %}线索{% endif %}</span>
                     </h1>
                 </div>
-                <div class="flex items-center gap-2 lg:gap-4">
+                <div class="flex shrink-0 items-center gap-2 lg:gap-4">
                     <div class="flex items-center gap-2">
                         <span class="text-xs lg:text-sm text-gray-700 hidden sm:inline">{{ current_user.username }}老师</span>
                         <span class="text-xs lg:text-sm text-gray-700 sm:hidden">{{ current_user.username[0] }}</span>
@@ -177,7 +175,7 @@
             </header>
 
             <!-- Main Content -->
-            <main class="flex-1 gap-4 lg:gap-8 p-4 lg:p-8">
+            <main class="min-w-0 flex-1 gap-4 lg:gap-8 p-4 lg:p-8">
                 {% block content %}{% endblock %}
             </main>
         </div>

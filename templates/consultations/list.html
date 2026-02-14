@@ -205,7 +205,7 @@
                                     <i class="fas fa-clock mr-2"></i>
                                     <div class="flex flex-col items-start">
                                         {% if lead.meeting_at %}
-                                            <span class="font-medium">{{ lead.meeting_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                                            <span class="font-medium">{{ '%02d'|format(lead.meeting_at.year % 100) }}-{{ lead.meeting_at.month }}-{{ lead.meeting_at.day }} {{ lead.meeting_at.strftime('%H:%M') }}</span>
                                             <span class="text-xs text-blue-500 mt-0.5">
                                                 {% set weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'] %}
                                                 {{ weekdays[lead.meeting_at.weekday()] }}

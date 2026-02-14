@@ -92,13 +92,78 @@ def reconciliation():
     active_tab = request.args.get('tab', 'summary')
     scope_filter = resolve_reconciliation_scope(request.args.get('scope', '', type=str))
     can_switch_scope = False
+    show_scope_switch = False
+    selected_private_owner_id = None
+    private_owner_options = []
+    show_teacher_switch = False
+    teacher_switch_options = []
+    scope_expr = func.coalesce(CustomerPayment.scope_snapshot, Customer.customer_scope, PUBLIC_SCOPE)
+
     if current_user.is_teacher_supervisor():
-        if current_user.is_private_only_teacher_supervisor():
+        assigned_scope_rows = db.session.query(
+            scope_expr.label('effective_scope'),
+            Customer.private_owner_id.label('private_owner_id')
+        ).outerjoin(
+            CustomerPayment, Customer.id == CustomerPayment.customer_id
+        ).filter(
+            Customer.teacher_user_id == current_user.id
+        ).all()
+
+        has_public_customers = any(row.effective_scope == PUBLIC_SCOPE for row in assigned_scope_rows)
+        has_private_customers = any(row.effective_scope == PRIVATE_SCOPE for row in assigned_scope_rows)
+        private_owner_ids = sorted({
+            row.private_owner_id for row in assigned_scope_rows
+            if row.effective_scope == PRIVATE_SCOPE and row.private_owner_id
+        })
+
+        # 仅“同时服务公域+私域”的班主任显示切换按钮，并按私域销售人维度切换
+        if has_public_customers and private_owner_ids:
+            show_scope_switch = True
+            requested_scope = (request.args.get('scope', '', type=str) or '').strip().lower()
+            requested_private_owner_id = request.args.get('private_owner_id', type=int)
+            if requested_scope == PRIVATE_SCOPE and requested_private_owner_id in private_owner_ids:
+                scope_filter = PRIVATE_SCOPE
+                selected_private_owner_id = requested_private_owner_id
+            else:
+                scope_filter = PUBLIC_SCOPE
+                selected_private_owner_id = None
+            private_owner_options = User.query.filter(
+                User.id.in_(private_owner_ids)
+            ).order_by(User.username.asc()).all()
+        elif has_private_customers and not has_public_customers:
             scope_filter = PRIVATE_SCOPE
         else:
-            can_switch_scope = current_user.has_private_customers()
-            if not can_switch_scope:
-                scope_filter = PUBLIC_SCOPE
+            scope_filter = PUBLIC_SCOPE
+
+    # 销售端班主任切换：按当前可见数据范围生成按钮，仅多于1位班主任时显示
+    if current_user.is_sales_manager():
+        teacher_scope_query = db.session.query(
+            Customer.teacher_user_id.label('teacher_user_id')
+        ).outerjoin(
+            CustomerPayment, Customer.id == CustomerPayment.customer_id
+        ).filter(
+            scope_expr == scope_filter
+        )
+
+        if is_private_owner_user(current_user):
+            teacher_scope_query = teacher_scope_query.filter(Customer.private_owner_id == current_user.id)
+
+        teacher_ids = sorted({
+            row.teacher_user_id for row in teacher_scope_query.all()
+            if row.teacher_user_id
+        })
+
+        if teacher_ids:
+            teacher_switch_options = User.query.filter(
+                User.id.in_(teacher_ids),
+                User.role == 'teacher_supervisor'
+            ).order_by(User.username.asc()).all()
+
+        valid_teacher_ids = {teacher.id for teacher in teacher_switch_options}
+        if teacher_user_id and teacher_user_id not in valid_teacher_ids:
+            teacher_user_id = None
+
+        show_teacher_switch = len(teacher_switch_options) > 1
 
     def parse_month(value):
         return datetime.strptime(value, '%Y-%m')
@@ -156,12 +221,13 @@ def reconciliation():
     )
 
     # 对账按scope硬隔离（付款记录优先读快照，无记录则回退客户当前scope）
-    scope_expr = func.coalesce(CustomerPayment.scope_snapshot, Customer.customer_scope, PUBLIC_SCOPE)
     query = query.filter(scope_expr == scope_filter)
 
     # 如果是班主任，只显示自己负责的客户
     if current_user.is_teacher_supervisor():
         query = query.filter(Customer.teacher_user_id == current_user.id)
+        if selected_private_owner_id:
+            query = query.filter(Customer.private_owner_id == selected_private_owner_id)
     # 如果是销售管理，可以按班主任筛选
     elif teacher_user_id:
         query = query.filter(Customer.teacher_user_id == teacher_user_id)
@@ -326,11 +392,6 @@ def reconciliation():
             'teacher_user_name': teacher_user.username if teacher_user else '未分配'
         })
 
-    # 获取所有班主任（用于筛选）
-    teacher_supervisors = []
-    if current_user.is_sales_manager() and not is_private_owner_user(current_user):
-        teacher_supervisors = User.query.filter_by(role='teacher_supervisor', status=True).all()
-
     totals = {
         'total_amount': sum(item['total_amount'] for item in payment_data),
         'first_payment': sum(item['first_payment'] for item in payment_data),
@@ -352,8 +413,12 @@ def reconciliation():
                          detail_totals=detail_totals,
                          month_columns=month_columns,
                          detail_month_totals=month_totals,
-                         teacher_supervisors=teacher_supervisors,
+                         teacher_switch_options=teacher_switch_options,
+                         show_teacher_switch=show_teacher_switch,
                          selected_teacher_id=teacher_user_id,
+                         show_scope_switch=show_scope_switch,
+                         private_owner_options=private_owner_options,
+                         selected_private_owner_id=selected_private_owner_id,
                          search=search,
                          start_date=start_date,
                          end_date=end_date,
@@ -372,13 +437,47 @@ def manage():
     start_date = request.args.get('start_date', '')
     end_date = request.args.get('end_date', '')
     scope_filter = resolve_manage_scope(request.args.get('scope', '', type=str))
-    if current_user.is_private_only_teacher_supervisor():
-        can_switch_scope = False
+    can_switch_scope = False
+    show_scope_switch = False
+    selected_private_owner_id = None
+    private_owner_options = []
+
+    scope_expr = func.coalesce(CustomerPayment.scope_snapshot, Customer.customer_scope, PUBLIC_SCOPE)
+    assigned_scope_rows = db.session.query(
+        scope_expr.label('effective_scope'),
+        Customer.private_owner_id.label('private_owner_id')
+    ).outerjoin(
+        CustomerPayment, Customer.id == CustomerPayment.customer_id
+    ).filter(
+        Customer.teacher_user_id == current_user.id
+    ).all()
+
+    has_public_customers = any(row.effective_scope == PUBLIC_SCOPE for row in assigned_scope_rows)
+    has_private_customers = any(row.effective_scope == PRIVATE_SCOPE for row in assigned_scope_rows)
+    private_owner_ids = sorted({
+        row.private_owner_id for row in assigned_scope_rows
+        if row.effective_scope == PRIVATE_SCOPE and row.private_owner_id
+    })
+
+    # 仅“同时服务公域+私域”的班主任显示切换按钮，并按私域销售人维度切换
+    if has_public_customers and private_owner_ids:
+        show_scope_switch = True
+        can_switch_scope = True
+        requested_scope = (request.args.get('scope', '', type=str) or '').strip().lower()
+        requested_private_owner_id = request.args.get('private_owner_id', type=int)
+        if requested_scope == PRIVATE_SCOPE and requested_private_owner_id in private_owner_ids:
+            scope_filter = PRIVATE_SCOPE
+            selected_private_owner_id = requested_private_owner_id
+        else:
+            scope_filter = PUBLIC_SCOPE
+            selected_private_owner_id = None
+        private_owner_options = User.query.filter(
+            User.id.in_(private_owner_ids)
+        ).order_by(User.username.asc()).all()
+    elif has_private_customers and not has_public_customers:
         scope_filter = PRIVATE_SCOPE
     else:
-        can_switch_scope = current_user.has_private_customers()
-        if not can_switch_scope:
-            scope_filter = PUBLIC_SCOPE
+        scope_filter = PUBLIC_SCOPE
 
     # 只查询当前班主任负责的客户
     query = db.session.query(
@@ -390,8 +489,9 @@ def manage():
     ).filter(
         Customer.teacher_user_id == current_user.id
     )
-    scope_expr = func.coalesce(CustomerPayment.scope_snapshot, Customer.customer_scope, PUBLIC_SCOPE)
     query = query.filter(scope_expr == scope_filter)
+    if selected_private_owner_id:
+        query = query.filter(Customer.private_owner_id == selected_private_owner_id)
 
     results = query.all()
 
@@ -509,7 +609,10 @@ def manage():
                          start_date=start_date,
                          end_date=end_date,
                          scope_filter=scope_filter,
-                         can_switch_scope=can_switch_scope)
+                         can_switch_scope=can_switch_scope,
+                         show_scope_switch=show_scope_switch,
+                         private_owner_options=private_owner_options,
+                         selected_private_owner_id=selected_private_owner_id)
 
 
 @payments_bp.route('/update/<int:customer_id>', methods=['POST'])

@@ -8,12 +8,35 @@ from werkzeug.utils import secure_filename
 
 teachers_bp = Blueprint('teachers', __name__)
 
+def admin_required(f):
+    """管理员权限装饰器"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or not current_user.is_admin():
+            flash('您没有权限访问此页面，仅管理员可访问', 'error')
+            return redirect(url_for('leads.dashboard'))
+        return f(*args, **kwargs)
+    return decorated_function
+
 def teacher_supervisor_required(f):
     """班主任角色权限装饰器（只有teacher_supervisor角色的用户可以访问）"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated or current_user.role != 'teacher_supervisor':
             flash('您没有权限访问此页面，仅班主任可访问', 'error')
+            return redirect(url_for('leads.dashboard'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def teacher_supervisor_or_admin_required(f):
+    """班主任或管理员权限装饰器"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated:
+            flash('请先登录', 'error')
+            return redirect(url_for('auth.login'))
+        if current_user.role not in {'teacher_supervisor', 'admin'}:
+            flash('您没有权限访问此页面', 'error')
             return redirect(url_for('leads.dashboard'))
         return f(*args, **kwargs)
     return decorated_function
@@ -30,19 +53,19 @@ def sales_manager_required(f):
 
 @teachers_bp.route('/list')
 @login_required
-@teacher_supervisor_required
+@teacher_supervisor_or_admin_required
 def list_teachers():
     """辅导老师列表页（role='teacher'）"""
     page = request.args.get('page', 1, type=int)
     search = request.args.get('search', '', type=str)
     status_filter = request.args.get('status', '', type=str)
 
-    # 数据隔离：只查询当前班主任创建的辅导老师（通过 Teacher 表的 created_by 关系）
-    # 先查询所有 role='teacher' 且 created_by_user_id 匹配的用户
-    user_query = User.query.filter(
-        User.role == 'teacher',
-        User.created_by_user_id == current_user.id
-    ).all()
+    # 班主任仅看自己创建的老师；管理员可看全部老师
+    user_filter = [User.role == 'teacher']
+    if current_user.role == 'teacher_supervisor':
+        user_filter.append(User.created_by_user_id == current_user.id)
+
+    user_query = User.query.filter(*user_filter).all()
     user_ids = [u.id for u in user_query]
 
     # 再查询 Teacher 表
@@ -85,7 +108,7 @@ def list_teachers():
 
 @teachers_bp.route('/add', methods=['GET', 'POST'])
 @login_required
-@teacher_supervisor_required
+@admin_required
 def add_teacher():
     """添加辅导老师（User 表存储登录信息，Teacher 表存储专业信息）"""
     if request.method == 'POST':
@@ -154,14 +177,18 @@ def add_teacher():
 
 @teachers_bp.route('/edit/<int:teacher_id>', methods=['GET', 'POST'])
 @login_required
-@teacher_supervisor_required
+@teacher_supervisor_or_admin_required
 def edit_teacher(teacher_id):
     """编辑辅导老师"""
     # teacher_id 实际是 User.id
     user = User.query.get_or_404(teacher_id)
 
     # 权限检查：只能编辑自己创建的老师，且必须是 role='teacher'
-    if user.created_by_user_id != current_user.id or user.role != 'teacher':
+    if user.role != 'teacher':
+        flash('仅可编辑老师账号', 'error')
+        return redirect(url_for('teachers.list_teachers'))
+
+    if (not current_user.is_admin()) and user.created_by_user_id != current_user.id:
         flash('您只能编辑自己创建的辅导老师信息', 'error')
         return redirect(url_for('teachers.list_teachers'))
 
@@ -204,14 +231,18 @@ def edit_teacher(teacher_id):
 
 @teachers_bp.route('/detail/<int:teacher_id>')
 @login_required
-@teacher_supervisor_required
+@teacher_supervisor_or_admin_required
 def detail_teacher(teacher_id):
     """辅导老师详情页"""
     # teacher_id 实际是 User.id
     user = User.query.get_or_404(teacher_id)
 
     # 权限检查：只能查看自己创建的辅导老师
-    if user.created_by_user_id != current_user.id or user.role != 'teacher':
+    if user.role != 'teacher':
+        flash('仅可查看老师账号', 'error')
+        return redirect(url_for('teachers.list_teachers'))
+
+    if (not current_user.is_admin()) and user.created_by_user_id != current_user.id:
         flash('您只能查看自己创建的辅导老师信息', 'error')
         return redirect(url_for('teachers.list_teachers'))
 
@@ -228,14 +259,18 @@ def detail_teacher(teacher_id):
 
 @teachers_bp.route('/delete/<int:teacher_id>', methods=['POST'])
 @login_required
-@teacher_supervisor_required
+@teacher_supervisor_or_admin_required
 def delete_teacher(teacher_id):
     """删除辅导老师（软删除，设置status=False）"""
     try:
         user = User.query.get_or_404(teacher_id)
 
         # 权限检查：只能删除自己创建的辅导老师，且必须是 role='teacher'
-        if user.created_by_user_id != current_user.id or user.role != 'teacher':
+        if user.role != 'teacher':
+            flash('仅可停用老师账号', 'error')
+            return redirect(url_for('teachers.list_teachers'))
+
+        if (not current_user.is_admin()) and user.created_by_user_id != current_user.id:
             flash('您只能删除自己创建的辅导老师', 'error')
             return redirect(url_for('teachers.list_teachers'))
 
@@ -254,7 +289,7 @@ def delete_teacher(teacher_id):
         db.session.commit()
 
         teacher_name = teacher.user.username if teacher and teacher.user else user.username
-        flash(f'辅导老师 {teacher_name} 已禁用', 'success')
+        flash(f'辅导老师 {teacher_name} 已停用', 'success')
 
     except Exception as e:
         db.session.rollback()
@@ -264,14 +299,18 @@ def delete_teacher(teacher_id):
 
 @teachers_bp.route('/activate/<int:teacher_id>', methods=['POST'])
 @login_required
-@teacher_supervisor_required
+@teacher_supervisor_or_admin_required
 def activate_teacher(teacher_id):
     """启用辅导老师"""
     try:
         user = User.query.get_or_404(teacher_id)
 
         # 权限检查：只能启用自己创建的辅导老师，且必须是 role='teacher'
-        if user.created_by_user_id != current_user.id or user.role != 'teacher':
+        if user.role != 'teacher':
+            flash('仅可启用老师账号', 'error')
+            return redirect(url_for('teachers.list_teachers'))
+
+        if (not current_user.is_admin()) and user.created_by_user_id != current_user.id:
             flash('您只能启用自己创建的辅导老师', 'error')
             return redirect(url_for('teachers.list_teachers'))
 
@@ -332,7 +371,7 @@ def assign_teacher(customer_id):
         if user.role != 'teacher':
             return jsonify({'success': False, 'message': '无效的老师'}), 400
         if not user.status:
-            return jsonify({'success': False, 'message': '该老师已被禁用'}), 400
+            return jsonify({'success': False, 'message': '该老师已被停用'}), 400
 
         # 检查权限：只有班主任角色可以分配老师
         if current_user.role != 'teacher_supervisor':
@@ -391,7 +430,7 @@ def change_teacher(customer_id):
         if user.role != 'teacher':
             return jsonify({'success': False, 'message': '无效的老师'}), 400
         if not user.status:
-            return jsonify({'success': False, 'message': '该老师已被禁用'}), 400
+            return jsonify({'success': False, 'message': '该老师已被停用'}), 400
 
         # 检查权限：只有班主任角色可以更换老师
         if current_user.role != 'teacher_supervisor':
@@ -444,13 +483,16 @@ def allowed_image_file(filename):
 
 @teachers_bp.route('/upload-image/<int:teacher_id>', methods=['POST'])
 @login_required
-@teacher_supervisor_required
+@teacher_supervisor_or_admin_required
 def upload_teacher_image(teacher_id):
     """上传辅导老师图片"""
     teacher = User.query.get_or_404(teacher_id)
 
     # 权限检查：只能为自己创建的辅导老师上传图片，且必须是 role='teacher'
-    if teacher.created_by_user_id != current_user.id or teacher.role != 'teacher':
+    if teacher.role != 'teacher':
+        return jsonify({'success': False, 'message': '仅可为老师账号上传图片'}), 403
+
+    if (not current_user.is_admin()) and teacher.created_by_user_id != current_user.id:
         return jsonify({'success': False, 'message': '您只能为自己创建的辅导老师上传图片'}), 403
 
     # 检查当前图片数量
@@ -532,7 +574,7 @@ def upload_teacher_image(teacher_id):
 
 @teachers_bp.route('/delete-image/<int:image_id>', methods=['POST'])
 @login_required
-@teacher_supervisor_required
+@teacher_supervisor_or_admin_required
 def delete_teacher_image(image_id):
     """删除辅导老师图片"""
     try:
@@ -540,7 +582,10 @@ def delete_teacher_image(image_id):
         teacher = User.query.get_or_404(image.teacher_id)
 
         # 权限检查：只能删除自己创建的辅导老师的图片，且必须是 role='teacher'
-        if teacher.created_by_user_id != current_user.id or teacher.role != 'teacher':
+        if teacher.role != 'teacher':
+            return jsonify({'success': False, 'message': '仅可删除老师账号图片'}), 403
+
+        if (not current_user.is_admin()) and teacher.created_by_user_id != current_user.id:
             return jsonify({'success': False, 'message': '您只能删除自己创建的辅导老师的图片'}), 403
 
         # 1. 先记录文件路径
@@ -567,7 +612,7 @@ def delete_teacher_image(image_id):
 
 @teachers_bp.route('/update-image-description/<int:image_id>', methods=['POST'])
 @login_required
-@teacher_supervisor_required
+@teacher_supervisor_or_admin_required
 def update_image_description(image_id):
     """更新辅导老师图片描述"""
     try:
@@ -575,7 +620,10 @@ def update_image_description(image_id):
         teacher = User.query.get_or_404(image.teacher_id)
 
         # 权限检查：只能更新自己创建的辅导老师的图片描述，且必须是 role='teacher'
-        if teacher.created_by_user_id != current_user.id or teacher.role != 'teacher':
+        if teacher.role != 'teacher':
+            return jsonify({'success': False, 'message': '仅可更新老师账号图片描述'}), 403
+
+        if (not current_user.is_admin()) and teacher.created_by_user_id != current_user.id:
             return jsonify({'success': False, 'message': '您只能更新自己创建的辅导老师的图片描述'}), 403
 
         data = request.get_json()

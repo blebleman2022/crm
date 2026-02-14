@@ -66,6 +66,7 @@
                         <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">学员姓名</th>
                         <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">家长微信名</th>
                         <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">责任销售</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">班主任</th>
                         <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">年级</th>
                         <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">定金支付时间</th>
                         <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">已过天数</th>
@@ -83,7 +84,10 @@
                             {{ lead.parent_wechat_display_name or '-' }}
                         </td>
                         <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
-                            {{ lead.sales_user.username if lead.sales_user else '-' }}
+                            {{ lead.sales_user.username[:1] if lead.sales_user and lead.sales_user.username else '-' }}
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
+                            {{ lead.teacher_user.username if lead.teacher_user else '-' }}
                         </td>
                         <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
                             {% if lead.grade %}
@@ -135,7 +139,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="8" class="px-3 py-8 text-center text-sm text-gray-500">
+                        <td colspan="9" class="px-3 py-8 text-center text-sm text-gray-500">
                             <div class="flex flex-col items-center">
                                 <span class="material-symbols-outlined text-4xl text-gray-300 mb-2">inbox</span>
                                 <p>暂无首笔支付阶段的线索</p>

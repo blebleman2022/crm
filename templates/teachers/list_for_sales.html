@@ -27,7 +27,7 @@
                             class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
                         <option value="">全部状态</option>
                         <option value="active" {% if status_filter == 'active' %}selected{% endif %}>启用</option>
-                        <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>禁用</option>
+                        <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>停用</option>
                     </select>
                 </div>
                 <button type="submit" 
@@ -87,7 +87,7 @@
                                 {% if teacher.status %}
                                     <span class="inline-flex rounded-full bg-green-100 px-2 text-xs font-semibold leading-5 text-green-800">启用</span>
                                 {% else %}
-                                    <span class="inline-flex rounded-full bg-gray-100 px-2 text-xs font-semibold leading-5 text-gray-800">禁用</span>
+                                    <span class="inline-flex rounded-full bg-gray-100 px-2 text-xs font-semibold leading-5 text-gray-800">停用</span>
                                 {% endif %}
                             </td>
                             <td class="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">

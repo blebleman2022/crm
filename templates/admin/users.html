@@ -92,14 +92,12 @@
                                 {% if user.teacher_scope == 'private_only' %}
                                     <span class="ml-1 inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">仅私域</span>
                                 {% endif %}
-                            {% elif user.role == 'teacher' %}
-                                <span class="inline-flex items-center rounded-full bg-pink-100 px-2.5 py-0.5 text-xs font-medium text-pink-800">辅导老师</span>
                             {% else %}
                                 <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">{{ user.role }}</span>
                             {% endif %}
                         </td>
                         <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ user.group_name or '-' }}</td>
-                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ user.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ '%02d'|format(user.created_at.year % 100) }}/{{ user.created_at.month }}/{{ user.created_at.day }} {{ user.created_at.strftime('%H:%M') }}</td>
                         <td class="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
                             <a class="text-blue-600 hover:text-blue-800 mr-3" href="{{ url_for('admin.edit_user', user_id=user.id) }}">编辑</a>
                             {% if user.id != current_user.id %}

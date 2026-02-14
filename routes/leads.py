@@ -1070,6 +1070,7 @@ def edit_lead(lead_id):
         competition_count = request.form.get('competition_count', '').strip()
         additional_requirements = request.form.get('additional_requirements', '').strip()
         contract_total_sessions_str = request.form.get('contract_total_sessions', '').strip()
+        tutoring_topic_type = request.form.get('tutoring_topic_type', '').strip()
 
         # 检查是否确认转换为客户
         confirm_convert = request.form.get('confirm_convert') == 'true'
@@ -1127,8 +1128,13 @@ def edit_lead(lead_id):
             if contract_total_sessions < 1 or contract_total_sessions > 200:
                 flash('选择了课题辅导服务，课程数量必须在1-200之间', 'error')
                 return render_template('leads/edit.html', lead=lead, sales_users=get_sales_users(), is_basic_info_locked=is_basic_info_locked, is_field_locked=is_field_locked_for_template)
+
+            if tutoring_topic_type not in Lead.ALLOWED_TUTORING_TOPIC_TYPES:
+                flash('选择了课题辅导服务，必须选择课题类型（储备课题或定制课题）', 'error')
+                return render_template('leads/edit.html', lead=lead, sales_users=get_sales_users(), is_basic_info_locked=is_basic_info_locked, is_field_locked=is_field_locked_for_template)
         else:
             contract_total_sessions = 0
+            tutoring_topic_type = ''
 
         # 验证家长微信号是否重复（只在未锁定且有值时验证）
         if not is_field_locked(lead.parent_wechat_name, current_user) and parent_wechat_name:
@@ -1192,6 +1198,7 @@ def edit_lead(lead_id):
             lead.competition_count = int(competition_count) if competition_count else None
             lead.additional_requirements = additional_requirements if additional_requirements else None
             lead.contract_total_sessions = contract_total_sessions
+            lead.tutoring_topic_type = tutoring_topic_type if has_tutoring else None
 
             # 如果年级发生变化，且该线索已转为客户，则自动更新客户的 exam_year
             customer = Customer.query.filter_by(lead_id=lead.id).first()
@@ -1325,12 +1332,6 @@ def edit_lead(lead_id):
     # 为模板准备当前阶段的英文键值
     current_stage_key = reverse_stage_mapping.get(lead.stage, 'contact')
 
-    # 获取付款记录
-    payments = Payment.query.filter_by(lead_id=lead.id).order_by(Payment.payment_date.desc()).all()
-
-    # 计算已付款总额
-    paid_amount = sum(payment.amount for payment in payments) if payments else Decimal('0')
-
     # 创建一个绑定了当前用户的is_field_locked函数
     def is_field_locked_for_current_user(value):
         return is_field_locked(value, current_user)
@@ -1339,8 +1340,6 @@ def edit_lead(lead_id):
                          lead=lead,
                          sales_users=get_sales_users(),
                          current_stage_key=current_stage_key,
-                         payments=payments,
-                         paid_amount=paid_amount,
                          is_basic_info_locked=is_basic_info_locked,
                          is_field_locked=is_field_locked_for_current_user)
 
@@ -1382,6 +1381,7 @@ def lead_payments(lead_id):
 
     return jsonify({
         'success': True,
+        'can_edit': can_edit_lead_record(lead),
         'lead': {
             'id': lead.id,
             'student_name': lead.student_name or '未填写',
@@ -1435,6 +1435,7 @@ def lead_api(lead_id):
         'stage': lead.stage,
         'contract_amount': float(lead.contract_amount) if lead.contract_amount else None,
         'contract_total_sessions': lead.contract_total_sessions if lead.contract_total_sessions is not None else 6,
+        'tutoring_topic_type': lead.tutoring_topic_type,
         'paid_amount': float(paid_amount),
         'service_types': lead.get_service_types_list(),
         # 奖项和额外要求优先从线索表读取，如果已转为客户则从客户表读取

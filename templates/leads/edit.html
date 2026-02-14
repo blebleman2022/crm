@@ -307,6 +307,20 @@
                                        placeholder="请输入数量"
                                        class="mt-1 block w-full max-w-xs pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md">
                                 <p class="mt-1 text-sm text-gray-500">默认6，范围1-200</p>
+
+                                <div class="mt-4">
+                                    <label for="tutoring_topic_type" class="block text-sm font-medium text-gray-700 mb-2">
+                                        <span class="material-symbols-outlined text-sm mr-1">category</span>课题类型
+                                        <span class="text-red-500">*</span>
+                                    </label>
+                                    <select id="tutoring_topic_type" name="tutoring_topic_type"
+                                            class="mt-1 block w-full max-w-xs pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md">
+                                        <option value="">请选择课题类型</option>
+                                        <option value="reserve" {% if lead.tutoring_topic_type == 'reserve' %}selected{% endif %}>储备课题</option>
+                                        <option value="custom" {% if lead.tutoring_topic_type == 'custom' %}selected{% endif %}>定制课题</option>
+                                    </select>
+                                    <p class="mt-1 text-sm text-gray-500">选择课题辅导时必须设置课题类型</p>
+                                </div>
                             </div>
                             <div class="flex items-center">
                                 <input type="checkbox" name="service_types" value="competition" id="service_competition"
@@ -451,97 +465,6 @@
                     </div>
                 </div>
             </div>
-
-
-
-            <!-- 付款管理 - 销售角色可编辑自己负责的线索 -->
-            {% if current_user.is_admin() or current_user.is_sales_manager() %}
-            <div class="border-b border-gray-200 pb-6">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-medium text-gray-900">付款管理</h3>
-                    <button type="button"
-                            onclick="showAddPaymentModal()"
-                            class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
-                        <span class="material-symbols-outlined mr-1 text-sm">add</span>
-                        添加付款
-                    </button>
-                </div>
-
-                <!-- 付款状态统计 -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <div class="bg-blue-50 p-4 rounded-lg">
-                        <div class="text-sm font-medium text-blue-600">合同金额</div>
-                        <div class="text-2xl font-bold text-blue-900 relative">
-                            {% if current_user.is_admin() or current_user.is_sales_manager() %}
-                            ¥<span id="contract-amount-display"
-                                   class="editable-amount cursor-pointer hover:bg-blue-100 px-1 rounded"
-                                   data-original-value="{{ lead.contract_amount or 0 }}"
-                                   onclick="makeEditable(this)"
-                                   title="点击编辑合同金额">{{ "%.2f"|format(lead.contract_amount or 0) }}</span>
-                            {% else %}
-                            ¥<span id="contract-amount-display">{{ "%.2f"|format(lead.contract_amount or 0) }}</span>
-                            {% endif %}
-                        </div>
-                        {% if current_user.is_admin() or current_user.is_sales_manager() %}
-                        <div class="text-xs text-blue-500 mt-1">点击金额可直接编辑</div>
-                        {% endif %}
-                    </div>
-                    <div class="bg-green-50 p-4 rounded-lg">
-                        <div class="text-sm font-medium text-green-600">已付款</div>
-                        <div class="text-2xl font-bold text-green-900">
-                            ¥<span id="paid-amount-display">{{ "%.2f"|format(paid_amount or 0) }}</span>
-                        </div>
-                    </div>
-                    <div class="bg-red-50 p-4 rounded-lg">
-                        <div class="text-sm font-medium text-red-600">待付款</div>
-                        <div class="text-2xl font-bold text-red-900">
-                            ¥<span id="unpaid-amount-display">{{ "%.2f"|format((lead.contract_amount or 0) - (paid_amount or 0)) }}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 付款记录列表 -->
-                <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-                    <table class="min-w-full divide-y divide-gray-300">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">付款日期</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">付款金额</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">备注</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200" id="payments-table-body">
-                            {% for payment in payments %}
-                            <tr>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    {{ payment.payment_date.strftime('%Y-%m-%d') }}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    ¥{{ "%.2f"|format(payment.amount) }}
-                                </td>
-                                <td class="px-6 py-4 text-sm text-gray-900">
-                                    {{ payment.payment_notes or '-' }}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                    <button type="button"
-                                            onclick="deletePayment({{ payment.id }})"
-                                            class="text-red-600 hover:text-red-900">删除</button>
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr id="no-payments-row">
-                                <td colspan="4" class="px-6 py-4 text-center text-sm text-gray-500">
-                                    暂无付款记录
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            {% endif %}
-
 
 
             <!-- 操作按钮 -->
@@ -692,245 +615,7 @@
     </div>
 </div>
 
-<!-- 添加付款模态框 - 销售角色可编辑自己负责的线索 -->
-{% if current_user.is_admin() or current_user.is_sales_manager() %}
-<div id="addPaymentModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden">
-    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-        <div class="mt-3">
-            <h3 class="text-lg font-medium text-gray-900 mb-4">添加付款记录</h3>
-            <form id="addPaymentForm">
-                <div class="mb-4">
-                    <label for="payment_date" class="block text-sm font-medium text-gray-700 mb-2">
-                        付款日期 <span class="text-red-500">*</span>
-                    </label>
-                    <input type="date"
-                           id="payment_date"
-                           name="payment_date"
-                           required
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500">
-                </div>
-                <div class="mb-4">
-                    <label for="payment_amount" class="block text-sm font-medium text-gray-700 mb-2">
-                        付款金额 <span class="text-red-500">*</span>
-                    </label>
-                    <input type="number"
-                           id="payment_amount"
-                           name="payment_amount"
-                           step="0.01"
-                           min="0"
-                           required
-                           placeholder="请输入付款金额"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500">
-                </div>
-                <div class="mb-4">
-                    <label for="payment_notes" class="block text-sm font-medium text-gray-700 mb-2">
-                        付款备注
-                    </label>
-                    <textarea id="payment_notes"
-                              name="payment_notes"
-                              rows="3"
-                              placeholder="请输入付款备注"
-                              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"></textarea>
-                </div>
-                <div class="flex items-center justify-end space-x-4">
-                    <button type="button"
-                            onclick="hideAddPaymentModal()"
-                            class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-                        取消
-                    </button>
-                    <button type="submit"
-                            class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700">
-                        添加
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-{% endif %}
-
 <script>
-{% if current_user.is_admin() or current_user.is_sales_manager() %}
-// 付款管理相关函数
-function showAddPaymentModal() {
-    document.getElementById('addPaymentModal').classList.remove('hidden');
-    // 设置默认日期为今天
-    document.getElementById('payment_date').value = new Date().toISOString().split('T')[0];
-}
-
-function hideAddPaymentModal() {
-    document.getElementById('addPaymentModal').classList.add('hidden');
-    document.getElementById('addPaymentForm').reset();
-}
-
-// 添加付款
-document.getElementById('addPaymentForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-
-    const formData = new FormData(this);
-    formData.append('lead_id', {{ lead.id }});
-
-    fetch('{{ url_for("leads.add_payment") }}', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // 刷新页面以显示新的付款记录
-            location.reload();
-        } else {
-            alert(data.message || '添加付款失败');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('添加付款失败，请重试');
-    });
-});
-
-// 删除付款
-function deletePayment(paymentId) {
-    if (confirm('确定要删除这条付款记录吗？')) {
-        fetch(`{{ url_for("leads.delete_payment", payment_id=0) }}`.replace('0', paymentId), {
-            method: 'DELETE'
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // 刷新页面以更新付款记录
-                location.reload();
-            } else {
-                alert(data.message || '删除付款失败');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('删除付款失败，请重试');
-        });
-    }
-}
-
-// 内联编辑合同金额
-function makeEditable(element) {
-    // 如果已经在编辑状态，直接返回
-    if (element.querySelector('input')) {
-        return;
-    }
-
-    const currentValue = parseFloat(element.textContent) || 0;
-    const originalValue = parseFloat(element.dataset.originalValue) || 0;
-
-    // 创建输入框
-    const input = document.createElement('input');
-    input.type = 'number';
-    input.step = '0.01';
-    input.min = '0';
-    input.value = currentValue;
-    input.className = 'w-full bg-transparent border-none outline-none text-2xl font-bold text-blue-900 p-0';
-    input.style.width = '120px';
-
-    // 替换显示内容
-    element.innerHTML = '';
-    element.appendChild(input);
-    input.focus();
-    input.select();
-
-    // 保存函数
-    function saveValue() {
-        const newValue = parseFloat(input.value) || 0;
-
-        if (newValue < 0) {
-            alert('合同金额不能为负数');
-            input.focus();
-            return;
-        }
-
-        // 如果值没有变化，直接恢复显示
-        if (newValue === originalValue) {
-            element.innerHTML = newValue.toFixed(2);
-            element.dataset.originalValue = newValue;
-            return;
-        }
-
-        // 发送AJAX请求更新合同金额
-        const formData = new FormData();
-        formData.append('contract_amount', newValue);
-        formData.append('lead_id', {{ lead.id }});
-
-        fetch('{{ url_for("leads.update_contract_amount") }}', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // 更新显示
-                element.innerHTML = newValue.toFixed(2);
-                element.dataset.originalValue = newValue;
-                updatePaymentDisplay(newValue);
-
-                // 显示成功提示（简短提示）
-                showSuccessToast('合同金额已更新');
-            } else {
-                alert(data.message || '更新合同金额失败');
-                // 恢复原值
-                element.innerHTML = originalValue.toFixed(2);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('更新合同金额失败，请重试');
-            // 恢复原值
-            element.innerHTML = originalValue.toFixed(2);
-        });
-    }
-
-    // 取消编辑函数
-    function cancelEdit() {
-        element.innerHTML = originalValue.toFixed(2);
-    }
-
-    // 绑定事件
-    input.addEventListener('blur', saveValue);
-    input.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            saveValue();
-        } else if (e.key === 'Escape') {
-            e.preventDefault();
-            cancelEdit();
-        }
-    });
-}
-
-// 更新付款显示
-function updatePaymentDisplay(contractAmount) {
-    const paidAmount = parseFloat(document.getElementById('paid-amount-display').textContent) || 0;
-    const unpaidAmount = contractAmount - paidAmount;
-
-    document.getElementById('unpaid-amount-display').textContent = unpaidAmount.toFixed(2);
-}
-
-// 显示成功提示
-function showSuccessToast(message) {
-    // 创建提示元素
-    const toast = document.createElement('div');
-    toast.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-md shadow-lg z-50 transition-opacity duration-300';
-    toast.textContent = message;
-
-    document.body.appendChild(toast);
-
-    // 3秒后自动消失
-    setTimeout(() => {
-        toast.style.opacity = '0';
-        setTimeout(() => {
-            document.body.removeChild(toast);
-        }, 300);
-    }, 2000);
-}
-{% endif %}
-
 // 阶段现在由系统自动管理，不需要手动设置
 
 // 服务类型变化处理（多选）- 竞赛辅导联动奖项等级
@@ -956,8 +641,9 @@ function updateTutoringSessionsVisibility() {
     const tutoringCheckbox = document.getElementById('service_tutoring');
     const sessionsSection = document.getElementById('contract_total_sessions_section');
     const sessionsInput = document.getElementById('contract_total_sessions');
+    const tutoringTopicTypeSelect = document.getElementById('tutoring_topic_type');
 
-    if (!tutoringCheckbox || !sessionsSection || !sessionsInput) {
+    if (!tutoringCheckbox || !sessionsSection || !sessionsInput || !tutoringTopicTypeSelect) {
         return;
     }
 
@@ -969,6 +655,7 @@ function updateTutoringSessionsVisibility() {
     } else {
         sessionsSection.style.display = 'none';
         sessionsInput.value = '0';
+        tutoringTopicTypeSelect.value = '';
     }
 }
 
@@ -1014,6 +701,7 @@ document.querySelector('form').addEventListener('submit', function(e) {
     const competitionCountInput = document.getElementById('competition_count');
     const tutoringCheckbox = document.getElementById('service_tutoring');
     const totalSessionsInput = document.getElementById('contract_total_sessions');
+    const tutoringTopicTypeSelect = document.getElementById('tutoring_topic_type');
 
     if (competitionCheckbox && competitionCheckbox.checked) {
         if (!awardLevelSelect.value) {
@@ -1040,8 +728,19 @@ document.querySelector('form').addEventListener('submit', function(e) {
                 totalSessionsInput.focus();
                 return false;
             }
+            if (!tutoringTopicTypeSelect || !tutoringTopicTypeSelect.value) {
+                e.preventDefault();
+                alert('选择了课题辅导服务，请先选择课题类型（储备课题或定制课题）！');
+                if (tutoringTopicTypeSelect) {
+                    tutoringTopicTypeSelect.focus();
+                }
+                return false;
+            }
         } else {
             totalSessionsInput.value = '0';
+            if (tutoringTopicTypeSelect) {
+                tutoringTopicTypeSelect.value = '';
+            }
         }
     }
 

@@ -4,6 +4,14 @@
 {% block page_title %}付款管理{% endblock %}
 
 {% block content %}
+{% macro short_year_month(value) -%}
+    {%- set raw = value|string -%}
+    {%- if value and raw|length >= 7 and raw[:4].isdigit() and raw[4] == '-' -%}
+        {{ raw[2:4] }}-{{ raw[5:7] }}
+    {%- else -%}
+        {{ value }}
+    {%- endif -%}
+{%- endmacro %}
 <style>
     /* 锁定单元格样式 - 移除所有交互效果 */
     .editable-cell.locked .cell-value {
@@ -18,22 +26,27 @@
 
 <div class="max-w-full mx-auto">
     <div class="bg-white p-6 rounded-lg shadow-sm">
-        {% if can_switch_scope %}
+        {% if show_scope_switch %}
         <div class="mb-4 flex items-center gap-2">
             <a href="{{ url_for('payments.manage', scope='public', start_date=start_date, end_date=end_date) }}"
-               class="inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium {% if scope_filter == 'public' %}bg-blue-600 text-white{% else %}bg-gray-100 text-gray-700 hover:bg-gray-200{% endif %}">
-                公域付款管理
+               class="inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium {% if scope_filter == 'public' and not selected_private_owner_id %}bg-blue-600 text-white{% else %}bg-gray-100 text-gray-700 hover:bg-gray-200{% endif %}">
+                轩
             </a>
-            <a href="{{ url_for('payments.manage', scope='private', start_date=start_date, end_date=end_date) }}"
-               class="inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium {% if scope_filter == 'private' %}bg-blue-600 text-white{% else %}bg-gray-100 text-gray-700 hover:bg-gray-200{% endif %}">
-                私域付款管理
+            {% for private_owner in private_owner_options %}
+            <a href="{{ url_for('payments.manage', scope='private', private_owner_id=private_owner.id, start_date=start_date, end_date=end_date) }}"
+               class="inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium {% if scope_filter == 'private' and selected_private_owner_id == private_owner.id %}bg-blue-600 text-white{% else %}bg-gray-100 text-gray-700 hover:bg-gray-200{% endif %}">
+                {{ private_owner.username[:1] }}
             </a>
+            {% endfor %}
         </div>
         {% endif %}
 
         <!-- 筛选条件 -->
         <form method="GET" class="mb-6">
             <input type="hidden" name="scope" value="{{ scope_filter }}">
+            {% if selected_private_owner_id %}
+            <input type="hidden" name="private_owner_id" value="{{ selected_private_owner_id }}">
+            {% endif %}
             <div class="flex items-center gap-4">
                 <label for="start_date" class="text-sm font-medium text-gray-700 whitespace-nowrap">付款时间:</label>
                 <input type="month" name="start_date" id="start_date" value="{{ start_date or '' }}"
@@ -46,7 +59,7 @@
                     <span class="material-symbols-outlined mr-1 text-sm">filter_list</span>
                     筛选
                 </button>
-                <a href="{{ url_for('payments.manage', scope=scope_filter) }}"
+                <a href="{{ url_for('payments.manage', scope=scope_filter, private_owner_id=selected_private_owner_id) }}"
                    class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
                     <span class="material-symbols-outlined mr-1 text-sm">refresh</span>
                     重置
@@ -155,8 +168,9 @@
                         <td class="px-4 py-3 text-sm text-center text-gray-600 w-28 editable-cell"
                             data-field="first_payment_date"
                             data-type="date">
-                            <span class="cell-value cursor-pointer hover:bg-blue-50 px-2 py-1 rounded whitespace-nowrap">
-                                {{ payment.first_payment_date or '-' }}
+                            <span class="cell-value cursor-pointer hover:bg-blue-50 px-2 py-1 rounded whitespace-nowrap"
+                                  data-raw-value="{{ payment.first_payment_date or '' }}">
+                                {{ short_year_month(payment.first_payment_date) if payment.first_payment_date else '-' }}
                             </span>
                         </td>
                         <td class="px-4 py-3 text-sm text-right text-gray-700 w-28 editable-cell"
@@ -169,8 +183,9 @@
                         <td class="px-4 py-3 text-sm text-center text-gray-600 w-28 editable-cell"
                             data-field="second_payment_date"
                             data-type="date">
-                            <span class="cell-value cursor-pointer hover:bg-blue-50 px-2 py-1 rounded whitespace-nowrap">
-                                {{ payment.second_payment_date or '-' }}
+                            <span class="cell-value cursor-pointer hover:bg-blue-50 px-2 py-1 rounded whitespace-nowrap"
+                                  data-raw-value="{{ payment.second_payment_date or '' }}">
+                                {{ short_year_month(payment.second_payment_date) if payment.second_payment_date else '-' }}
                             </span>
                         </td>
                         <td class="px-4 py-3 text-sm text-right text-gray-700 w-28 editable-cell"
@@ -183,8 +198,9 @@
                         <td class="px-4 py-3 text-sm text-center text-gray-600 w-28 editable-cell"
                             data-field="third_payment_date"
                             data-type="date">
-                            <span class="cell-value cursor-pointer hover:bg-blue-50 px-2 py-1 rounded whitespace-nowrap">
-                                {{ payment.third_payment_date or '-' }}
+                            <span class="cell-value cursor-pointer hover:bg-blue-50 px-2 py-1 rounded whitespace-nowrap"
+                                  data-raw-value="{{ payment.third_payment_date or '' }}">
+                                {{ short_year_month(payment.third_payment_date) if payment.third_payment_date else '-' }}
                             </span>
                         </td>
                         <td class="px-4 py-3 text-sm text-right font-medium text-green-600 w-28 bg-green-50 total-paid-cell">
@@ -215,6 +231,19 @@ document.addEventListener('DOMContentLoaded', function() {
     // 行内编辑功能
     const editableCells = document.querySelectorAll('.editable-cell');
 
+    function formatYearMonthForDisplay(value) {
+        if (!value || typeof value !== 'string') {
+            return '-';
+        }
+
+        const match = value.match(/^(\d{4})-(\d{2})$/);
+        if (match) {
+            return `${match[1].slice(-2)}-${match[2]}`;
+        }
+
+        return value;
+    }
+
     editableCells.forEach(cell => {
         const cellValue = cell.querySelector('.cell-value');
 
@@ -227,7 +256,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const field = cell.dataset.field;
             const type = cell.dataset.type;
-            const currentValue = cellValue.textContent.trim().replace('¥', '').replace(',', '').replace('-', '');
+            const currentValue = type === 'date'
+                ? (cellValue.dataset.rawValue || '')
+                : cellValue.textContent.trim().replace('¥', '').replace(',', '').replace('-', '');
             const row = cell.closest('tr');
             const customerId = row.dataset.customerId;
 
@@ -269,8 +300,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         // 获取上一行对应的日期字段
                         const prevDateCell = prevRow.querySelector(`[data-field="${field}"]`);
                         if (prevDateCell) {
-                            const prevDateValue = prevDateCell.querySelector('.cell-value').textContent.trim();
-                            if (prevDateValue && prevDateValue !== '-') {
+                            const prevDateValue = prevDateCell.querySelector('.cell-value').dataset.rawValue || '';
+                            if (prevDateValue) {
                                 defaultValue = prevDateValue;
                             }
                         }
@@ -342,7 +373,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (result.success) {
                         // 更新显示值
                         if (type === 'date') {
-                            cellValue.textContent = newValue || '-';
+                            cellValue.dataset.rawValue = newValue || '';
+                            cellValue.textContent = newValue ? formatYearMonthForDisplay(newValue) : '-';
                         } else {
                             if (field === 'total_amount') {
                                 cellValue.textContent = newValue ? `¥${parseFloat(newValue).toLocaleString('zh-CN', {maximumFractionDigits: 0})}` : '¥0';
@@ -364,6 +396,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     const dateCell = row.querySelector(`[data-field="${dateField}"]`);
                                     if (dateCell) {
                                         const dateCellValue = dateCell.querySelector('.cell-value');
+                                        dateCellValue.dataset.rawValue = '';
                                         dateCellValue.textContent = '-';
                                     }
                                 }
@@ -381,12 +414,22 @@ document.addEventListener('DOMContentLoaded', function() {
                     } else {
                         showToast(result.message || '保存失败', 'error');
                         // 恢复原值
-                        cellValue.textContent = currentValue || '-';
+                        if (type === 'date') {
+                            cellValue.dataset.rawValue = currentValue || '';
+                            cellValue.textContent = currentValue ? formatYearMonthForDisplay(currentValue) : '-';
+                        } else {
+                            cellValue.textContent = currentValue || '-';
+                        }
                     }
                 } catch (error) {
                     console.error('保存失败:', error);
                     showToast('保存失败，请重试', 'error');
-                    cellValue.textContent = currentValue || '-';
+                    if (type === 'date') {
+                        cellValue.dataset.rawValue = currentValue || '';
+                        cellValue.textContent = currentValue ? formatYearMonthForDisplay(currentValue) : '-';
+                    } else {
+                        cellValue.textContent = currentValue || '-';
+                    }
                 }
                 
                 // 移除输入框，显示原内容
@@ -471,10 +514,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     const cellValue = dateCell.querySelector('.cell-value');
                     if (!cellValue) return;
 
-                    let paymentMonth = cellValue.textContent.trim();
+                    let paymentMonth = (cellValue.dataset.rawValue || '').trim();
 
                     // 如果是"-"表示空日期，跳过
-                    if (paymentMonth === '-' || !paymentMonth) {
+                    if (!paymentMonth) {
                         return;
                     }
 

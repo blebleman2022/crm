@@ -91,6 +91,7 @@
                         <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">线索来源</th>
                         <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">合同金额</th>
                         <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">责任销售</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">班主任</th>
                         <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">线索阶段</th>
                         <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">最后更新</th>
                         <th class="relative px-3 py-3">
@@ -102,7 +103,17 @@
                     {% for lead in leads.items %}
                     <tr class="hover:bg-gray-50">
                         <td class="whitespace-nowrap px-3 py-3 text-sm font-medium text-gray-900">
-                            {{ lead.student_name or '-' }}
+                            <div class="flex items-center space-x-2">
+                                <span class="text-blue-600">{{ lead.student_name or '-' }}</span>
+                                {% if lead.customer_scope == 'private' %}
+                                    <span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+                                        {{ lead.private_owner.username[:1] if lead.private_owner and lead.private_owner.username else '私' }}
+                                    </span>
+                                {% endif %}
+                                {% if lead.additional_requirements %}
+                                    <span class="material-symbols-outlined text-red-600 text-sm" title="有额外要求">add_circle</span>
+                                {% endif %}
+                            </div>
                         </td>
                         <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
                             {% if lead.parent_wechat_display_name %}
@@ -136,7 +147,8 @@
                                 <span class="text-gray-400">-</span>
                             {% endif %}
                         </td>
-                        <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">{{ lead.sales_user.username }}</td>
+                        <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">{{ lead.sales_user.username[:1] if lead.sales_user and lead.sales_user.username else '-' }}</td>
+                        <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">{{ lead.teacher_user.username if lead.teacher_user else '-' }}</td>
                         <td class="whitespace-nowrap px-3 py-3 text-sm">
                             {% if lead.stage == '获取联系方式' %}
                                 <span class="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800">{{ lead.stage }}</span>
@@ -374,6 +386,9 @@ function initializeFormListeners() {
     // 监听竞赛辅导复选框
     const competitionCheckbox = document.getElementById('service_competition');
     const awardLevelSection = document.getElementById('competition_award_level_section');
+    const tutoringCheckbox = document.getElementById('service_tutoring');
+    const tutoringTopicTypeSection = document.getElementById('tutoring_topic_type_section');
+    const tutoringTopicTypeSelect = document.getElementById('tutoring_topic_type');
 
     if (competitionCheckbox && awardLevelSection) {
         competitionCheckbox.addEventListener('change', function() {
@@ -381,6 +396,17 @@ function initializeFormListeners() {
                 awardLevelSection.style.display = 'block';
             } else {
                 awardLevelSection.style.display = 'none';
+            }
+        });
+    }
+
+    if (tutoringCheckbox && tutoringTopicTypeSection && tutoringTopicTypeSelect) {
+        tutoringCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                tutoringTopicTypeSection.style.display = 'block';
+            } else {
+                tutoringTopicTypeSection.style.display = 'none';
+                tutoringTopicTypeSelect.value = '';
             }
         });
     }
@@ -520,6 +546,13 @@ function deleteLead() {
 function submitEditForm(event) {
     event.preventDefault();
     const form = event.target;
+    const tutoringCheckbox = form.querySelector('#service_tutoring');
+    const tutoringTopicTypeSelect = form.querySelector('#tutoring_topic_type');
+    if (tutoringCheckbox && tutoringCheckbox.checked && tutoringTopicTypeSelect && !tutoringTopicTypeSelect.value) {
+        alert('选择了课题辅导服务，请先选择课题类型（储备课题或定制课题）');
+        tutoringTopicTypeSelect.focus();
+        return;
+    }
     const formData = new FormData(form);
 
     fetch(form.action, {

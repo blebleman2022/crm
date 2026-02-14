@@ -191,6 +191,20 @@
                            {% if 'tutoring' in service_types %}checked{% endif %}>
                     <label for="service_tutoring" class="ml-2 text-sm text-gray-700">课题辅导</label>
                 </div>
+                <div id="tutoring_topic_type_section"
+                     class="ml-6 pl-2"
+                     style="display: {% if 'tutoring' in service_types %}block{% else %}none{% endif %};">
+                    <label for="tutoring_topic_type" class="block text-sm font-medium text-gray-700 mb-2">
+                        课题类型 <span class="text-red-500">*</span>
+                    </label>
+                    <select id="tutoring_topic_type" name="tutoring_topic_type"
+                            class="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">请选择课题类型</option>
+                        <option value="reserve" {% if lead.tutoring_topic_type == 'reserve' %}selected{% endif %}>储备课题</option>
+                        <option value="custom" {% if lead.tutoring_topic_type == 'custom' %}selected{% endif %}>定制课题</option>
+                    </select>
+                    <p class="mt-1 text-sm text-gray-500">选择课题辅导服务时必须设置</p>
+                </div>
                 <div class="flex items-center">
                     <input type="checkbox" name="service_types" value="competition" id="service_competition"
                            class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
@@ -242,8 +256,8 @@
             </label>
             <select id="teacher_user_id"
                     name="teacher_user_id"
-                    {% if not customer_exists %}disabled{% endif %}
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 {% if not customer_exists %}bg-gray-100 text-gray-500 cursor-not-allowed{% endif %}">
+                    {% if not can_assign_teacher %}disabled{% endif %}
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 {% if not can_assign_teacher %}bg-gray-100 text-gray-500 cursor-not-allowed{% endif %}">
                 <option value="">暂不分配</option>
                 {% for teacher in teacher_users %}
                     {% set teacher_scope = teacher.teacher_scope or 'all' %}
@@ -252,8 +266,10 @@
                     </option>
                 {% endfor %}
             </select>
-            {% if not customer_exists %}
-            <p class="mt-1 text-sm text-amber-600">该线索尚未转客户，暂不能分配班主任。</p>
+            {% if not can_assign_teacher %}
+            <p class="mt-1 text-sm text-amber-600">线索达到“首笔支付”阶段后，才可分配班主任。</p>
+            {% elif not customer_exists %}
+            <p class="mt-1 text-sm text-gray-500">当前线索尚未转客户，班主任将先保存在线索上，转客户后自动同步。</p>
             {% elif lead_scope == 'private' %}
             <p class="mt-1 text-sm text-gray-500">当前为私域客户，可分配“公私域都可分配”或“仅私域”班主任。</p>
             {% else %}

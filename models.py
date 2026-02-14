@@ -117,6 +117,8 @@ class Lead(db.Model):
     STAGE_FULL_PAYMENT = '全款支付'
     SCOPE_PUBLIC = 'public'
     SCOPE_PRIVATE = 'private'
+    TUTORING_TOPIC_TYPE_RESERVE = 'reserve'
+    TUTORING_TOPIC_TYPE_CUSTOM = 'custom'
 
     # 所有允许的阶段值
     ALLOWED_STAGES = [
@@ -127,6 +129,7 @@ class Lead(db.Model):
         STAGE_FULL_PAYMENT
     ]
     ALLOWED_SCOPES = [SCOPE_PUBLIC, SCOPE_PRIVATE]
+    ALLOWED_TUTORING_TOPIC_TYPES = [TUTORING_TOPIC_TYPE_RESERVE, TUTORING_TOPIC_TYPE_CUSTOM]
 
     id = db.Column(db.Integer, primary_key=True)
     student_name = db.Column(db.String(50), comment='学员姓名')  # 改为可选
@@ -163,6 +166,7 @@ class Lead(db.Model):
 
     # 服务内容
     service_types = db.Column(db.Text, comment='服务类型JSON：["tutoring", "competition", "upgrade_guidance"]')
+    tutoring_topic_type = db.Column(db.String(20), comment='课题辅导类型：reserve/custom')
     competition_award_level = db.Column(db.String(20), comment='竞赛奖项等级：市奖/国奖')
     competition_count = db.Column(db.Integer, comment='申报赛事数量')
     additional_requirements = db.Column(db.Text, comment='额外要求')

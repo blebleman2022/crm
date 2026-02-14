@@ -10,12 +10,14 @@
             <a href="{{ url_for('delivery.dashboard') }}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
                 返回工作台
             </a>
+            {% if current_user.is_admin() %}
             <a href="{{ url_for('delivery.create_teacher') }}" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
                 <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                 </svg>
                 创建老师账号
             </a>
+            {% endif %}
         </div>
     </div>
 
@@ -61,17 +63,21 @@
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {% if teacher.user and teacher.user.status %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
-                                {% if teacher.user and teacher.user.status %}启用{% else %}禁用{% endif %}
+                                {% if teacher.user and teacher.user.status %}启用{% else %}停用{% endif %}
                             </span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {{ teacher.user.created_at.strftime('%Y-%m-%d') if teacher.user and teacher.user.created_at else '-' }}
+                            {% if teacher.user and teacher.user.created_at %}
+                                {{ '%02d'|format(teacher.user.created_at.year % 100) }}/{{ teacher.user.created_at.month }}/{{ teacher.user.created_at.day }}
+                            {% else %}
+                                -
+                            {% endif %}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                             <a href="{{ url_for('delivery.edit_teacher', teacher_id=teacher.user_id) }}" class="text-blue-600 hover:text-blue-900">编辑</a>
                             <button onclick="toggleStatus({{ teacher.user_id }}, {{ 'true' if teacher.user and teacher.user.status else 'false' }})"
                                     class="{% if teacher.user and teacher.user.status %}text-red-600 hover:text-red-900{% else %}text-green-600 hover:text-green-900{% endif %}">
-                                {% if teacher.user and teacher.user.status %}禁用{% else %}启用{% endif %}
+                                {% if teacher.user and teacher.user.status %}停用{% else %}启用{% endif %}
                             </button>
                         </td>
                     </tr>
@@ -79,7 +85,7 @@
                 {% else %}
                     <tr>
                         <td colspan="7" class="px-6 py-4 text-center text-sm text-gray-500">
-                            暂无老师账号，<a href="{{ url_for('delivery.create_teacher') }}" class="text-blue-600 hover:underline">点击创建</a>
+                            暂无老师账号
                         </td>
                     </tr>
                 {% endif %}
@@ -90,7 +96,7 @@
 
 <script>
 function toggleStatus(teacherId, currentStatus) {
-    const action = currentStatus ? '禁用' : '启用';
+    const action = currentStatus ? '停用' : '启用';
     if (!confirm(`确定要${action}此老师账号吗？`)) {
         return;
     }

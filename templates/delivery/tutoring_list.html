@@ -42,6 +42,7 @@
                 <thead class="bg-gray-50">
                     <tr>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">学员姓名</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">家长微信名</th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">联系方式</th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">课时进度</th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">论文状态</th>
@@ -58,6 +59,9 @@
                     <tr class="hover:bg-gray-50">
                         <td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
                             {{ delivery.customer.lead.student_name }}
+                        </td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                            {{ delivery.customer.lead.parent_wechat_display_name or '-' }}
                         </td>
                         <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ delivery.customer.lead.contact_info }}</td>
                         <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
@@ -81,19 +85,19 @@
                         </td>
                         <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                             {% if delivery.last_class_date %}
-                                {{ delivery.last_class_date.strftime('%Y-%m-%d') }}
+                                {{ '%02d'|format(delivery.last_class_date.year % 100) }}-{{ delivery.last_class_date.month }}-{{ delivery.last_class_date.day }}
                             {% else %}
                                 -
                             {% endif %}
                         </td>
                         <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                             {% if delivery.next_class_date %}
-                                {{ delivery.next_class_date.strftime('%Y-%m-%d') }}
+                                {{ '%02d'|format(delivery.next_class_date.year % 100) }}-{{ delivery.next_class_date.month }}-{{ delivery.next_class_date.day }}
                             {% else %}
                                 -
                             {% endif %}
                         </td>
-                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ delivery.updated_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ '%02d'|format(delivery.updated_at.year % 100) }}-{{ delivery.updated_at.month }}-{{ delivery.updated_at.day }} {{ delivery.updated_at.strftime('%H:%M') }}</td>
                         <td class="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
                             <a class="text-green-600 hover:text-green-800" href="{{ url_for('delivery.edit_tutoring', delivery_id=delivery.id) }}">编辑</a>
                         </td>

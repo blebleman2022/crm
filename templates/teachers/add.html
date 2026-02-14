@@ -1,4 +1,4 @@
-{% extends "leads/base.html" %}
+{% extends "admin/base.html" if current_user.is_admin() else "leads/base.html" %}
 
 {% block title %}添加老师 - EduConnect CRM{% endblock %}
 {% block page_title %}添加老师{% endblock %}
@@ -27,6 +27,21 @@
                                    required
                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
                                    placeholder="请输入姓名">
+                        </div>
+
+                        <div>
+                            <label for="phone" class="block text-sm font-medium text-gray-700">
+                                登录手机号 <span class="text-red-500">*</span>
+                            </label>
+                            <input type="tel"
+                                   name="phone"
+                                   id="phone"
+                                   required
+                                   maxlength="11"
+                                   pattern="[0-9]{11}"
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                   placeholder="请输入11位登录手机号">
+                            <p class="mt-1 text-xs text-gray-500">该手机号将用于老师端登录。</p>
                         </div>
 
                         <div>
@@ -134,4 +149,22 @@
         </form>
     </div>
 </div>
+
+<script>
+document.getElementById('phone').addEventListener('input', function(e) {
+    let value = e.target.value.replace(/\D/g, '');
+    if (value.length > 11) {
+        value = value.slice(0, 11);
+    }
+    e.target.value = value;
+});
+
+document.querySelector('form').addEventListener('submit', function(e) {
+    const phone = document.getElementById('phone').value;
+    if (!/^1[3-9]\d{9}$/.test(phone)) {
+        e.preventDefault();
+        alert('请输入正确的11位手机号');
+    }
+});
+</script>
 {% endblock %}

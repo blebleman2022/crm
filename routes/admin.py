@@ -147,8 +147,13 @@ def users():
     search = request.args.get('search', '', type=str)
     role_filter = request.args.get('role', '', type=str)
     group_filter = request.args.get('group', '', type=str)
-    
-    query = User.query
+
+    visible_role_filters = {'admin', 'sales_manager', 'teacher_supervisor'}
+    if role_filter not in visible_role_filters:
+        role_filter = ''
+
+    # 用户管理页不展示老师账号；老师信息统一在“老师管理”页维护
+    query = User.query.filter(User.role != 'teacher')
     
     # 搜索过滤
     if search:
@@ -171,7 +176,10 @@ def users():
     )
     
     # 获取所有组别用于筛选
-    groups = db.session.query(User.group_name).filter(User.group_name.isnot(None)).distinct().all()
+    groups = db.session.query(User.group_name).filter(
+        User.group_name.isnot(None),
+        User.role != 'teacher'
+    ).distinct().all()
     groups = [g[0] for g in groups]
     
     return render_template('admin/users.html', 
@@ -197,6 +205,14 @@ def add_user():
         # 验证必填字段
         if not all([username, phone, role]):
             flash('用户名、手机号和角色为必填项', 'error')
+            return render_template('admin/add_user.html')
+
+        allowed_roles = {'admin', 'sales_manager', 'teacher_supervisor'}
+        if role == 'teacher':
+            flash('老师账号请由管理员在“老师管理-添加老师”中创建', 'error')
+            return render_template('admin/add_user.html')
+        if role not in allowed_roles:
+            flash('用户角色无效，请重新选择', 'error')
             return render_template('admin/add_user.html')
         
         # 验证手机号格式
@@ -254,15 +270,41 @@ def edit_user(user_id):
 
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
+        phone = request.form.get('phone', '').strip()
+        phone_confirm = request.form.get('phone_confirm', '').strip()
         group_name = request.form.get('group_name', '').strip()
         requested_teacher_scope = normalize_teacher_scope(request.form.get('teacher_scope'))
 
         if not username:
             flash('用户名为必填项', 'error')
             return render_template('admin/edit_user.html', user=user)
+        if not phone:
+            flash('手机号为必填项', 'error')
+            return render_template('admin/edit_user.html', user=user)
+        if not validate_phone(phone):
+            flash('手机号格式不正确', 'error')
+            return render_template('admin/edit_user.html', user=user)
+
+        # 修改手机号时需要二次确认，并校验唯一性
+        if phone != user.phone:
+            if not phone_confirm:
+                flash('修改手机号时请再次输入确认手机号', 'error')
+                return render_template('admin/edit_user.html', user=user)
+            if phone != phone_confirm:
+                flash('两次输入的手机号不一致', 'error')
+                return render_template('admin/edit_user.html', user=user)
+
+            existing_user = User.query.filter(
+                User.phone == phone,
+                User.id != user.id
+            ).first()
+            if existing_user:
+                flash('该手机号已被其他账号使用', 'error')
+                return render_template('admin/edit_user.html', user=user)
 
         try:
             user.username = username
+            user.phone = phone
             user.group_name = group_name if group_name else None
             if user.role == 'teacher_supervisor':
                 user.teacher_scope = requested_teacher_scope
@@ -573,7 +615,10 @@ def edit_lead_form(lead_id):
 
     lead = Lead.query.get_or_404(lead_id)
     customer = Customer.query.filter_by(lead_id=lead.id).first()
-    current_teacher_user_id = customer.teacher_user_id if customer else None
+    current_teacher_user_id = lead.teacher_user_id
+    if not current_teacher_user_id and customer:
+        current_teacher_user_id = customer.teacher_user_id
+    can_assign_teacher = lead.stage in ['首笔支付', '次笔支付', '全款支付']
     lead_scope = (lead.customer_scope or Lead.SCOPE_PUBLIC).strip().lower()
     if lead_scope != Lead.SCOPE_PRIVATE:
         lead_scope = Lead.SCOPE_PUBLIC
@@ -622,6 +667,7 @@ def edit_lead_form(lead_id):
         payments=payments,
         teacher_users=teacher_users,
         current_teacher_user_id=current_teacher_user_id,
+        can_assign_teacher=can_assign_teacher,
         customer_exists=bool(customer),
         lead_scope=lead_scope
     )
@@ -667,6 +713,7 @@ def update_lead(lead_id):
             lead.service_types = ','.join(service_types)
         else:
             lead.service_types = None
+        tutoring_topic_type = request.form.get('tutoring_topic_type', '').strip()
 
         # 更新竞赛奖项等级和申报数量
         competition_award_level = request.form.get('competition_award_level', '').strip()
@@ -678,8 +725,15 @@ def update_lead(lead_id):
             if not competition_count or int(competition_count) < 1:
                 return jsonify({'success': False, 'message': '选择了竞赛辅导服务，必须填写申报赛事数量'})
 
+        if 'tutoring' in service_types:
+            if tutoring_topic_type not in Lead.ALLOWED_TUTORING_TOPIC_TYPES:
+                return jsonify({'success': False, 'message': '选择了课题辅导服务，必须选择课题类型（储备课题或定制课题）'})
+        else:
+            tutoring_topic_type = ''
+
         lead.competition_award_level = competition_award_level if competition_award_level else None
         lead.competition_count = int(competition_count) if competition_count else None
+        lead.tutoring_topic_type = tutoring_topic_type if 'tutoring' in service_types else None
 
         # 更新额外要求
         lead.additional_requirements = request.form.get('additional_requirements', '').strip()
@@ -692,12 +746,14 @@ def update_lead(lead_id):
             except:
                 return jsonify({'success': False, 'message': '合同金额格式不正确'})
 
-        # 更新班主任（存储在客户表）
+        # 更新班主任（首笔支付后可选择；写入线索表，客户已存在时同步）
         customer = Customer.query.filter_by(lead_id=lead.id).first()
-        teacher_user_id = request.form.get('teacher_user_id', '').strip()
+        teacher_user_id_raw = request.form.get('teacher_user_id')
+        can_assign_teacher = lead.stage in ['首笔支付', '次笔支付', '全款支付']
+        teacher_user_id = teacher_user_id_raw.strip() if teacher_user_id_raw is not None else None
         if teacher_user_id:
-            if not customer:
-                return jsonify({'success': False, 'message': '该线索尚未转客户，无法分配班主任'})
+            if not can_assign_teacher:
+                return jsonify({'success': False, 'message': '线索未到首笔支付阶段，暂不能分配班主任'})
             try:
                 teacher_user_id_int = int(teacher_user_id)
             except ValueError:
@@ -717,9 +773,13 @@ def update_lead(lead_id):
             if not teacher.can_serve_customer_scope(lead_scope):
                 return jsonify({'success': False, 'message': '该班主任仅可分配私域客户，当前客户为公域客户'})
 
-            customer.teacher_user_id = teacher_user_id_int
-        elif customer:
-            customer.teacher_user_id = None
+            lead.teacher_user_id = teacher_user_id_int
+            if customer:
+                customer.teacher_user_id = teacher_user_id_int
+        elif teacher_user_id is not None:
+            lead.teacher_user_id = None
+            if customer:
+                customer.teacher_user_id = None
 
         # 更新时间戳
         lead.updated_at = datetime.now()

@@ -12,14 +12,14 @@ from flask_login import LoginManager, current_user
 
 def create_app(config_name=None):
     """应用工厂函数"""
-    
+
     # 确定配置环境
     if config_name is None:
         config_name = os.environ.get('FLASK_ENV', 'development')
-    
+
     # 创建Flask应用
     app = Flask(__name__)
-    
+
     # 加载配置
     from config import config as config_dict
 
@@ -27,7 +27,14 @@ def create_app(config_name=None):
     config_class = config_dict.get(config_name, config_dict['default'])
     app.config.from_object(config_class)
     config_class.init_app(app)
-    
+
+
+    # 开发体验：模板自动重载（修改 templates/*.html 后刷新页面即可生效，无需重启服务）
+    # 说明：这里不依赖 use_reloader（代码热重载），只影响 Jinja 模板是否自动重新加载。
+    if config_name != 'production':
+        app.config['TEMPLATES_AUTO_RELOAD'] = True
+        app.jinja_env.auto_reload = True
+
     # 初始化扩展
     from models import db
     db.init_app(app)
@@ -51,7 +58,7 @@ def create_app(config_name=None):
     # HTTPS支持 - 处理反向代理的X-Forwarded-Proto头
     from werkzeug.middleware.proxy_fix import ProxyFix
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
-    
+
     @login_manager.user_loader
     def load_user(user_id):
         """加载用户对象（包括辅导老师，role='teacher'）"""
@@ -68,7 +75,7 @@ def create_app(config_name=None):
             return None
 
         return User.query.get(user_id)
-    
+
     # 注册蓝图
     from routes.auth import auth_bp
     from routes.admin import admin_bp
@@ -118,6 +125,15 @@ def create_app(config_name=None):
             return None
 
         if endpoint == 'health_check':
+            return None
+
+        # 维护模式下始终允许登出，避免“退出后仍保持管理员会话”
+        if endpoint == 'auth.logout':
+            return None
+
+        # 维护模式下允许通过隐形入口进入管理员登录页
+        maintenance_entry = (request.args.get('maintenance_entry') or request.form.get('maintenance_entry') or '').strip().lower()
+        if endpoint == 'auth.login' and maintenance_entry == 'admin':
             return None
 
         if endpoint in {'admin.dashboard', 'admin.toggle_maintenance_mode'} and \
@@ -424,19 +440,19 @@ def create_app(config_name=None):
         except Exception as e:
             db.session.rollback()
             return jsonify({'error': f'修复约见时间小时数失败: {str(e)}'}), 500
-    
+
     # 错误处理
     @app.errorhandler(404)
     def not_found_error(error):
         from flask import render_template
         return render_template('errors/404.html'), 404
-    
+
     @app.errorhandler(500)
     def internal_error(error):
         from flask import render_template
         db.session.rollback()
         return render_template('errors/500.html'), 500
-    
+
     @app.errorhandler(403)
     def forbidden_error(error):
         from flask import render_template
@@ -504,6 +520,17 @@ def init_database(app):
                 else:
                     print(f"⚠️ contract_total_sessions字段添加失败: {e}")
 
+            # 添加课题辅导类型字段（储备课题/定制课题）
+            try:
+                db.session.execute(text("ALTER TABLE leads ADD COLUMN tutoring_topic_type VARCHAR(20)"))
+                db.session.commit()
+                print("✅ tutoring_topic_type字段添加成功")
+            except Exception as e:
+                if "duplicate column name" in str(e):
+                    print("✅ tutoring_topic_type字段已存在")
+                else:
+                    print(f"⚠️ tutoring_topic_type字段添加失败: {e}")
+
             # 初始化历史数据的总课程数默认值
             try:
                 db.session.execute(text("""
@@ -515,6 +542,20 @@ def init_database(app):
                 print("✅ 已初始化历史线索的总课程数默认值（6）")
             except Exception as e:
                 print(f"⚠️ 初始化contract_total_sessions失败: {e}")
+                db.session.rollback()
+
+            # 清洗课题辅导类型非法值
+            try:
+                db.session.execute(text("""
+                    UPDATE leads
+                    SET tutoring_topic_type = NULL
+                    WHERE tutoring_topic_type IS NOT NULL
+                      AND tutoring_topic_type NOT IN ('reserve', 'custom')
+                """))
+                db.session.commit()
+                print("✅ 已清洗无效课题辅导类型")
+            except Exception as e:
+                print(f"⚠️ 清洗tutoring_topic_type失败: {e}")
                 db.session.rollback()
 
             # 添加用户私域负责人标记
@@ -885,26 +926,36 @@ def main():
         command = sys.argv[1]
     else:
         command = 'run'
-    
+
     # 获取环境配置
     config_name = os.environ.get('FLASK_ENV', 'development')
-    
+
     # 创建应用
     app = create_app(config_name)
-    
+
     if command == 'init-db':
         # 初始化数据库
         print(f"正在初始化数据库 (环境: {config_name})...")
         init_database(app)
         print("数据库初始化完成!")
-        
+
     elif command == 'run':
         # 运行应用
         print(f"正在启动 EduConnect CRM (环境: {config_name})...")
-        
-        # 自动初始化数据库（仅创建表和基本用户）
-        init_database(app)
-        
+
+        # 开发环境启用自动重载时，父进程仅负责监听文件变化，不执行初始化逻辑
+        debug_mode = (config_name == 'development')
+        use_reloader = debug_mode and os.environ.get('USE_RELOADER', '1').strip().lower() in (
+            '1', 'true', 'yes', 'on'
+        )
+
+        is_reloader_parent = use_reloader and os.environ.get('WERKZEUG_RUN_MAIN') != 'true'
+        if is_reloader_parent:
+            print("检测到自动重载父进程，跳过数据库初始化（由子进程执行）")
+        else:
+            # 自动初始化数据库（仅创建表和基本用户）
+            init_database(app)
+
         # 启动应用
         if config_name == 'production':
             # 生产环境使用gunicorn启动
@@ -915,17 +966,18 @@ def main():
             app.run(
                 host=host,
                 port=int(os.environ.get('PORT', 5002)),
-                debug=(config_name == 'development'),
-                use_reloader=False  # 禁用自动重载,避免Windows下watchdog问题
+                debug=debug_mode,
+                use_reloader=use_reloader,
+                reloader_type=os.environ.get('RELOADER_TYPE', 'stat')
             )
-    
+
     elif command == 'test':
         # 运行测试
         print("运行测试...")
         import unittest
         tests = unittest.TestLoader().discover('tests')
         unittest.TextTestRunner(verbosity=2).run(tests)
-    
+
     else:
         print("可用命令:")
         print("  run      - 运行应用 (默认)")

@@ -34,7 +34,7 @@
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {% if student.exam_year %}
-                            {{ student.exam_year }}年
+                            {{ '%02d'|format((student.exam_year|int) % 100) }}年
                         {% else %}
                             <span class="text-gray-400">-</span>
                         {% endif %}

@@ -30,12 +30,20 @@ def log_login_attempt(phone, user_id=None, result='success', ip_address=None, us
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     """手机号免密登录 - 支持所有角色（admin/sales_manager/salesperson/teacher_supervisor/teacher）"""
+    maintenance_entry = (request.args.get('maintenance_entry') or request.form.get('maintenance_entry') or '').strip().lower()
+    maintenance_admin_only = maintenance_entry == 'admin'
+
     if current_user.is_authenticated:
         # 添加调试日志
         print(f"[DEBUG] login - 用户已登录: {current_user.is_authenticated}")
         print(f"[DEBUG] login - hasattr role: {hasattr(current_user, 'role')}")
         if hasattr(current_user, 'role'):
             print(f"[DEBUG] login - role: {current_user.role}")
+
+        if maintenance_admin_only and current_user.role != 'admin':
+            logout_user()
+            flash('维护模式入口仅允许管理员登录', 'error')
+            return redirect(url_for('auth.login', maintenance_entry='admin'))
 
         # 已登录用户根据角色重定向
         if current_user.role == 'admin':
@@ -76,6 +84,11 @@ def login():
 
         if not user.status:
             flash('账号已被禁用，请联系管理员', 'error')
+            log_login_attempt(phone, user_id=user.id, result='failed')
+            return render_template('auth/login.html')
+
+        if maintenance_admin_only and user.role != 'admin':
+            flash('维护模式入口仅允许管理员登录', 'error')
             log_login_attempt(phone, user_id=user.id, result='failed')
             return render_template('auth/login.html')
 

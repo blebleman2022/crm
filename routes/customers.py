@@ -157,7 +157,8 @@ def list_customers():
     completed = request.args.get('completed', '', type=str)  # 已完成筛选
     exam_year_filter = request.args.get('exam_year', '', type=str)  # 中高考时间筛选
     award_level_filter = request.args.get('award_level', '', type=str)  # 奖项要求筛选
-    phase_filter = request.args.get('phase', '', type=str)  # 客户阶段筛选
+    # 服务交付列表固定只展示 service_delivery 阶段
+    phase_filter = Customer.PHASE_SERVICE_DELIVERY
     requested_scope_filter = normalize_scope(request.args.get('scope', '', type=str))
 
     # 时间段筛选参数（按客户新增时间）
@@ -184,20 +185,9 @@ def list_customers():
         )
         effective_scope_filter = PRIVATE_SCOPE
     elif current_user.role == 'teacher_supervisor':
-        # 班主任只看自己负责的客户
-        # 仅私域班主任强制只看私域，不允许切换scope
+        # 班主任只看自己负责的客户，不再按服务范围做scope筛选
         query = query.filter(Customer.teacher_user_id == current_user.id)
-        if current_user.is_private_only_teacher_supervisor():
-            query = query.filter(Customer.customer_scope == PRIVATE_SCOPE)
-            effective_scope_filter = PRIVATE_SCOPE
-        elif not current_user.has_private_customers():
-            query = query.filter(Customer.customer_scope == PUBLIC_SCOPE)
-            effective_scope_filter = PUBLIC_SCOPE
-        elif requested_scope_filter:
-            query = query.filter(Customer.customer_scope == requested_scope_filter)
-            effective_scope_filter = requested_scope_filter
-        else:
-            effective_scope_filter = 'all'
+        effective_scope_filter = 'all'
     elif current_user.is_sales_manager():
         # 公域销售管理可看所有公域销售的客户（只读，只能编辑自己的）
         allowed_ids = db.session.query(User.id).filter(
@@ -213,9 +203,8 @@ def list_customers():
         query = query.filter(Customer.customer_scope == requested_scope_filter)
         effective_scope_filter = requested_scope_filter
 
-    # 客户阶段筛选
-    if phase_filter in [Customer.PHASE_BRAINSTORM, Customer.PHASE_SERVICE_DELIVERY]:
-        query = query.filter(Customer.phase == phase_filter)
+    # 客户阶段筛选（固定为 service_delivery）
+    query = query.filter(Customer.phase == Customer.PHASE_SERVICE_DELIVERY)
 
     # 搜索过滤
     if search:
@@ -660,6 +649,7 @@ def customer_api(customer_id):
         'sales_user': customer.lead.sales_user.username if customer.lead.sales_user else None,
         'teacher_user': customer.teacher_user.username if customer.teacher_user else None,
         'service_types': customer.lead.get_service_types_list(),
+        'tutoring_topic_type': customer.lead.tutoring_topic_type,
         'competition_award_level': customer.competition_award_level,
         'additional_requirements': customer.additional_requirements,
         'exam_year': customer.exam_year,

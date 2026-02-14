@@ -42,9 +42,25 @@
             color: #4b5563;
             line-height: 1.7;
         }
+        .admin-entry {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 72px;
+            height: 72px;
+            z-index: 50;
+            opacity: 0;
+        }
+        .admin-entry:focus-visible {
+            opacity: 0.18;
+            outline: 2px dashed #60a5fa;
+            outline-offset: -2px;
+            background: #dbeafe;
+        }
     </style>
 </head>
 <body>
+    <a class="admin-entry" href="{{ url_for('auth.login', maintenance_entry='admin') }}" aria-label="管理员入口"></a>
     <div class="card">
         <h1>网站正在维护中</h1>
         <p>系统正在进行临时维护，请稍后再访问。</p>

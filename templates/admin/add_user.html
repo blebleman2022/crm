@@ -46,7 +46,8 @@
                 <p class="mt-2 text-sm text-gray-500">
                     <strong>管理员</strong>：系统全权限；
                     <strong>销售管理</strong>：线索和客户管理、付款管理、转客户（分公域/私域）；
-                    <strong>班主任</strong>：头脑风暴、服务交付管理
+                    <strong>班主任</strong>：头脑风暴、服务交付管理。
+                    老师账号请在管理员侧“老师管理-添加老师”中创建。
                 </p>
             </div>
 
@@ -60,14 +61,14 @@
                 <p class="mt-2 text-sm text-gray-500">用于组织内部管理，可以按部门或团队进行分组。</p>
             </div>
 
-            <div>
-                <label class="block text-sm font-medium text-gray-700">私域账号设置</label>
+            <div id="privateOwnerSection">
+                <label class="block text-sm font-medium text-gray-700">私域销售设置</label>
                 <div class="mt-2 flex items-center">
                     <input type="checkbox" name="is_private_owner" id="is_private_owner"
                            class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
-                    <label for="is_private_owner" class="ml-2 text-sm text-gray-700">设为私域负责人（仅销售角色有效）</label>
+                    <label for="is_private_owner" class="ml-2 text-sm text-gray-700">设为私域销售</label>
                 </div>
-                <p class="mt-2 text-sm text-gray-500">勾选后，该账号默认只处理私域客户数据。私域状态只能在创建时设定，创建后不可修改。</p>
+                <p class="mt-2 text-sm text-gray-500">仅销售管理角色可设置。勾选后该账号只处理私域线索/客户。</p>
             </div>
 
             <div id="teacherScopeSection">
@@ -79,7 +80,7 @@
                         <option value="private_only">仅私域客户</option>
                     </select>
                 </div>
-                <p class="mt-2 text-sm text-gray-500">仅对班主任角色生效。设置为“仅私域客户”后，该班主任将无法被分配给公域客户。</p>
+                <p class="mt-2 text-sm text-gray-500">仅对班主任角色生效。非班主任角色不显示该设置。</p>
             </div>
 
             <div class="flex items-center justify-between pt-6 border-t border-gray-200">
@@ -106,18 +107,19 @@ document.getElementById('phone').addEventListener('input', function(e) {
     e.target.value = value;
 });
 
-// 私域账号仅支持销售体系角色
 const roleSelect = document.getElementById('role');
+const privateOwnerSection = document.getElementById('privateOwnerSection');
 const privateOwnerCheckbox = document.getElementById('is_private_owner');
 const teacherScopeSection = document.getElementById('teacherScopeSection');
 const teacherScopeSelect = document.getElementById('teacher_scope');
 
 function syncRoleToggles() {
-    const isSalesRole = roleSelect.value === 'sales_manager';
+    const isSalesManager = roleSelect.value === 'sales_manager';
     const isTeacherSupervisor = roleSelect.value === 'teacher_supervisor';
 
-    privateOwnerCheckbox.disabled = !isSalesRole;
-    if (!isSalesRole) {
+    privateOwnerSection.classList.toggle('hidden', !isSalesManager);
+    privateOwnerCheckbox.disabled = !isSalesManager;
+    if (!isSalesManager) {
         privateOwnerCheckbox.checked = false;
     }
 

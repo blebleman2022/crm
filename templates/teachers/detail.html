@@ -1,4 +1,4 @@
-{% extends "leads/base.html" %}
+{% extends "admin/base.html" if current_user.is_admin() else "leads/base.html" %}
 
 {% block title %}{{ teacher.user.username if teacher.user else '' }} - 导师简历{% endblock %}
 {% block page_title %}导师简历{% endblock %}

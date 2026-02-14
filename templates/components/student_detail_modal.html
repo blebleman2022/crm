@@ -320,6 +320,24 @@ function populateStudentDetail(data, isCustomer, hideContactInfo = false) {
     }
 }
 
+function formatTutoringTopicType(topicType) {
+    if (topicType === 'reserve') {
+        return '储备课题';
+    }
+    if (topicType === 'custom') {
+        return '定制课题';
+    }
+    return '';
+}
+
+function buildTutoringDisplayText(baseText, topicType) {
+    const topicLabel = formatTutoringTopicType(topicType);
+    if (!topicLabel) {
+        return baseText;
+    }
+    return `${baseText}（${topicLabel}）`;
+}
+
 // 显示服务内容表格（客户）
 function displayServiceRows(studentData) {
     const serviceTableBody = document.getElementById('serviceTableBody');
@@ -330,6 +348,7 @@ function displayServiceRows(studentData) {
     // 课题辅导
     if (serviceTypes.includes('tutoring')) {
         const thesisText = studentData.thesis_name || '已选择';
+        const tutoringText = buildTutoringDisplayText(thesisText, studentData.tutoring_topic_type);
         const row = document.createElement('tr');
         row.innerHTML = `
             <td class="px-3 py-2 text-sm text-gray-600 bg-gray-50 w-1/3">
@@ -338,7 +357,7 @@ function displayServiceRows(studentData) {
                     <span>课题辅导</span>
                 </div>
             </td>
-            <td class="px-3 py-2 text-sm font-medium text-gray-900">${thesisText}</td>
+            <td class="px-3 py-2 text-sm font-medium text-gray-900">${tutoringText}</td>
         `;
         serviceTableBody.appendChild(row);
     }
@@ -400,6 +419,7 @@ function displayDefaultServiceRows(studentData) {
 
     // 课题辅导
     if (serviceTypes.includes('tutoring')) {
+        const tutoringText = buildTutoringDisplayText('已选择', studentData.tutoring_topic_type);
         const row = document.createElement('tr');
         row.innerHTML = `
             <td class="px-3 py-2 text-sm text-gray-600 bg-gray-50 w-1/3">
@@ -408,7 +428,7 @@ function displayDefaultServiceRows(studentData) {
                     <span>课题辅导</span>
                 </div>
             </td>
-            <td class="px-3 py-2 text-sm font-medium text-gray-900">已选择</td>
+            <td class="px-3 py-2 text-sm font-medium text-gray-900">${tutoringText}</td>
         `;
         serviceTableBody.appendChild(row);
     }

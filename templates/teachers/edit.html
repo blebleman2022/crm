@@ -1,4 +1,4 @@
-{% extends "leads/base.html" %}
+{% extends "admin/base.html" if current_user.is_admin() else "leads/base.html" %}
 
 {% block title %}编辑老师 - EduConnect CRM{% endblock %}
 {% block page_title %}编辑老师{% endblock %}
@@ -393,7 +393,7 @@ async function uploadImages() {
         return;
     }
 
-    // 禁用上传按钮
+    // 停用上传按钮
     const uploadBtn = document.getElementById('uploadBtn');
     uploadBtn.disabled = true;
     uploadBtn.innerHTML = '<span class="material-symbols-outlined mr-1 text-sm animate-spin">refresh</span>上传中...';

@@ -26,12 +26,26 @@
             <div>
                 <label for="phone" class="block text-sm font-medium text-gray-700">手机号</label>
                 <div class="mt-1">
-                    <input type="tel" name="phone" id="phone" 
-                           value="{{ user.phone }}" disabled
-                           class="block w-full rounded-md border-gray-300 bg-gray-50 shadow-sm sm:text-sm"
-                           placeholder="手机号不可修改">
+                    <input type="tel" name="phone" id="phone" required
+                           value="{{ user.phone }}"
+                           maxlength="11"
+                           class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                           placeholder="请输入11位手机号">
+                    <input type="hidden" id="original_phone" value="{{ user.phone }}">
                 </div>
-                <p class="mt-2 text-sm text-gray-500">手机号作为登录凭证，创建后不可修改。</p>
+                <p class="mt-2 text-sm text-gray-500">手机号作为登录凭证，可修改；修改时需二次确认。</p>
+            </div>
+
+            <div>
+                <label for="phone_confirm" class="block text-sm font-medium text-gray-700">确认手机号（二次编辑）</label>
+                <div class="mt-1">
+                    <input type="tel" name="phone_confirm" id="phone_confirm"
+                           value=""
+                           maxlength="11"
+                           class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                           placeholder="仅修改手机号时需要填写">
+                </div>
+                <p class="mt-2 text-sm text-gray-500">当上方手机号发生变更时，此处必须与上方完全一致。</p>
             </div>
 
             <div>
@@ -42,6 +56,7 @@
                         <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>管理员</option>
                         <option value="sales_manager" {% if user.role in ['sales_manager', 'salesperson'] %}selected{% endif %}>销售管理</option>
                         <option value="teacher_supervisor" {% if user.role == 'teacher_supervisor' %}selected{% endif %}>班主任</option>
+                        <option value="teacher" {% if user.role == 'teacher' %}selected{% endif %}>老师</option>
                     </select>
                 </div>
                 <p class="mt-2 text-sm text-gray-500">用户角色创建后不可修改，如需更改请联系系统管理员。</p>
@@ -94,12 +109,50 @@
 // 表单验证
 document.querySelector('form').addEventListener('submit', function(e) {
     const username = document.getElementById('username').value.trim();
+    const phone = document.getElementById('phone').value.trim();
+    const originalPhone = document.getElementById('original_phone').value.trim();
+    const phoneConfirm = document.getElementById('phone_confirm').value.trim();
+    const phoneRegex = /^1[3-9]\d{9}$/;
     
     if (!username) {
         e.preventDefault();
         alert('请输入用户名');
         return false;
     }
+
+    if (!phoneRegex.test(phone)) {
+        e.preventDefault();
+        alert('请输入正确的11位手机号');
+        return false;
+    }
+
+    if (phone !== originalPhone) {
+        if (!phoneConfirm) {
+            e.preventDefault();
+            alert('修改手机号时请再次输入确认手机号');
+            return false;
+        }
+        if (phone !== phoneConfirm) {
+            e.preventDefault();
+            alert('两次输入的手机号不一致');
+            return false;
+        }
+    }
 });
+
+function bindPhoneInputLimit(inputId) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    input.addEventListener('input', function(e) {
+        let value = e.target.value.replace(/\D/g, '');
+        if (value.length > 11) {
+            value = value.slice(0, 11);
+        }
+        e.target.value = value;
+    });
+}
+
+bindPhoneInputLimit('phone');
+bindPhoneInputLimit('phone_confirm');
 </script>
 {% endblock %}

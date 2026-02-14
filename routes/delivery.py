@@ -10,6 +10,26 @@ import os
 delivery_bp = Blueprint('delivery', __name__)
 
 
+def normalize_parent_wechat_display_name(raw_name, student_name=None):
+    """规范化家长微信名，去掉误拼接的“-学员名妈妈/爸爸/家长”后缀。"""
+    name = (raw_name or '').strip()
+    student = (student_name or '').strip()
+    if not name or not student:
+        return name
+
+    suffixes = (
+        f"-{student}妈妈",
+        f"-{student}爸爸",
+        f"-{student}家长",
+        f"-{student}妈",
+        f"-{student}爸",
+    )
+    for suffix in suffixes:
+        if name.endswith(suffix):
+            return name[:-len(suffix)].strip(" -")
+    return name
+
+
 def normalized_lead_scope(lead):
     """标准化线索归属域"""
     scope = (lead.customer_scope or Lead.SCOPE_PUBLIC).strip().lower()
@@ -53,6 +73,17 @@ def teacher_supervisor_required(f):
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated or current_user.role != 'teacher_supervisor':
             flash('您没有权限访问此页面', 'error')
+            return redirect(url_for('auth.login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+def admin_required(f):
+    """管理员权限装饰器"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or not current_user.is_admin():
+            flash('您没有权限访问此页面，仅管理员可访问', 'error')
             return redirect(url_for('auth.login'))
         return f(*args, **kwargs)
     return decorated_function
@@ -123,11 +154,21 @@ def leads_list():
         end_date = datetime.now().strftime('%Y-%m-%d')
 
     # 基础查询：班主任只看分配给自己的线索（通过 teacher_user_id 关联）
-    # 且对应客户处于头脑风暴阶段
+    # 头脑风暴阶段：已发生首笔支付，但尚未发生次笔支付（即付款笔数=1）
+    payment_count_subquery = db.session.query(
+        Payment.lead_id.label('lead_id'),
+        func.count(Payment.id).label('payment_count')
+    ).group_by(Payment.lead_id).subquery()
+
     query = Lead.query.filter(
         Lead.teacher_user_id == current_user.id
     ).join(Customer, Customer.lead_id == Lead.id).filter(
         Customer.phase == Customer.PHASE_BRAINSTORM
+    ).join(
+        payment_count_subquery,
+        Lead.id == payment_count_subquery.c.lead_id
+    ).filter(
+        payment_count_subquery.c.payment_count == 1
     )
 
     # 搜索过滤（学员姓名或家长微信名）
@@ -191,6 +232,11 @@ def leads_list():
     # 计算头脑风暴已过天数（以结论保存时间为起点）
     now = datetime.utcnow()
     for lead in leads.items:
+        # 仅用于页面展示：修正被误写成“家长名-学员名妈妈/爸爸”的历史数据
+        lead.parent_wechat_display_name_normalized = normalize_parent_wechat_display_name(
+            lead.parent_wechat_display_name,
+            lead.student_name
+        )
         if lead.brainstorm_conclusion_at:
             if lead.brainstorm_topics_at:
                 delta_days = max((lead.brainstorm_topics_at - lead.brainstorm_conclusion_at).days, 0)
@@ -468,7 +514,7 @@ def teacher_list():
 
 @delivery_bp.route('/teachers/create', methods=['GET', 'POST'])
 @login_required
-@teacher_supervisor_required
+@admin_required
 def create_teacher():
     """创建辅导老师账号 - 免密登录（保存到 User 表，role='teacher'）"""
     if request.method == 'POST':
@@ -566,7 +612,7 @@ def edit_teacher(teacher_id):
 @login_required
 @teacher_supervisor_required
 def toggle_teacher_status(teacher_id):
-    """启用/禁用辅导老师账号"""
+    """启用/停用辅导老师账号"""
     # teacher_id 是 User.id
     user = User.query.get_or_404(teacher_id)
 
@@ -579,7 +625,7 @@ def toggle_teacher_status(teacher_id):
         user.updated_at = datetime.utcnow()
         db.session.commit()
 
-        status_text = '启用' if user.status else '禁用'
+        status_text = '启用' if user.status else '停用'
         return jsonify({'success': True, 'message': f'已{status_text}辅导老师账号', 'status': user.status})
     except Exception as e:
         db.session.rollback()

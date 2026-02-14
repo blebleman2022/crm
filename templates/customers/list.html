@@ -43,23 +43,14 @@
                 </div>
             </div>
 
-            <!-- 第二行：客户阶段、中高考时间、奖项要求 -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div>
-                    <select class="block w-full rounded-md border-0 py-2.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"
-                            name="phase">
-                        <option value="">所有阶段</option>
-                        <option value="brainstorm" {% if phase_filter == 'brainstorm' %}selected{% endif %}>头脑风暴</option>
-                        <option value="service_delivery" {% if phase_filter == 'service_delivery' %}selected{% endif %}>服务交付</option>
-                    </select>
-                </div>
-
+            <!-- 第二行：中高考时间、奖项要求、归属 -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                     <select class="block w-full rounded-md border-0 py-2.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"
                             name="exam_year">
                         <option value="">所有中高考时间</option>
                         {% for year in exam_years %}
-                            <option value="{{ year }}" {% if exam_year_filter == year|string %}selected{% endif %}>{{ year }}年</option>
+                            <option value="{{ year }}" {% if exam_year_filter == year|string %}selected{% endif %}>{{ '%02d'|format((year|int) % 100) }}年</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -76,8 +67,6 @@
 
                 <div>
                     {% set is_teacher_supervisor = current_user.role == 'teacher_supervisor' %}
-                    {% set is_private_only_teacher = is_teacher_supervisor and current_user.get_teacher_scope() == 'private_only' %}
-                    {% set teacher_has_private_customers = is_teacher_supervisor and not is_private_only_teacher and current_user.has_private_customers() %}
                     {% if current_user.is_admin() %}
                     <select class="block w-full rounded-md border-0 py-2.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"
                             name="scope">
@@ -86,18 +75,7 @@
                         <option value="private" {% if scope_filter == 'private' %}selected{% endif %}>私域客户</option>
                     </select>
                     {% elif is_teacher_supervisor %}
-                    {% if is_private_only_teacher %}
-                    <input type="hidden" name="scope" value="private">
-                    {% elif teacher_has_private_customers %}
-                    <select class="block w-full rounded-md border-0 py-2.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm"
-                            name="scope">
-                        <option value="all" {% if scope_filter == 'all' or not scope_filter %}selected{% endif %}>全部归属</option>
-                        <option value="public" {% if scope_filter == 'public' %}selected{% endif %}>公域客户</option>
-                        <option value="private" {% if scope_filter == 'private' %}selected{% endif %}>私域客户</option>
-                    </select>
-                    {% else %}
-                    <input type="hidden" name="scope" value="public">
-                    {% endif %}
+                    <input type="hidden" name="scope" value="all">
                     {% elif current_user.is_private_owner %}
                     <input type="hidden" name="scope" value="private">
                     {% else %}
@@ -137,13 +115,9 @@
         <!-- 客户列表 -->
         <div class="overflow-x-auto">
             {% set hide_tutor_teacher_column = current_user.role == 'teacher_supervisor' and current_user.get_teacher_scope() == 'private_only' %}
-            {% set show_parent_wechat_column = current_user.role == 'teacher_supervisor' %}
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
-                        {% if show_parent_wechat_column %}
-                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">家长微信名</th>
-                        {% endif %}
                         <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-24">
                             <div class="flex items-center gap-2">
                                 <span>学员姓名</span>
@@ -152,8 +126,8 @@
                                 </button>
                             </div>
                         </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">家长微信名</th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500" style="max-width: 150px;">学校</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">阶段</th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">责任销售</th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">班主任</th>
                         {% if not hide_tutor_teacher_column %}
@@ -182,11 +156,6 @@
                 <tbody class="divide-y divide-gray-200 bg-white">
                     {% for customer in customers.items %}
                     <tr class="hover:bg-gray-50">
-                        {% if show_parent_wechat_column %}
-                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                            {{ customer.lead.parent_wechat_display_name or '-' }}
-                        </td>
-                        {% endif %}
                         <td class="whitespace-nowrap px-3 py-4 text-sm font-medium text-gray-900 w-24">
                             <div class="flex items-center space-x-2">
                                 {% if customer.is_priority %}
@@ -195,32 +164,28 @@
                                 <button onclick="showStudentDetailModal({{ customer.id }}, true, {% if current_user.role == 'teacher_supervisor' %}true{% else %}false{% endif %})" class="text-blue-600 hover:text-blue-800 cursor-pointer student-name-cell">
                                     {{ customer.lead.student_name }}
                                 </button>
-                                {% set should_show_scope_badge = current_user.is_admin() or (current_user.role == 'teacher_supervisor' and current_user.get_teacher_scope() != 'private_only') %}
-                                {% if should_show_scope_badge and customer.customer_scope == 'private' %}
-                                    <span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">私域</span>
+                                {% if customer.customer_scope == 'private' and customer.private_owner and customer.private_owner.username %}
+                                    <span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+                                        {{ customer.private_owner.username[:1] }}
+                                    </span>
                                 {% endif %}
                                 {% if customer.lead.additional_requirements %}
                                     <span class="material-symbols-outlined text-red-600 text-sm" title="有额外要求">add_circle</span>
                                 {% endif %}
                             </div>
                         </td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                            {% set parent_wechat_name = customer.lead.parent_wechat_display_name or '-' %}
+                            {{ parent_wechat_name }}
+                        </td>
                         <td class="px-6 py-4 text-sm text-gray-500" style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                             {% if customer.lead.school %}
-                                <span title="{{ customer.lead.school }}">{{ customer.lead.school }}</span>
+                                <span title="{{ customer.lead.school }}">{{ customer.lead.school[:2] }}</span>
                             {% else %}
                                 <span class="text-gray-400">-</span>
                             {% endif %}
                         </td>
-                        <td class="whitespace-nowrap px-6 py-4 text-sm">
-                            {% if customer.phase == 'brainstorm' %}
-                                <span class="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800">头脑风暴</span>
-                            {% elif customer.phase == 'service_delivery' %}
-                                <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">服务交付</span>
-                            {% else %}
-                                <span class="text-gray-400">-</span>
-                            {% endif %}
-                        </td>
-                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ customer.lead.sales_user.username }}</td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ customer.lead.sales_user.username[:1] if customer.lead.sales_user and customer.lead.sales_user.username else '-' }}</td>
                         <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                             {% if customer.teacher_user %}
                                 {{ customer.teacher_user.username }}
@@ -261,7 +226,7 @@
                         </td>
                         <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                             {% if customer.exam_year %}
-                                {{ customer.exam_year }}年
+                                {{ '%02d'|format((customer.exam_year|int) % 100) }}年
                             {% else %}
                                 <span class="text-gray-400">-</span>
                             {% endif %}
@@ -314,7 +279,7 @@
                         {% endif %}
                         <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 w-20">
                             {% if second_payments.get(customer.lead_id) %}
-                                {{ second_payments[customer.lead_id].year }}/{{ second_payments[customer.lead_id].month }}/{{ second_payments[customer.lead_id].day }}
+                                {{ '%02d'|format(second_payments[customer.lead_id].year % 100) }}/{{ second_payments[customer.lead_id].month }}/{{ second_payments[customer.lead_id].day }}
                             {% else %}
                                 <span class="text-gray-400">-</span>
                             {% endif %}
