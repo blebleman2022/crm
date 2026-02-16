@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from functools import wraps
-from models import User, LoginLog, Lead, Customer, SystemConfig, db
+from models import User, LoginLog, Lead, Customer, Payment, SystemConfig, db
 from datetime import datetime, timedelta
 import re
 import os
@@ -762,6 +762,37 @@ def leads():
         page=page, per_page=20, error_out=False
     )
 
+    # 告警标记：付款总金额与竞赛辅导奖项要求不匹配
+    lead_payment_award_warnings = {}
+    current_page_lead_ids = [lead.id for lead in leads.items]
+    payment_totals = {}
+    if current_page_lead_ids:
+        total_rows = db.session.query(
+            Payment.lead_id,
+            func.coalesce(func.sum(Payment.amount), 0).label('total_paid')
+        ).filter(
+            Payment.lead_id.in_(current_page_lead_ids)
+        ).group_by(
+            Payment.lead_id
+        ).all()
+        payment_totals = {
+            lead_id: float(total_paid or 0)
+            for lead_id, total_paid in total_rows
+        }
+
+    for lead in leads.items:
+        total_paid = payment_totals.get(lead.id, 0.0)
+        service_types = set(lead.get_service_types_list() or [])
+        award_level = (lead.competition_award_level or '').strip()
+        has_competition = 'competition' in service_types
+        has_city_award = has_competition and award_level in {'市奖', '国奖'}
+        has_national_award = has_competition and award_level == '国奖'
+
+        if total_paid > 30000 and not has_national_award:
+            lead_payment_award_warnings[lead.id] = '付款总金额超过30000，但服务内容未配置竞赛辅导国奖'
+        elif total_paid > 20000 and not has_city_award:
+            lead_payment_award_warnings[lead.id] = '付款总金额超过20000，但服务内容未配置竞赛辅导市奖'
+
     # 获取所有销售人员用于筛选
     sales_users = User.query.filter(User.role.in_(['sales_manager', 'salesperson']), User.status == True).all()
 
@@ -777,7 +808,8 @@ def leads():
                          stages=stages,
                          date_type=date_type,
                          start_date=start_date,
-                         end_date=end_date)
+                         end_date=end_date,
+                         lead_payment_award_warnings=lead_payment_award_warnings)
 
 @admin_bp.route('/leads/search')
 @login_required

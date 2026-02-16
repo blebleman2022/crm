@@ -104,6 +104,10 @@
                     <tr class="hover:bg-gray-50">
                         <td class="whitespace-nowrap px-3 py-3 text-sm font-medium text-gray-900">
                             <div class="flex items-center space-x-2">
+                                {% if lead_payment_award_warnings.get(lead.id) %}
+                                    <span class="material-symbols-outlined text-red-600 text-sm"
+                                          title="{{ lead_payment_award_warnings.get(lead.id) }}">priority_high</span>
+                                {% endif %}
                                 <span class="text-blue-600">{{ lead.student_name or '-' }}</span>
                                 {% if lead.customer_scope == 'private' %}
                                     <span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
