@@ -113,7 +113,7 @@ def student_list():
 
     # 预加载 tutoring_delivery 关联数据以显示课程进度
     from sqlalchemy.orm import joinedload
-    students = Customer.query.options(joinedload(Customer.tutoring_delivery)).filter_by(teacher_id=teacher.user_id).all()
+    students = Customer.query.options(joinedload(Customer.tutoring_delivery)).filter_by(tutor_user_id=teacher.user_id).all()
 
     # 批量查询每个学生的赛事数量（已报名的赛事）
     student_ids = [student.id for student in students]
@@ -168,7 +168,7 @@ def student_list():
 @teacher_required
 def topic_tasks():
     """老师课题选项任务列表"""
-    tasks = TopicTask.query.filter_by(teacher_user_id=current_user.id).filter(TopicTask.status != TopicTask.STATUS_DRAFT).order_by(TopicTask.created_at.desc(), TopicTask.id.desc()).all()
+    tasks = TopicTask.query.filter_by(tutor_user_id=current_user.id).filter(TopicTask.status != TopicTask.STATUS_DRAFT).order_by(TopicTask.created_at.desc(), TopicTask.id.desc()).all()
     now = datetime.utcnow()
     updated = False
     for task in tasks:
@@ -202,7 +202,7 @@ def topic_tasks():
 @teacher_required
 def submit_topic_task(task_id):
     task = TopicTask.query.get_or_404(task_id)
-    if task.teacher_user_id != current_user.id:
+    if task.tutor_user_id != current_user.id:
         return jsonify({'success': False, 'message': '无权提交该任务'}), 403
 
     data = request.get_json(silent=True) or {}
@@ -238,7 +238,7 @@ def student_detail(customer_id):
     student = Customer.query.get_or_404(customer_id)
 
     # 验证该学生是否属于当前老师
-    if student.teacher_id != teacher.user_id:
+    if student.tutor_user_id != teacher.user_id:
         flash('您无权查看此学生信息', 'error')
         return redirect(url_for('teacher.student_list'))
     
@@ -272,7 +272,7 @@ def get_student_api(customer_id):
     student = Customer.query.get_or_404(customer_id)
 
     # 验证该学生是否属于当前老师
-    if student.teacher_id != teacher.user_id:
+    if student.tutor_user_id != teacher.user_id:
         return jsonify({'success': False, 'message': '您无权查看此学生信息'}), 403
 
     # 获取 TutoringDelivery 获取课时信息
@@ -358,7 +358,7 @@ def update_thesis_name(customer_id):
     student = Customer.query.get_or_404(customer_id)
 
     # 验证权限 - 只能修改自己负责的学生
-    if student.teacher_id != teacher.user_id:
+    if student.tutor_user_id != teacher.user_id:
         return jsonify({'success': False, 'message': '您无权修改此学生信息'}), 403
 
     # 支持JSON和表单两种格式
@@ -391,7 +391,7 @@ def manage_communication_records(customer_id):
         return jsonify({'success': False, 'message': '未找到老师信息'}), 403
 
     student = Customer.query.get_or_404(customer_id)
-    if student.teacher_id != teacher.user_id:
+    if student.tutor_user_id != teacher.user_id:
         return jsonify({'success': False, 'message': '您无权查看此学生信息'}), 403
 
     if request.method == 'GET':
@@ -480,7 +480,7 @@ def upload_document(customer_id, doc_type):
 
     # 验证学生是否属于当前老师
     student = Customer.query.get_or_404(customer_id)
-    if student.teacher_id != teacher.user_id:
+    if student.tutor_user_id != teacher.user_id:
         return jsonify({'success': False, 'message': '您没有权限为该学生上传文档'}), 403
 
     # 验证文档类型
@@ -607,7 +607,7 @@ def download_document(doc_id):
 
     # 验证权限：老师只能下载自己学生的文档
     student = Customer.query.get_or_404(doc.customer_id)
-    if student.teacher_id != teacher.user_id:
+    if student.tutor_user_id != teacher.user_id:
         flash('您没有权限下载该文档', 'error')
         return redirect(url_for('teacher.student_list'))
 
@@ -636,7 +636,7 @@ def delete_document(doc_id):
 
     # 验证学生是否属于当前老师
     student = Customer.query.get_or_404(doc.customer_id)
-    if student.teacher_id != teacher.user_id:
+    if student.tutor_user_id != teacher.user_id:
         return jsonify({'success': False, 'message': '您没有权限删除该文档'}), 403
 
     try:
@@ -670,7 +670,7 @@ def get_documents(customer_id, doc_type):
 
     # 验证学生是否属于当前老师
     student = Customer.query.get_or_404(customer_id)
-    if student.teacher_id != teacher.user_id:
+    if student.tutor_user_id != teacher.user_id:
         return jsonify({'success': False, 'message': '您没有权限访问该学生的文档'}), 403
 
     # 获取该类型的所有文档，按版本倒序
@@ -706,7 +706,7 @@ def update_course_progress(customer_id):
 
     # 验证学生是否属于该老师
     student = Customer.query.get_or_404(customer_id)
-    if student.teacher_id != teacher.user_id:
+    if student.tutor_user_id != teacher.user_id:
         return jsonify({'success': False, 'message': '无权操作此学生'})
 
     data = request.get_json() or {}
@@ -747,3 +747,5 @@ def update_course_progress(customer_id):
     db.session.commit()
 
     return jsonify({'success': True, 'message': '保存成功'})
+
+

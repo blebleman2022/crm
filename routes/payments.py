@@ -4,12 +4,12 @@
 客户付款管理路由
 
 功能说明：
-1. 销售管理和班主任对账页面（只读视图）- /payments/reconciliation
-2. 班主任付款管理页面（编辑视图）- /payments/manage
+1. 销售管理和班主任主管对账页面（只读视图）- /payments/reconciliation
+2. 班主任主管付款管理页面（编辑视图）- /payments/manage
 
 权限控制：
-- reconciliation: 销售管理和班主任可访问
-- manage: 仅班主任可访问，且只能管理自己负责的客户
+- reconciliation: 销售管理和班主任主管可访问
+- manage: 仅班主任主管可访问，且可管理自己及旗下普通班主任负责的客户
 """
 
 from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for
@@ -47,22 +47,39 @@ def resolve_manage_scope(requested_scope):
         return PRIVATE_SCOPE
     return requested_scope if requested_scope in [PUBLIC_SCOPE, PRIVATE_SCOPE] else PUBLIC_SCOPE
 
+
+def get_visible_teacher_supervisor_ids():
+    """当前班主任可见的数据归属班主任ID集合（主管=自己+旗下普通班主任）"""
+    if not current_user.is_teacher_supervisor():
+        return []
+
+    cached_ids = getattr(current_user, '_visible_teacher_supervisor_ids_cache', None)
+    if cached_ids is not None:
+        return cached_ids
+
+    visible_ids = current_user.get_visible_teacher_supervisor_ids()
+    if current_user.id not in visible_ids:
+        visible_ids.append(current_user.id)
+
+    current_user._visible_teacher_supervisor_ids_cache = visible_ids
+    return visible_ids
+
 # 权限装饰器
 def sales_manager_or_teacher_supervisor_required(f):
-    """要求销售管理或班主任角色"""
+    """要求销售管理或班主任主管角色"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not (current_user.is_sales_manager() or current_user.is_teacher_supervisor()):
+        if not (current_user.is_sales_manager() or current_user.is_teacher_supervisor_manager()):
             flash('您没有权限访问此页面', 'error')
             return redirect(url_for('auth.login'))
         return f(*args, **kwargs)
     return decorated_function
 
 def teacher_supervisor_required(f):
-    """要求班主任角色"""
+    """要求班主任主管角色"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not current_user.is_teacher_supervisor():
+        if not current_user.is_teacher_supervisor_manager():
             flash('您没有权限访问此页面', 'error')
             return redirect(url_for('auth.login'))
         return f(*args, **kwargs)
@@ -82,10 +99,10 @@ def sales_manager_required(f):
 @login_required
 @sales_manager_or_teacher_supervisor_required
 def reconciliation():
-    """销售管理和班主任对账页面（只读视图）"""
+    """销售管理和班主任主管对账页面（只读视图）"""
 
     # 获取筛选参数
-    teacher_user_id = request.args.get('teacher_user_id', type=int)
+    selected_supervisor_id = request.args.get('supervisor_user_id', type=int)
     search = request.args.get('search', '', type=str)
     start_date = request.args.get('start_date', '')
     end_date = request.args.get('end_date', '')
@@ -100,13 +117,14 @@ def reconciliation():
     scope_expr = func.coalesce(CustomerPayment.scope_snapshot, Customer.customer_scope, PUBLIC_SCOPE)
 
     if current_user.is_teacher_supervisor():
+        visible_teacher_ids = get_visible_teacher_supervisor_ids()
         assigned_scope_rows = db.session.query(
             scope_expr.label('effective_scope'),
             Customer.private_owner_id.label('private_owner_id')
         ).outerjoin(
             CustomerPayment, Customer.id == CustomerPayment.customer_id
         ).filter(
-            Customer.teacher_user_id == current_user.id
+            Customer.supervisor_user_id.in_(visible_teacher_ids)
         ).all()
 
         has_public_customers = any(row.effective_scope == PUBLIC_SCOPE for row in assigned_scope_rows)
@@ -138,7 +156,7 @@ def reconciliation():
     # 销售端班主任切换：按当前可见数据范围生成按钮，仅多于1位班主任时显示
     if current_user.is_sales_manager():
         teacher_scope_query = db.session.query(
-            Customer.teacher_user_id.label('teacher_user_id')
+            Customer.supervisor_user_id.label('supervisor_user_id')
         ).outerjoin(
             CustomerPayment, Customer.id == CustomerPayment.customer_id
         ).filter(
@@ -149,8 +167,8 @@ def reconciliation():
             teacher_scope_query = teacher_scope_query.filter(Customer.private_owner_id == current_user.id)
 
         teacher_ids = sorted({
-            row.teacher_user_id for row in teacher_scope_query.all()
-            if row.teacher_user_id
+            row.supervisor_user_id for row in teacher_scope_query.all()
+            if row.supervisor_user_id
         })
 
         if teacher_ids:
@@ -160,8 +178,8 @@ def reconciliation():
             ).order_by(User.username.asc()).all()
 
         valid_teacher_ids = {teacher.id for teacher in teacher_switch_options}
-        if teacher_user_id and teacher_user_id not in valid_teacher_ids:
-            teacher_user_id = None
+        if selected_supervisor_id and selected_supervisor_id not in valid_teacher_ids:
+            selected_supervisor_id = None
 
         show_teacher_switch = len(teacher_switch_options) > 1
 
@@ -217,7 +235,7 @@ def reconciliation():
     ).outerjoin(
         CustomerPayment, Customer.id == CustomerPayment.customer_id
     ).outerjoin(
-        User, Customer.teacher_user_id == User.id
+        User, Customer.supervisor_user_id == User.id
     )
 
     # 对账按scope硬隔离（付款记录优先读快照，无记录则回退客户当前scope）
@@ -225,12 +243,12 @@ def reconciliation():
 
     # 如果是班主任，只显示自己负责的客户
     if current_user.is_teacher_supervisor():
-        query = query.filter(Customer.teacher_user_id == current_user.id)
+        query = query.filter(Customer.supervisor_user_id.in_(get_visible_teacher_supervisor_ids()))
         if selected_private_owner_id:
             query = query.filter(Customer.private_owner_id == selected_private_owner_id)
     # 如果是销售管理，可以按班主任筛选
-    elif teacher_user_id:
-        query = query.filter(Customer.teacher_user_id == teacher_user_id)
+    elif selected_supervisor_id:
+        query = query.filter(Customer.supervisor_user_id == selected_supervisor_id)
 
     # 私域负责人仅看自己名下私域
     if is_private_owner_user(current_user):
@@ -415,7 +433,7 @@ def reconciliation():
                          detail_month_totals=month_totals,
                          teacher_switch_options=teacher_switch_options,
                          show_teacher_switch=show_teacher_switch,
-                         selected_teacher_id=teacher_user_id,
+                         selected_supervisor_id=selected_supervisor_id,
                          show_scope_switch=show_scope_switch,
                          private_owner_options=private_owner_options,
                          selected_private_owner_id=selected_private_owner_id,
@@ -431,7 +449,7 @@ def reconciliation():
 @login_required
 @teacher_supervisor_required
 def manage():
-    """班主任付款管理页面（编辑视图）"""
+    """班主任主管付款管理页面（编辑视图）"""
 
     # 获取筛选参数
     start_date = request.args.get('start_date', '')
@@ -443,13 +461,15 @@ def manage():
     private_owner_options = []
 
     scope_expr = func.coalesce(CustomerPayment.scope_snapshot, Customer.customer_scope, PUBLIC_SCOPE)
+    visible_teacher_ids = get_visible_teacher_supervisor_ids()
+    show_teacher_column = current_user.is_teacher_supervisor_manager() and len(visible_teacher_ids) > 1
     assigned_scope_rows = db.session.query(
         scope_expr.label('effective_scope'),
         Customer.private_owner_id.label('private_owner_id')
     ).outerjoin(
         CustomerPayment, Customer.id == CustomerPayment.customer_id
     ).filter(
-        Customer.teacher_user_id == current_user.id
+        Customer.supervisor_user_id.in_(visible_teacher_ids)
     ).all()
 
     has_public_customers = any(row.effective_scope == PUBLIC_SCOPE for row in assigned_scope_rows)
@@ -487,7 +507,7 @@ def manage():
     ).outerjoin(
         CustomerPayment, Customer.id == CustomerPayment.customer_id
     ).filter(
-        Customer.teacher_user_id == current_user.id
+        Customer.supervisor_user_id.in_(visible_teacher_ids)
     )
     query = query.filter(scope_expr == scope_filter)
     if selected_private_owner_id:
@@ -507,7 +527,7 @@ def manage():
         if not payment:
             payment = CustomerPayment(
                 customer_id=customer.id,
-                teacher_user_id=current_user.id,
+                supervisor_user_id=customer.supervisor_user_id,
                 total_amount=None  # 总金额需要手动设置
             )
 
@@ -589,6 +609,7 @@ def manage():
             'payment_id': payment.id if payment.id else None,
             'student_name': lead.student_name if lead else '',
             'parent_wechat_name': lead.parent_wechat_display_name if lead else '',
+            'teacher_user_name': customer.teacher_user.username if customer.teacher_user and customer.teacher_user.username else '-',
             'has_tutoring': '是' if has_tutoring else '否',
             'has_competition': '是' if has_competition else '否',
             'award_level': customer.competition_award_level or '无',
@@ -608,6 +629,7 @@ def manage():
                          payment_data=payment_data,
                          start_date=start_date,
                          end_date=end_date,
+                         show_teacher_column=show_teacher_column,
                          scope_filter=scope_filter,
                          can_switch_scope=can_switch_scope,
                          show_scope_switch=show_scope_switch,
@@ -623,15 +645,15 @@ def update_payment(customer_id):
 
     # 验证权限：只能更新自己负责的客户
     customer = Customer.query.get_or_404(customer_id)
-    if customer.teacher_user_id != current_user.id:
-        return jsonify({'success': False, 'message': '您只能编辑自己负责的客户付款信息'}), 403
+    if customer.supervisor_user_id not in get_visible_teacher_supervisor_ids():
+        return jsonify({'success': False, 'message': '您只能编辑自己或旗下班主任负责的客户付款信息'}), 403
 
     # 获取或创建付款记录
     payment = CustomerPayment.query.filter_by(customer_id=customer_id).first()
     if not payment:
         payment = CustomerPayment(
             customer_id=customer_id,
-            teacher_user_id=current_user.id,
+            supervisor_user_id=customer.supervisor_user_id,
             scope_snapshot=customer.customer_scope or PUBLIC_SCOPE
         )
         db.session.add(payment)
@@ -855,3 +877,4 @@ def clear_lock_month():
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'清除失败：{str(e)}'}), 500
+

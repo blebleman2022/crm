@@ -22,6 +22,23 @@ def lead_scope(lead):
     return (lead.customer_scope or PUBLIC_SCOPE).strip()
 
 
+def get_visible_teacher_supervisor_ids():
+    """当前班主任可见的数据归属班主任ID集合（主管=自己+旗下普通班主任）"""
+    if not current_user.is_teacher_supervisor():
+        return []
+
+    cached_ids = getattr(current_user, '_visible_teacher_supervisor_ids_cache', None)
+    if cached_ids is not None:
+        return cached_ids
+
+    visible_ids = current_user.get_visible_teacher_supervisor_ids()
+    if current_user.id not in visible_ids:
+        visible_ids.append(current_user.id)
+
+    current_user._visible_teacher_supervisor_ids_cache = visible_ids
+    return visible_ids
+
+
 def can_view_lead_record(lead):
     """当前用户是否可查看该线索"""
     scope = lead_scope(lead)
@@ -31,16 +48,19 @@ def can_view_lead_record(lead):
 
     if scope == PRIVATE_SCOPE:
         if current_user.is_teacher_supervisor():
-            if current_user.is_private_only_teacher_supervisor():
+            visible_teacher_ids = get_visible_teacher_supervisor_ids()
+            if lead.supervisor_user_id and lead.supervisor_user_id in visible_teacher_ids:
                 return True
             return Customer.query.filter(
                 Customer.lead_id == lead.id,
-                Customer.teacher_user_id == current_user.id
+                Customer.supervisor_user_id.in_(visible_teacher_ids)
             ).first() is not None
         return is_private_owner_user(current_user) and lead.private_owner_id == current_user.id
 
     if current_user.is_teacher_supervisor():
-        return True
+        if not lead.supervisor_user_id:
+            return False
+        return lead.supervisor_user_id in get_visible_teacher_supervisor_ids()
 
     # 公域销售管理可以看到所有公域销售的线索（只读）
     if current_user.is_sales_manager():
@@ -542,9 +562,9 @@ def list_leads():
     if current_user.is_sales() and not is_private_owner_user(current_user):
         teachers_query = teachers_query.filter(
             db.or_(
-                User.teacher_scope != User.TEACHER_SCOPE_PRIVATE_ONLY,
-                User.teacher_scope.is_(None),
-                User.teacher_scope == ''
+                User.supervisor_scope != User.TEACHER_SCOPE_PRIVATE_ONLY,
+                User.supervisor_scope.is_(None),
+                User.supervisor_scope == ''
             )
         )
 
@@ -1548,17 +1568,23 @@ def convert_to_customer(lead_id):
         from utils.exam_calculator import calculate_exam_year
 
         # 获取必填的班主任ID
-        data = request.get_json() or {}
-        teacher_id = data.get('teacher_id')
+        data = request.get_json(silent=True) or {}
+        supervisor_id = data.get('supervisor_id')
+        if supervisor_id in (None, ''):
+            supervisor_id = request.form.get('supervisor_id')
         scope = lead_scope(lead)
 
         # 班主任ID为必填项
-        if not teacher_id:
+        if supervisor_id in (None, ''):
             return jsonify({'success': False, 'message': '转客户时必须分配班主任'})
+        try:
+            supervisor_id = int(supervisor_id)
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'message': '班主任参数格式不正确'})
 
         # 验证班主任有效性（只允许选择teacher_supervisor角色）
         teacher = User.query.filter(
-            User.id == teacher_id,
+            User.id == supervisor_id,
             User.role == 'teacher_supervisor',
             User.status == True
         ).first()
@@ -1581,11 +1607,11 @@ def convert_to_customer(lead_id):
 
         insert_sql = text("""
             INSERT INTO customers (
-                lead_id, sales_user_id, teacher_user_id, payment_amount,
+                lead_id, sales_user_id, supervisor_user_id, payment_amount,
                 exam_year, converted_at, award_requirement, created_at, updated_at, is_priority,
                 customer_scope, private_owner_id, phase
             ) VALUES (
-                :lead_id, :sales_user_id, :teacher_user_id, :payment_amount,
+                :lead_id, :sales_user_id, :supervisor_user_id, :payment_amount,
                 :exam_year, :converted_at, :award_requirement, :created_at, :updated_at, :is_priority,
                 :customer_scope, :private_owner_id, :phase
             )
@@ -1595,7 +1621,7 @@ def convert_to_customer(lead_id):
         result = db.session.execute(insert_sql, {
             'lead_id': lead.id,
             'sales_user_id': lead.sales_user_id,
-            'teacher_user_id': teacher_id,
+            'supervisor_user_id': supervisor_id,
             'payment_amount': 0,
             'exam_year': exam_year,
             'converted_at': now,
@@ -1612,8 +1638,8 @@ def convert_to_customer(lead_id):
         customer_id = result.lastrowid
         db.session.flush()
 
-        # 同步设置 Lead.teacher_user_id
-        lead.teacher_user_id = teacher_id
+        # 同步设置 Lead.supervisor_user_id
+        lead.supervisor_user_id = supervisor_id
 
         # 创建交付记录（总课程数由销售维护，默认6）
         total_sessions = lead.contract_total_sessions if lead.contract_total_sessions is not None else 6
@@ -1836,3 +1862,4 @@ def update_contract_total_sessions():
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'更新课程数量失败: {str(e)}'})
+

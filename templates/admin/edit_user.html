@@ -73,22 +73,59 @@
                 <p class="mt-2 text-sm text-gray-500">用于区分不同的工作组或团队，可选填写。</p>
             </div>
 
-            <div>
-                <label for="teacher_scope" class="block text-sm font-medium text-gray-700">班主任服务范围</label>
+            <div id="teacherProfileSection">
+                <label for="teacher_profile_type" class="block text-sm font-medium text-gray-700">班主任类型</label>
                 <div class="mt-1">
                     {% if user.role == 'teacher_supervisor' %}
-                    <select name="teacher_scope" id="teacher_scope"
+                    <select name="teacher_profile_type" id="teacher_profile_type"
                             class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
-                        <option value="all" {% if (user.teacher_scope or 'all') == 'all' %}selected{% endif %}>公私域都可分配</option>
-                        <option value="public_only" {% if user.teacher_scope == 'public_only' %}selected{% endif %}>仅公域客户</option>
-                        <option value="private_only" {% if user.teacher_scope == 'private_only' %}selected{% endif %}>仅私域客户</option>
+                        <option value="public_manager" {% if teacher_profile_type == 'public_manager' %}selected{% endif %}>公域班主任主管</option>
+                        <option value="public_regular" {% if teacher_profile_type == 'public_regular' %}selected{% endif %}>公域普通班主任</option>
+                        <option value="private" {% if teacher_profile_type == 'private' %}selected{% endif %}>私域班主任</option>
                     </select>
                     {% else %}
                     <input type="text" value="非班主任角色" disabled
                            class="block w-full rounded-md border-gray-300 bg-gray-50 shadow-sm sm:text-sm">
                     {% endif %}
                 </div>
-                <p class="mt-2 text-sm text-gray-500">仅班主任可配置。设置为“仅公域客户/仅私域客户”后，仅可服务对应归属域数据。</p>
+                <p class="mt-2 text-sm text-gray-500">公域普通班主任需归属主管；公域主管可在下方维护旗下普通班主任。</p>
+            </div>
+
+            <div id="supervisorSection">
+                <label for="supervisor_user_id" class="block text-sm font-medium text-gray-700">归属班主任主管</label>
+                <div class="mt-1">
+                    <select name="supervisor_user_id" id="supervisor_user_id"
+                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                        <option value="">请选择班主任主管</option>
+                        {% for manager in public_manager_options %}
+                            <option value="{{ manager.id }}" {% if user.supervisor_user_id == manager.id %}selected{% endif %}>{{ manager.username }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div id="managedTeachersSection" class="rounded-md border border-gray-200 p-4">
+                <label class="block text-sm font-medium text-gray-700">旗下普通班主任</label>
+                <p class="mt-1 text-sm text-gray-500">仅班主任主管可配置。勾选后，这些普通班主任客户将出现在该主管的头脑风暴、服务交付与付款页面。</p>
+                <div class="mt-3 max-h-64 overflow-y-auto space-y-2">
+                    {% if assignable_public_regular_teachers %}
+                        {% for teacher in assignable_public_regular_teachers %}
+                        <label class="flex items-center gap-2 text-sm text-gray-700">
+                            <input type="checkbox"
+                                   name="managed_teacher_ids"
+                                   value="{{ teacher.id }}"
+                                   {% if teacher.id in managed_teacher_ids %}checked{% endif %}
+                                   class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                            <span>{{ teacher.username }}</span>
+                            {% if teacher.supervisor_user_id and teacher.supervisor_user_id != user.id %}
+                                <span class="text-xs text-amber-600">（当前归属其他主管）</span>
+                            {% endif %}
+                        </label>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-sm text-gray-400">暂无可配置的普通班主任</p>
+                    {% endif %}
+                </div>
             </div>
 
             <div class="flex items-center justify-between pt-6 border-t border-gray-200">
@@ -113,6 +150,8 @@ document.querySelector('form').addEventListener('submit', function(e) {
     const originalPhone = document.getElementById('original_phone').value.trim();
     const phoneConfirm = document.getElementById('phone_confirm').value.trim();
     const phoneRegex = /^1[3-9]\d{9}$/;
+    const teacherProfileType = document.getElementById('teacher_profile_type');
+    const supervisorSelectEl = document.getElementById('supervisor_user_id');
     
     if (!username) {
         e.preventDefault();
@@ -138,6 +177,13 @@ document.querySelector('form').addEventListener('submit', function(e) {
             return false;
         }
     }
+
+    const hasManagerOptions = supervisorSelectEl && supervisorSelectEl.querySelectorAll('option').length > 1;
+    if (isTeacherSupervisor && teacherProfileType && teacherProfileType.value === 'public_regular' && hasManagerOptions && !supervisorSelectEl.value) {
+        e.preventDefault();
+        alert('公域普通班主任必须选择班主任主管');
+        return false;
+    }
 });
 
 function bindPhoneInputLimit(inputId) {
@@ -154,5 +200,42 @@ function bindPhoneInputLimit(inputId) {
 
 bindPhoneInputLimit('phone');
 bindPhoneInputLimit('phone_confirm');
+
+const teacherProfileTypeSelect = document.getElementById('teacher_profile_type');
+const supervisorSection = document.getElementById('supervisorSection');
+const supervisorSelect = document.getElementById('supervisor_user_id');
+const managedTeachersSection = document.getElementById('managedTeachersSection');
+const isTeacherSupervisor = '{{ "true" if user.role == "teacher_supervisor" else "false" }}' === 'true';
+
+function syncTeacherProfileSections() {
+    if (!isTeacherSupervisor || !teacherProfileTypeSelect) {
+        if (supervisorSection) supervisorSection.classList.add('hidden');
+        if (managedTeachersSection) managedTeachersSection.classList.add('hidden');
+        return;
+    }
+
+    const profileType = teacherProfileTypeSelect.value;
+    const isPublicRegular = profileType === 'public_regular';
+    const isPublicManager = profileType === 'public_manager';
+
+    supervisorSection.classList.toggle('hidden', !isPublicRegular);
+    supervisorSelect.disabled = !isPublicRegular;
+    if (!isPublicRegular) {
+        supervisorSelect.value = '';
+    }
+
+    managedTeachersSection.classList.toggle('hidden', !isPublicManager);
+    managedTeachersSection.querySelectorAll('input[name=\"managed_teacher_ids\"]').forEach(checkbox => {
+        checkbox.disabled = !isPublicManager;
+        if (!isPublicManager) {
+            checkbox.checked = false;
+        }
+    });
+}
+
+if (teacherProfileTypeSelect) {
+    teacherProfileTypeSelect.addEventListener('change', syncTeacherProfileSections);
+}
+syncTeacherProfileSections();
 </script>
 {% endblock %}

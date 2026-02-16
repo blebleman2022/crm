@@ -505,7 +505,7 @@ function confirmConvertToCustomer() {
 
     const requestData = {};
     if (teacherId) {
-        requestData.teacher_id = parseInt(teacherId);
+        requestData.supervisor_id = parseInt(teacherId);
     }
 
     fetch(`/leads/${currentConvertLeadId}/convert`, {
@@ -547,7 +547,7 @@ function confirmConvertToCustomer() {
                     <select id="convertTeacherSelect" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                         <option value="">暂不分配（待分配）</option>
                         {% for teacher in teachers %}
-                            {% set teacher_scope = teacher.teacher_scope or 'all' %}
+                            {% set teacher_scope = teacher.supervisor_scope or 'all' %}
                             <option value="{{ teacher.id }}" data-teacher-scope="{{ teacher_scope }}">
                                 {{ teacher.username }}{% if teacher_scope == 'private_only' %}（仅私域）{% endif %}
                             </option>
@@ -734,6 +734,20 @@ function confirmConvertToCustomer() {
                     </tbody>
                 </table>
             </div>
+
+            <div class="mt-4 flex items-center justify-end gap-2">
+                <button type="button"
+                        onclick="hidePaymentDetails()"
+                        class="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    关闭
+                </button>
+                <button id="modal-save-payment-button"
+                        type="button"
+                        onclick="savePaymentDetailsChanges()"
+                        class="hidden inline-flex items-center rounded-md border border-transparent bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
+                    保存
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -753,6 +767,82 @@ function formatCurrency(value) {
 
 let currentPaymentLeadId = null;
 let currentPaymentCanEdit = false;
+let modalContractOriginalValue = 0;
+let modalContractDraftValue = 0;
+let modalContractDirty = false;
+let modalPaymentChanged = false;
+
+function moneyValue(value) {
+    const parsed = parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function moneyEqual(a, b) {
+    return Math.abs(moneyValue(a) - moneyValue(b)) < 0.000001;
+}
+
+function updateModalSaveButtonState() {
+    const saveButton = document.getElementById('modal-save-payment-button');
+    if (!saveButton) {
+        return;
+    }
+    if (!currentPaymentCanEdit) {
+        saveButton.classList.add('hidden');
+        return;
+    }
+    saveButton.classList.remove('hidden');
+}
+
+function updateModalUnpaidAmount() {
+    const paidEl = document.getElementById('modal-paid-amount');
+    const unpaidEl = document.getElementById('modal-unpaid-amount');
+    if (!paidEl || !unpaidEl) {
+        return;
+    }
+    const paid = moneyValue(paidEl.dataset.value);
+    const unpaid = modalContractDraftValue - paid;
+    unpaidEl.dataset.value = unpaid;
+    unpaidEl.textContent = formatCurrency(unpaid);
+}
+
+function applyModalContractDraftValue(value, syncListCell = false) {
+    modalContractDraftValue = moneyValue(value);
+    const contractAmountEl = document.getElementById('modal-contract-amount');
+    if (contractAmountEl) {
+        contractAmountEl.dataset.value = modalContractDraftValue;
+        contractAmountEl.textContent = formatCurrency(modalContractDraftValue);
+    }
+    updateModalUnpaidAmount();
+
+    if (syncListCell && currentPaymentLeadId) {
+        updateLeadContractCell(currentPaymentLeadId, modalContractDraftValue);
+    }
+
+    modalContractDirty = !moneyEqual(modalContractDraftValue, modalContractOriginalValue);
+    updateModalSaveButtonState();
+}
+
+function finalizeModalContractInlineEdit() {
+    const contractAmountEl = document.getElementById('modal-contract-amount');
+    if (!contractAmountEl) {
+        return true;
+    }
+
+    const input = contractAmountEl.querySelector('input');
+    if (!input) {
+        return true;
+    }
+
+    const nextValue = moneyValue(input.value);
+    if (nextValue < 0) {
+        alert('合同金额不能为负数');
+        input.focus();
+        return false;
+    }
+
+    applyModalContractDraftValue(nextValue, false);
+    return true;
+}
 
 function escapeHtml(value) {
     const str = value === null || value === undefined ? '' : String(value);
@@ -777,19 +867,27 @@ function setPaymentEditMode(canEdit) {
     const actionHeader = document.getElementById('modal-payments-actions-header');
     const contractTip = document.getElementById('modal-contract-edit-tip');
     const contractAmount = document.getElementById('modal-contract-amount');
+    const saveButton = document.getElementById('modal-save-payment-button');
 
     if (canEdit) {
         addButton.classList.remove('hidden');
         actionHeader.classList.remove('hidden');
         contractTip.classList.remove('hidden');
         contractAmount.classList.add('cursor-pointer', 'hover:bg-blue-100');
+        if (saveButton) {
+            saveButton.classList.remove('hidden');
+        }
     } else {
         addButton.classList.add('hidden');
         addSection.classList.add('hidden');
         actionHeader.classList.add('hidden');
         contractTip.classList.add('hidden');
         contractAmount.classList.remove('cursor-pointer', 'hover:bg-blue-100');
+        if (saveButton) {
+            saveButton.classList.add('hidden');
+        }
     }
+    updateModalSaveButtonState();
 }
 
 function renderPaymentRows(payments) {
@@ -834,24 +932,25 @@ function loadPaymentDetails(leadId, showModal = false) {
             document.getElementById('modal-student-name').textContent = data.lead.student_name;
             document.getElementById('modal-parent-name').textContent = data.lead.parent_wechat_display_name || '-';
 
-            const contractAmountEl = document.getElementById('modal-contract-amount');
-            contractAmountEl.dataset.value = data.lead.contract_amount || 0;
-            contractAmountEl.textContent = formatCurrency(data.lead.contract_amount);
+            const serverContractAmount = moneyValue(data.lead.contract_amount);
+            if (showModal || !modalContractDirty) {
+                modalContractOriginalValue = serverContractAmount;
+                modalContractDraftValue = serverContractAmount;
+                modalContractDirty = false;
+            }
 
             const paidEl = document.getElementById('modal-paid-amount');
             paidEl.dataset.value = data.lead.total_paid || 0;
             paidEl.textContent = formatCurrency(data.lead.total_paid);
 
-            const unpaidEl = document.getElementById('modal-unpaid-amount');
-            unpaidEl.dataset.value = data.lead.unpaid || 0;
-            unpaidEl.textContent = formatCurrency(data.lead.unpaid);
+            applyModalContractDraftValue(modalContractDraftValue, !modalContractDirty);
 
             renderPaymentRows(data.payments || []);
-            updateLeadContractCell(leadId, data.lead.contract_amount || 0);
 
             if (showModal) {
                 document.getElementById('paymentDetailsModal').classList.remove('hidden');
             }
+            updateModalSaveButtonState();
         })
         .catch(error => {
             console.error('Error:', error);
@@ -861,10 +960,22 @@ function loadPaymentDetails(leadId, showModal = false) {
 
 function showPaymentDetails(leadId) {
     currentPaymentLeadId = leadId;
+    modalContractOriginalValue = 0;
+    modalContractDraftValue = 0;
+    modalContractDirty = false;
+    modalPaymentChanged = false;
     loadPaymentDetails(leadId, true);
 }
 
 function hidePaymentDetails() {
+    if (currentPaymentCanEdit && !finalizeModalContractInlineEdit()) {
+        return;
+    }
+    if (currentPaymentCanEdit && modalContractDirty) {
+        if (!confirm('合同金额有未保存修改，确定关闭弹窗吗？')) {
+            return;
+        }
+    }
     document.getElementById('paymentDetailsModal').classList.add('hidden');
     const addSection = document.getElementById('modal-add-payment-section');
     const addForm = document.getElementById('modal-add-payment-form');
@@ -876,6 +987,11 @@ function hidePaymentDetails() {
     }
     currentPaymentLeadId = null;
     currentPaymentCanEdit = false;
+    modalContractOriginalValue = 0;
+    modalContractDraftValue = 0;
+    modalContractDirty = false;
+    modalPaymentChanged = false;
+    updateModalSaveButtonState();
 }
 
 function toggleModalAddPaymentForm(show) {
@@ -922,6 +1038,8 @@ function deleteModalPayment(paymentId) {
         if (!data.success) {
             throw new Error(data.message || '删除付款失败');
         }
+        modalPaymentChanged = true;
+        updateModalSaveButtonState();
         loadPaymentDetails(currentPaymentLeadId, false);
     })
     .catch(error => {
@@ -948,6 +1066,8 @@ document.getElementById('modal-add-payment-form').addEventListener('submit', fun
         if (!data.success) {
             throw new Error(data.message || '添加付款失败');
         }
+        modalPaymentChanged = true;
+        updateModalSaveButtonState();
         toggleModalAddPaymentForm(false);
         loadPaymentDetails(currentPaymentLeadId, false);
     })
@@ -967,12 +1087,12 @@ function startEditModalContractAmount() {
         return;
     }
 
-    const originalValue = parseFloat(element.dataset.value || '0') || 0;
+    const previousValue = moneyValue(element.dataset.value);
     const input = document.createElement('input');
     input.type = 'number';
     input.step = '0.01';
     input.min = '0';
-    input.value = originalValue;
+    input.value = previousValue;
     input.className = 'w-28 rounded border border-blue-300 bg-white px-1 py-0.5 text-right text-2xl font-semibold text-blue-900 outline-none';
 
     element.innerHTML = '';
@@ -980,59 +1100,92 @@ function startEditModalContractAmount() {
     input.focus();
     input.select();
 
-    const saveValue = () => {
-        const newValue = parseFloat(input.value);
-        if (Number.isNaN(newValue) || newValue < 0) {
+    const applyValue = () => {
+        const newValue = moneyValue(input.value);
+        if (newValue < 0) {
             alert('合同金额不能为负数');
-            input.focus();
-            return;
+            applyModalContractDraftValue(previousValue, false);
+            return false;
         }
-
-        if (newValue === originalValue) {
-            element.dataset.value = originalValue;
-            element.textContent = formatCurrency(originalValue);
-            return;
-        }
-
-        const formData = new FormData();
-        formData.append('lead_id', currentPaymentLeadId);
-        formData.append('contract_amount', String(newValue));
-
-        fetch('{{ url_for("leads.update_contract_amount") }}', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (!data.success) {
-                throw new Error(data.message || '更新合同金额失败');
-            }
-            showSuccessToast('合同金额已更新');
-            loadPaymentDetails(currentPaymentLeadId, false);
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert(error.message || '更新合同金额失败，请重试');
-            element.dataset.value = originalValue;
-            element.textContent = formatCurrency(originalValue);
-        });
+        applyModalContractDraftValue(newValue, false);
+        return true;
     };
 
-    const cancelEdit = () => {
-        element.dataset.value = originalValue;
-        element.textContent = formatCurrency(originalValue);
-    };
+    const cancelEdit = () => applyModalContractDraftValue(previousValue, false);
 
-    input.addEventListener('blur', saveValue);
+    input.addEventListener('blur', applyValue);
     input.addEventListener('keydown', function(e) {
         if (e.key === 'Enter') {
             e.preventDefault();
-            saveValue();
+            applyValue();
         } else if (e.key === 'Escape') {
             e.preventDefault();
             cancelEdit();
         }
     });
+}
+
+function persistModalContractAmount() {
+    const formData = new FormData();
+    formData.append('lead_id', currentPaymentLeadId);
+    formData.append('contract_amount', String(modalContractDraftValue));
+
+    return fetch('{{ url_for("leads.update_contract_amount") }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data.success) {
+            throw new Error(data.message || '更新合同金额失败');
+        }
+        modalContractOriginalValue = modalContractDraftValue;
+        modalContractDirty = false;
+        updateLeadContractCell(currentPaymentLeadId, modalContractDraftValue);
+        return data;
+    });
+}
+
+function savePaymentDetailsChanges() {
+    if (!currentPaymentCanEdit || !currentPaymentLeadId) {
+        hidePaymentDetails();
+        return;
+    }
+
+    if (!finalizeModalContractInlineEdit()) {
+        return;
+    }
+
+    const hasChanges = modalPaymentChanged || modalContractDirty;
+    if (!hasChanges) {
+        hidePaymentDetails();
+        return;
+    }
+
+    const saveButton = document.getElementById('modal-save-payment-button');
+    const originalText = saveButton ? saveButton.textContent : '';
+    if (saveButton) {
+        saveButton.disabled = true;
+        saveButton.textContent = '保存中...';
+    }
+
+    const requestPromise = modalContractDirty ? persistModalContractAmount() : Promise.resolve();
+    requestPromise
+        .then(() => {
+            showSuccessToast('保存成功，正在刷新列表...');
+            window.location.reload();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert(error.message || '保存失败，请重试');
+        })
+        .finally(() => {
+            if (saveButton) {
+                saveButton.disabled = false;
+                saveButton.textContent = originalText || '保存';
+            }
+            updateModalSaveButtonState();
+        });
 }
 
 function showSuccessToast(message) {
@@ -1208,3 +1361,4 @@ function fallbackCopyText(text) {
 }
 </script>
 {% endblock %}
+

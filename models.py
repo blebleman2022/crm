@@ -10,8 +10,12 @@ class User(UserMixin, db.Model):
     """用户账号表"""
     __tablename__ = 'users'
     TEACHER_SCOPE_ALL = 'all'
+    TEACHER_SCOPE_PUBLIC_ONLY = 'public_only'
     TEACHER_SCOPE_PRIVATE_ONLY = 'private_only'
-    ALLOWED_TEACHER_SCOPES = [TEACHER_SCOPE_ALL, TEACHER_SCOPE_PRIVATE_ONLY]
+    ALLOWED_TEACHER_SCOPES = [TEACHER_SCOPE_ALL, TEACHER_SCOPE_PUBLIC_ONLY, TEACHER_SCOPE_PRIVATE_ONLY]
+    TEACHER_LEVEL_REGULAR = 'regular'
+    TEACHER_LEVEL_MANAGER = 'manager'
+    ALLOWED_TEACHER_LEVELS = [TEACHER_LEVEL_REGULAR, TEACHER_LEVEL_MANAGER]
 
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), nullable=False, comment='用户名')
@@ -20,16 +24,19 @@ class User(UserMixin, db.Model):
     group_name = db.Column(db.String(50), comment='所属组别')
     status = db.Column(db.Boolean, default=True, comment='账号状态：True启用/False禁用')
     is_private_owner = db.Column(db.Boolean, default=False, comment='是否为私域负责人账号')
-    teacher_scope = db.Column(db.String(20), nullable=False, default=TEACHER_SCOPE_ALL, comment='班主任服务范围：all/private_only')
+    supervisor_scope = db.Column(db.String(20), nullable=False, default=TEACHER_SCOPE_ALL, comment='班主任服务范围：all/public_only/private_only')
+    supervisor_level = db.Column(db.String(20), nullable=False, default=TEACHER_LEVEL_REGULAR, comment='班主任层级：regular/manager')
+    supervisor_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), comment='上级班主任ID（普通班主任归属）')
     created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # 辅导老师关联：role='teacher' 时使用
-    created_by_user_id = db.Column(db.Integer, comment='创建人ID（班主任）')
+    created_by_user_id = db.Column(db.Integer, comment='创建人ID（历史字段，老师账号已不再使用）')
 
     # 关联关系
     leads_as_sales = db.relationship('Lead', foreign_keys='Lead.sales_user_id', backref='sales_user', lazy='dynamic')
-    customers_as_teacher_user = db.relationship('Customer', foreign_keys='Customer.teacher_user_id', backref='teacher_user', lazy='dynamic')
+    customers_as_teacher_user = db.relationship('Customer', foreign_keys='Customer.supervisor_user_id', backref='teacher_user', lazy='dynamic')
+    supervisor_user = db.relationship('User', remote_side=[id], foreign_keys=[supervisor_user_id], backref='managed_teacher_supervisors')
     # 辅导老师信息（一对一）
     teacher_profile = db.relationship('Teacher', back_populates='user', uselist=False)
 
@@ -63,12 +70,27 @@ class User(UserMixin, db.Model):
         """是否为辅导老师角色（实际授课，未来可能废弃此User角色）"""
         return self.role == 'teacher'
 
-    def get_teacher_scope(self):
+    def get_supervisor_scope(self):
         """返回班主任服务范围（无效值回退为all）"""
-        scope = (self.teacher_scope or self.TEACHER_SCOPE_ALL).strip().lower()
+        scope = (self.supervisor_scope or self.TEACHER_SCOPE_ALL).strip().lower()
         if scope not in self.ALLOWED_TEACHER_SCOPES:
             return self.TEACHER_SCOPE_ALL
         return scope
+
+    def get_supervisor_level(self):
+        """返回班主任层级（无效值回退为regular）"""
+        level = (self.supervisor_level or self.TEACHER_LEVEL_REGULAR).strip().lower()
+        if level not in self.ALLOWED_TEACHER_LEVELS:
+            return self.TEACHER_LEVEL_REGULAR
+        return level
+
+    def get_teacher_scope(self):
+        """兼容旧命名：返回班主任服务范围"""
+        return self.get_supervisor_scope()
+
+    def get_teacher_level(self):
+        """兼容旧命名：返回班主任层级"""
+        return self.get_supervisor_level()
 
     def can_serve_customer_scope(self, customer_scope):
         """班主任是否可服务指定归属域客户"""
@@ -79,21 +101,49 @@ class User(UserMixin, db.Model):
         if normalized_scope != 'private':
             normalized_scope = 'public'
 
-        if normalized_scope == 'public' and self.get_teacher_scope() == self.TEACHER_SCOPE_PRIVATE_ONLY:
-            return False
-        return True
+        supervisor_scope = self.get_supervisor_scope()
+        if normalized_scope == 'public':
+            return supervisor_scope != self.TEACHER_SCOPE_PRIVATE_ONLY
+        return supervisor_scope != self.TEACHER_SCOPE_PUBLIC_ONLY
 
     def is_private_only_teacher_supervisor(self):
         """是否为仅私域班主任账号"""
-        return self.is_teacher_supervisor() and self.get_teacher_scope() == self.TEACHER_SCOPE_PRIVATE_ONLY
+        return self.is_teacher_supervisor() and self.get_supervisor_scope() == self.TEACHER_SCOPE_PRIVATE_ONLY
 
     def is_public_only_teacher_supervisor(self):
-        """是否为仅公域班主任账号（teacher_scope不是private_only）"""
+        """是否为仅公域班主任账号"""
+        return self.is_teacher_supervisor() and self.get_supervisor_scope() == self.TEACHER_SCOPE_PUBLIC_ONLY
+
+    def is_teacher_supervisor_manager(self):
+        """是否为公域班主任主管"""
+        return (
+            self.is_teacher_supervisor()
+            and not self.is_private_only_teacher_supervisor()
+            and self.get_supervisor_level() == self.TEACHER_LEVEL_MANAGER
+        )
+
+    def get_visible_teacher_supervisor_ids(self, active_only=False):
+        """班主任可见的数据归属班主任ID集合（主管=自己+旗下普通班主任）"""
         if not self.is_teacher_supervisor():
-            return False
-        scope = self.get_teacher_scope()
-        # 仅公域班主任：scope为'all'或其他非'private_only'的值
-        return scope != self.TEACHER_SCOPE_PRIVATE_ONLY
+            return []
+
+        visible_ids = [self.id]
+        if not self.is_teacher_supervisor_manager():
+            return visible_ids
+
+        query = User.query.filter(
+            User.role == 'teacher_supervisor',
+            User.supervisor_user_id == self.id
+        )
+        if active_only:
+            query = query.filter(User.status == True)
+
+        subordinate_ids = [row.id for row in query.with_entities(User.id).all()]
+        for subordinate_id in subordinate_ids:
+            if subordinate_id not in visible_ids:
+                visible_ids.append(subordinate_id)
+
+        return visible_ids
 
     def has_private_customers(self):
         """班主任是否存在私域客户"""
@@ -101,7 +151,7 @@ class User(UserMixin, db.Model):
             return False
 
         return db.session.query(Customer.id).filter(
-            Customer.teacher_user_id == self.id,
+            Customer.supervisor_user_id == self.id,
             Customer.customer_scope == Lead.SCOPE_PRIVATE
         ).first() is not None
 
@@ -142,7 +192,7 @@ class Lead(db.Model):
     district = db.Column(db.String(20), comment='行政区')
     school = db.Column(db.String(100), comment='学校')
     sales_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, comment='责任销售ID')
-    teacher_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), comment='分配的班主任ID（首笔支付后由销售分配）')
+    supervisor_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), comment='分配的班主任ID（迁移新字段）')
     customer_scope = db.Column(db.String(20), nullable=False, default=SCOPE_PUBLIC, comment='归属域：public/private')
     private_owner_id = db.Column(db.Integer, db.ForeignKey('users.id'), comment='私域归属人ID')
     stage = db.Column(db.String(50), nullable=False, comment='线索阶段')
@@ -175,7 +225,7 @@ class Lead(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # 关联关系（添加级联删除保护）
-    teacher_user = db.relationship('User', foreign_keys=[teacher_user_id], backref='assigned_leads', lazy='joined')
+    teacher_user = db.relationship('User', foreign_keys=[supervisor_user_id], backref='assigned_leads', lazy='joined')
     private_owner = db.relationship('User', foreign_keys=[private_owner_id], backref='private_leads', lazy='joined')
     customer = db.relationship('Customer', backref='lead', uselist=False,
                               cascade='all, delete-orphan')
@@ -227,7 +277,7 @@ class TopicTask(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     lead_id = db.Column(db.Integer, db.ForeignKey('leads.id'), nullable=False)
-    teacher_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    tutor_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, comment='课题辅导老师ID')
     due_at = db.Column(db.DateTime, nullable=False)
     status = db.Column(db.String(20), default=STATUS_PENDING)
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
@@ -235,7 +285,7 @@ class TopicTask(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     lead = db.relationship('Lead', backref='topic_tasks')
-    teacher = db.relationship('User', foreign_keys=[teacher_user_id])
+    teacher = db.relationship('User', foreign_keys=[tutor_user_id])
     creator = db.relationship('User', foreign_keys=[created_by])
 
 
@@ -265,9 +315,9 @@ class Customer(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     lead_id = db.Column(db.Integer, db.ForeignKey('leads.id'), nullable=False, comment='关联线索ID')
-    teacher_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), comment='责任班主任ID（User表，role=teacher_supervisor）')
+    supervisor_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), comment='责任班主任ID（迁移新字段）')
     phase = db.Column(db.String(30), nullable=False, default=PHASE_BRAINSTORM, comment='客户阶段：brainstorm/service_delivery')
-    teacher_id = db.Column(db.Integer, db.ForeignKey('teachers.user_id'), comment='辅导老师ID（User表ID）')
+    tutor_user_id = db.Column(db.Integer, db.ForeignKey('teachers.user_id'), comment='辅导老师ID（迁移新字段）')
     customer_scope = db.Column(db.String(20), nullable=False, default=Lead.SCOPE_PUBLIC, comment='归属域：public/private')
     private_owner_id = db.Column(db.Integer, db.ForeignKey('users.id'), comment='私域归属人ID')
 
@@ -299,7 +349,8 @@ class Customer(db.Model):
                                                      cascade='all, delete-orphan')
 
     # 辅导老师关联：关联到 Teacher 表
-    teacher = db.relationship('Teacher', backref=db.backref('customers', lazy='dynamic'))
+    teacher = db.relationship('Teacher', foreign_keys=[tutor_user_id], backref=db.backref('customers', lazy='dynamic'))
+    tutor = db.relationship('Teacher', foreign_keys=[tutor_user_id], viewonly=True)
     private_owner = db.relationship('User', foreign_keys=[private_owner_id], backref='private_customers', lazy='joined')
 
     # ✨ 通过 @property 从线索表读取合同内容（单一数据源）
@@ -452,7 +503,7 @@ class CustomerPayment(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'), nullable=False, comment='关联客户ID')
-    teacher_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, comment='责任班主任ID')
+    supervisor_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), comment='责任班主任ID（迁移新字段）')
 
     total_amount = db.Column(Numeric(10, 2), comment='总金额')
 
@@ -471,7 +522,7 @@ class CustomerPayment(db.Model):
 
     # 关联关系
     customer = db.relationship('Customer', backref='payment_info', uselist=False)
-    teacher_user = db.relationship('User', foreign_keys=[teacher_user_id], backref='managed_payments')
+    teacher_user = db.relationship('User', foreign_keys=[supervisor_user_id], backref='managed_payments')
 
     def get_total_paid(self):
         """计算已付款总额"""
@@ -512,7 +563,6 @@ class Teacher(db.Model):
     social_roles = db.Column(db.Text, comment='个人荣誉')
     email = db.Column(db.String(100), comment='邮箱')
     subject = db.Column(db.String(50), comment='擅长学科')
-    status = db.Column(db.Boolean, default=True, comment='状态：True启用/False禁用')
     created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
 
@@ -577,7 +627,7 @@ class TeacherImage(db.Model):
     __tablename__ = 'teacher_images'
 
     id = db.Column(db.Integer, primary_key=True)
-    teacher_id = db.Column(db.Integer, db.ForeignKey('teachers.user_id'), nullable=False, comment='老师ID（User表ID）')
+    tutor_user_id = db.Column(db.Integer, db.ForeignKey('teachers.user_id'), nullable=False, comment='老师ID（User表ID）')
     image_path = db.Column(db.String(500), nullable=False, comment='图片路径')
     description = db.Column(db.String(200), comment='图片描述')
     file_size = db.Column(db.Integer, comment='文件大小(字节)')
@@ -585,12 +635,12 @@ class TeacherImage(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='上传时间')
 
     # 关联关系
-    teacher = db.relationship('Teacher', foreign_keys=[teacher_id],
-                             primaryjoin='TeacherImage.teacher_id==Teacher.user_id',
+    teacher = db.relationship('Teacher', foreign_keys=[tutor_user_id],
+                             primaryjoin='TeacherImage.tutor_user_id==Teacher.user_id',
                              backref=db.backref('images', lazy='dynamic', cascade='all, delete-orphan'))
 
     def __repr__(self):
-        return f'<TeacherImage {self.teacher_id} - {self.file_name}>'
+        return f'<TeacherImage {self.tutor_user_id} - {self.file_name}>'
 
     def get_file_size_display(self):
         """返回格式化的文件大小"""
@@ -660,9 +710,6 @@ class AwardCertificateImage(db.Model):
         else:
             size_mb = size_kb / 1024
             return f'{size_mb:.1f} MB'
-
-# ConsultationDetail表已删除，现在统一使用CommunicationRecord表
-
 
 class SystemConfig(db.Model):
     """系统配置表"""

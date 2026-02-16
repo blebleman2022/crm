@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from functools import wraps
-from models import User, Customer, Lead, Teacher, TeacherImage, db
+from models import User, Customer, Lead, Teacher, TeacherImage, TopicTask, LoginLog, db
 from datetime import datetime
 import os
 from werkzeug.utils import secure_filename
@@ -51,6 +51,23 @@ def sales_manager_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+
+def get_visible_teacher_supervisor_ids():
+    """当前班主任可见的数据归属班主任ID集合（主管=自己+旗下普通班主任）"""
+    if current_user.role != 'teacher_supervisor':
+        return []
+
+    cached_ids = getattr(current_user, '_visible_teacher_supervisor_ids_cache', None)
+    if cached_ids is not None:
+        return cached_ids
+
+    visible_ids = current_user.get_visible_teacher_supervisor_ids()
+    if current_user.id not in visible_ids:
+        visible_ids.append(current_user.id)
+
+    current_user._visible_teacher_supervisor_ids_cache = visible_ids
+    return visible_ids
+
 @teachers_bp.route('/list')
 @login_required
 @teacher_supervisor_or_admin_required
@@ -59,34 +76,31 @@ def list_teachers():
     page = request.args.get('page', 1, type=int)
     search = request.args.get('search', '', type=str)
     status_filter = request.args.get('status', '', type=str)
+    is_admin_view = current_user.is_admin()
 
-    # 班主任仅看自己创建的老师；管理员可看全部老师
-    user_filter = [User.role == 'teacher']
-    if current_user.role == 'teacher_supervisor':
-        user_filter.append(User.created_by_user_id == current_user.id)
-
-    user_query = User.query.filter(*user_filter).all()
-    user_ids = [u.id for u in user_query]
-
-    # 再查询 Teacher 表
-    teacher_query = Teacher.query.filter(Teacher.user_id.in_(user_ids))
+    # 老师创建人信息已移除，班主任和管理员均可查看全部老师
+    teacher_query = Teacher.query.join(User, Teacher.user_id == User.id).filter(User.role == 'teacher')
 
     # 搜索过滤
     if search:
-        teacher_query = teacher_query.join(User).filter(
+        teacher_query = teacher_query.filter(
             (User.username.contains(search)) |
             (Teacher.current_institution.contains(search)) |
             (Teacher.major_direction.contains(search))
         )
 
-    # 状态筛选
-    if status_filter == 'active':
+    # 状态筛选：停用老师仅管理员可见
+    if is_admin_view:
+        if status_filter == 'active':
+            teacher_query = teacher_query.filter(User.status == True)
+        elif status_filter == 'inactive':
+            teacher_query = teacher_query.filter(User.status == False)
+    else:
         teacher_query = teacher_query.filter(User.status == True)
-    elif status_filter == 'inactive':
-        teacher_query = teacher_query.filter(User.status == False)
+        status_filter = 'active'
 
     # 按创建时间倒序排列
-    teacher_query = teacher_query.join(User).order_by(User.created_at.desc())
+    teacher_query = teacher_query.order_by(User.created_at.desc())
 
     # 分页
     per_page = 20
@@ -96,7 +110,7 @@ def list_teachers():
     # 统计每个老师负责的客户数量
     teacher_customer_counts = {}
     for teacher in teachers:
-        count = Customer.query.filter(Customer.teacher_id == teacher.user_id).count()
+        count = Customer.query.filter(Customer.tutor_user_id == teacher.user_id).count()
         teacher_customer_counts[teacher.user_id] = count
 
     return render_template('teachers/list.html',
@@ -104,6 +118,7 @@ def list_teachers():
                          pagination=pagination,
                          search=search,
                          status_filter=status_filter,
+                         can_view_inactive=is_admin_view,
                          teacher_customer_counts=teacher_customer_counts)
 
 @teachers_bp.route('/add', methods=['GET', 'POST'])
@@ -143,8 +158,7 @@ def add_teacher():
                 username=name,
                 phone=phone,
                 role='teacher',
-                status=True,
-                created_by_user_id=current_user.id
+                status=True
             )
             db.session.add(user)
             db.session.flush()  # 获取 user.id
@@ -177,19 +191,15 @@ def add_teacher():
 
 @teachers_bp.route('/edit/<int:teacher_id>', methods=['GET', 'POST'])
 @login_required
-@teacher_supervisor_or_admin_required
+@admin_required
 def edit_teacher(teacher_id):
     """编辑辅导老师"""
     # teacher_id 实际是 User.id
     user = User.query.get_or_404(teacher_id)
 
-    # 权限检查：只能编辑自己创建的老师，且必须是 role='teacher'
+    # 权限检查：仅允许编辑老师账号
     if user.role != 'teacher':
         flash('仅可编辑老师账号', 'error')
-        return redirect(url_for('teachers.list_teachers'))
-
-    if (not current_user.is_admin()) and user.created_by_user_id != current_user.id:
-        flash('您只能编辑自己创建的辅导老师信息', 'error')
         return redirect(url_for('teachers.list_teachers'))
 
     # 获取关联的 Teacher 记录
@@ -237,20 +247,19 @@ def detail_teacher(teacher_id):
     # teacher_id 实际是 User.id
     user = User.query.get_or_404(teacher_id)
 
-    # 权限检查：只能查看自己创建的辅导老师
+    # 权限检查：仅允许查看老师账号
     if user.role != 'teacher':
         flash('仅可查看老师账号', 'error')
         return redirect(url_for('teachers.list_teachers'))
-
-    if (not current_user.is_admin()) and user.created_by_user_id != current_user.id:
-        flash('您只能查看自己创建的辅导老师信息', 'error')
+    if not current_user.is_admin() and not user.status:
+        flash('该老师已停用，仅管理员可查看', 'error')
         return redirect(url_for('teachers.list_teachers'))
 
     # 获取关联的 Teacher 记录
     teacher = Teacher.query.filter_by(user_id=teacher_id).first()
 
     # 获取该老师负责的客户列表
-    customers = Customer.query.filter(Customer.teacher_id == teacher_id).join(Lead).all()
+    customers = Customer.query.filter(Customer.tutor_user_id == teacher_id).join(Lead).all()
 
     return render_template('teachers/detail.html',
                          teacher=teacher,
@@ -259,30 +268,19 @@ def detail_teacher(teacher_id):
 
 @teachers_bp.route('/delete/<int:teacher_id>', methods=['POST'])
 @login_required
-@teacher_supervisor_or_admin_required
+@admin_required
 def delete_teacher(teacher_id):
     """删除辅导老师（软删除，设置status=False）"""
     try:
         user = User.query.get_or_404(teacher_id)
 
-        # 权限检查：只能删除自己创建的辅导老师，且必须是 role='teacher'
+        # 权限检查：仅允许停用老师账号
         if user.role != 'teacher':
             flash('仅可停用老师账号', 'error')
             return redirect(url_for('teachers.list_teachers'))
 
-        if (not current_user.is_admin()) and user.created_by_user_id != current_user.id:
-            flash('您只能删除自己创建的辅导老师', 'error')
-            return redirect(url_for('teachers.list_teachers'))
-
         # 获取 Teacher 记录
         teacher = Teacher.query.filter_by(user_id=teacher_id).first()
-
-        # 检查是否有客户关联
-        customer_count = Customer.query.filter(Customer.teacher_id == teacher_id).count()
-        if customer_count > 0:
-            teacher_name = teacher.user.username if teacher and teacher.user else user.username
-            flash(f'无法删除辅导老师 {teacher_name}，该老师还负责 {customer_count} 位客户', 'error')
-            return redirect(url_for('teachers.list_teachers'))
 
         # 软删除
         user.status = False
@@ -297,21 +295,68 @@ def delete_teacher(teacher_id):
 
     return redirect(url_for('teachers.list_teachers'))
 
+@teachers_bp.route('/permanent-delete/<int:teacher_id>', methods=['POST'])
+@login_required
+@admin_required
+def permanent_delete_teacher(teacher_id):
+    """管理员永久删除老师账号（删除 User + Teacher + 图片 + 登录日志）"""
+    try:
+        user = User.query.get_or_404(teacher_id)
+        if user.role != 'teacher':
+            flash('仅可删除老师账号', 'error')
+            return redirect(url_for('teachers.list_teachers'))
+
+        customer_count = Customer.query.filter(Customer.tutor_user_id == teacher_id).count()
+        if customer_count > 0:
+            flash(f'该老师仍负责 {customer_count} 位客户，无法删除', 'error')
+            return redirect(url_for('teachers.list_teachers'))
+
+        task_count = TopicTask.query.filter(
+            db.or_(TopicTask.tutor_user_id == teacher_id, TopicTask.created_by == teacher_id)
+        ).count()
+        if task_count > 0:
+            flash(f'该老师存在 {task_count} 条课题任务记录，无法删除', 'error')
+            return redirect(url_for('teachers.list_teachers'))
+
+        # 先删除图片记录与文件
+        images = TeacherImage.query.filter_by(tutor_user_id=teacher_id).all()
+        for image in images:
+            image_path = os.path.join('static', image.image_path) if image.image_path else None
+            db.session.delete(image)
+            if image_path and os.path.exists(image_path):
+                try:
+                    os.remove(image_path)
+                except Exception:
+                    pass
+
+        # 删除老师登录日志
+        LoginLog.query.filter_by(user_id=teacher_id).delete()
+
+        # 删除老师资料和账号
+        teacher = Teacher.query.filter_by(user_id=teacher_id).first()
+        if teacher:
+            db.session.delete(teacher)
+        db.session.delete(user)
+        db.session.commit()
+
+        flash('老师账号已删除', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'删除老师失败：{str(e)}', 'error')
+
+    return redirect(url_for('teachers.list_teachers'))
+
 @teachers_bp.route('/activate/<int:teacher_id>', methods=['POST'])
 @login_required
-@teacher_supervisor_or_admin_required
+@admin_required
 def activate_teacher(teacher_id):
     """启用辅导老师"""
     try:
         user = User.query.get_or_404(teacher_id)
 
-        # 权限检查：只能启用自己创建的辅导老师，且必须是 role='teacher'
+        # 权限检查：仅允许启用老师账号
         if user.role != 'teacher':
             flash('仅可启用老师账号', 'error')
-            return redirect(url_for('teachers.list_teachers'))
-
-        if (not current_user.is_admin()) and user.created_by_user_id != current_user.id:
-            flash('您只能启用自己创建的辅导老师', 'error')
             return redirect(url_for('teachers.list_teachers'))
 
         user.status = True
@@ -332,21 +377,16 @@ def activate_teacher(teacher_id):
 @login_required
 def get_active_teachers():
     """获取所有启用的辅导老师（用于分配老师的下拉列表）"""
-    # 数据隔离：只返回当前班主任创建的启用辅导老师
-    if current_user.role == 'teacher_supervisor':
-        # 获取符合条件的用户
-        users = User.query.filter(
-            User.role == 'teacher',
-            User.status == True,
-            User.created_by_user_id == current_user.id
-        ).all()
-        user_ids = [u.id for u in users]
+    # 创建人信息已移除，班主任可分配所有“启用”老师
+    if current_user.role not in {'teacher_supervisor', 'admin', 'sales_manager'}:
+        return jsonify([])
 
-        # 获取 Teacher 记录
-        teachers = Teacher.query.filter(Teacher.user_id.in_(user_ids)).all()
-    else:
-        # 非班主任角色返回空列表
-        teachers = []
+    users = User.query.filter(
+        User.role == 'teacher',
+        User.status == True
+    ).order_by(User.username.asc()).all()
+    user_ids = [u.id for u in users]
+    teachers = Teacher.query.filter(Teacher.user_id.in_(user_ids)).all() if user_ids else []
 
     return jsonify([{
         'id': t.user_id,
@@ -360,7 +400,7 @@ def assign_teacher(customer_id):
     """分配辅导老师给客户"""
     try:
         customer = Customer.query.get_or_404(customer_id)
-        teacher_id = request.form.get('teacher_id', type=int)
+        teacher_id = request.form.get('tutor_user_id', type=int)
 
         if not teacher_id:
             return jsonify({'success': False, 'message': '请选择老师'}), 400
@@ -376,17 +416,15 @@ def assign_teacher(customer_id):
         # 检查权限：只有班主任角色可以分配老师
         if current_user.role != 'teacher_supervisor':
             return jsonify({'success': False, 'message': '只有班主任可以分配老师'}), 403
-
-        # 权限检查：只能分配自己创建的辅导老师
-        if user.created_by_user_id != current_user.id:
-            return jsonify({'success': False, 'message': '您只能分配自己创建的辅导老师'}), 403
+        if customer.supervisor_user_id not in get_visible_teacher_supervisor_ids():
+            return jsonify({'success': False, 'message': '您没有权限为该客户分配老师'}), 403
 
         # 获取老师信息
         teacher = Teacher.query.filter_by(user_id=teacher_id).first()
         teacher_name = teacher.user.username if teacher and teacher.user else user.username
 
         old_teacher_name = customer.teacher.user.username if customer.teacher and customer.teacher.user else '未分配'
-        customer.teacher_id = teacher_id
+        customer.tutor_user_id = teacher_id
         customer.updated_at = datetime.utcnow()
         db.session.commit()
 
@@ -412,7 +450,7 @@ def change_teacher(customer_id):
         if not data:
             return jsonify({'success': False, 'message': '无效的请求数据'}), 400
 
-        teacher_id = data.get('teacher_id')
+        teacher_id = data.get('tutor_user_id')
         confirmed = data.get('confirmed', False)
 
         if not teacher_id:
@@ -435,10 +473,8 @@ def change_teacher(customer_id):
         # 检查权限：只有班主任角色可以更换老师
         if current_user.role != 'teacher_supervisor':
             return jsonify({'success': False, 'message': '只有班主任可以更换老师'}), 403
-
-        # 权限检查：只能分配自己创建的辅导老师
-        if user.created_by_user_id != current_user.id:
-            return jsonify({'success': False, 'message': '您只能分配自己创建的辅导老师'}), 403
+        if customer.supervisor_user_id not in get_visible_teacher_supervisor_ids():
+            return jsonify({'success': False, 'message': '您没有权限为该客户更换老师'}), 403
 
         # 获取老师信息
         teacher = Teacher.query.filter_by(user_id=teacher_id).first()
@@ -455,7 +491,7 @@ def change_teacher(customer_id):
 
         # 已确认，执行更换
         old_teacher_name = customer.teacher.user.username if customer.teacher and customer.teacher.user else '未分配'
-        customer.teacher_id = teacher_id
+        customer.tutor_user_id = teacher_id
         customer.updated_at = datetime.utcnow()
         db.session.commit()
 
@@ -483,20 +519,17 @@ def allowed_image_file(filename):
 
 @teachers_bp.route('/upload-image/<int:teacher_id>', methods=['POST'])
 @login_required
-@teacher_supervisor_or_admin_required
+@admin_required
 def upload_teacher_image(teacher_id):
     """上传辅导老师图片"""
     teacher = User.query.get_or_404(teacher_id)
 
-    # 权限检查：只能为自己创建的辅导老师上传图片，且必须是 role='teacher'
+    # 权限检查：仅允许管理员为老师账号上传图片
     if teacher.role != 'teacher':
         return jsonify({'success': False, 'message': '仅可为老师账号上传图片'}), 403
 
-    if (not current_user.is_admin()) and teacher.created_by_user_id != current_user.id:
-        return jsonify({'success': False, 'message': '您只能为自己创建的辅导老师上传图片'}), 403
-
     # 检查当前图片数量
-    current_image_count = TeacherImage.query.filter_by(teacher_id=teacher_id).count()
+    current_image_count = TeacherImage.query.filter_by(tutor_user_id=teacher_id).count()
     if current_image_count >= MAX_IMAGES_PER_TEACHER:
         return jsonify({'success': False, 'message': f'最多只能上传{MAX_IMAGES_PER_TEACHER}张图片'}), 400
 
@@ -547,7 +580,7 @@ def upload_teacher_image(teacher_id):
 
             # 保存到数据库
             teacher_image = TeacherImage(
-                teacher_id=teacher_id,
+                tutor_user_id=teacher_id,
                 image_path=f'uploads/teacher_images/{filename}',
                 description=description.strip(),
                 file_size=file_size,
@@ -574,19 +607,16 @@ def upload_teacher_image(teacher_id):
 
 @teachers_bp.route('/delete-image/<int:image_id>', methods=['POST'])
 @login_required
-@teacher_supervisor_or_admin_required
+@admin_required
 def delete_teacher_image(image_id):
     """删除辅导老师图片"""
     try:
         image = TeacherImage.query.get_or_404(image_id)
-        teacher = User.query.get_or_404(image.teacher_id)
+        teacher = User.query.get_or_404(image.tutor_user_id)
 
-        # 权限检查：只能删除自己创建的辅导老师的图片，且必须是 role='teacher'
+        # 权限检查：仅允许管理员删除老师账号图片
         if teacher.role != 'teacher':
             return jsonify({'success': False, 'message': '仅可删除老师账号图片'}), 403
-
-        if (not current_user.is_admin()) and teacher.created_by_user_id != current_user.id:
-            return jsonify({'success': False, 'message': '您只能删除自己创建的辅导老师的图片'}), 403
 
         # 1. 先记录文件路径
         filepath = os.path.join('static', image.image_path)
@@ -612,19 +642,16 @@ def delete_teacher_image(image_id):
 
 @teachers_bp.route('/update-image-description/<int:image_id>', methods=['POST'])
 @login_required
-@teacher_supervisor_or_admin_required
+@admin_required
 def update_image_description(image_id):
     """更新辅导老师图片描述"""
     try:
         image = TeacherImage.query.get_or_404(image_id)
-        teacher = User.query.get_or_404(image.teacher_id)
+        teacher = User.query.get_or_404(image.tutor_user_id)
 
-        # 权限检查：只能更新自己创建的辅导老师的图片描述，且必须是 role='teacher'
+        # 权限检查：仅允许管理员更新老师账号图片描述
         if teacher.role != 'teacher':
             return jsonify({'success': False, 'message': '仅可更新老师账号图片描述'}), 403
-
-        if (not current_user.is_admin()) and teacher.created_by_user_id != current_user.id:
-            return jsonify({'success': False, 'message': '您只能更新自己创建的辅导老师的图片描述'}), 403
 
         data = request.get_json()
         if not data:
@@ -651,27 +678,24 @@ def list_teachers_for_sales():
     """销售管理角色的辅导老师列表页（只读，role='teacher'）"""
     page = request.args.get('page', 1, type=int)
     search = request.args.get('search', '', type=str)
-    status_filter = request.args.get('status', '', type=str)
+    status_filter = 'active'
 
-    # 销售管理可以查看所有辅导老师
-    query = Teacher.query
+    # 销售管理仅可查看启用中的辅导老师
+    query = Teacher.query.join(User, Teacher.user_id == User.id).filter(
+        User.role == 'teacher',
+        User.status == True
+    )
 
     # 搜索过滤
     if search:
-        query = query.join(User).filter(
+        query = query.filter(
             (User.username.contains(search)) |
             (Teacher.current_institution.contains(search)) |
             (Teacher.major_direction.contains(search))
         )
 
-    # 状态筛选
-    if status_filter == 'active':
-        query = query.filter(Teacher.status == True)
-    elif status_filter == 'inactive':
-        query = query.filter(Teacher.status == False)
-
-    # 按创建时间倒序排列
-    query = query.order_by(Teacher.created_at.desc())
+    # 按账号创建时间倒序排列
+    query = query.order_by(User.created_at.desc())
 
     # 分页
     per_page = 20
@@ -681,7 +705,7 @@ def list_teachers_for_sales():
     # 统计每个老师负责的客户数量
     teacher_customer_counts = {}
     for teacher in teachers:
-        count = Customer.query.filter(Customer.teacher_id == teacher.user_id).count()
+        count = Customer.query.filter(Customer.tutor_user_id == teacher.user_id).count()
         teacher_customer_counts[teacher.user_id] = count
 
     return render_template('teachers/list_for_sales.html',
@@ -696,12 +720,20 @@ def list_teachers_for_sales():
 @sales_manager_required
 def detail_teacher_for_sales(teacher_id):
     """销售管理角色的老师详情页（只读）"""
-    teacher = Teacher.query.get_or_404(teacher_id)
+    teacher = Teacher.query.join(User, Teacher.user_id == User.id).filter(
+        Teacher.user_id == teacher_id,
+        User.role == 'teacher',
+        User.status == True
+    ).first()
+    if not teacher:
+        flash('该老师已停用或不存在', 'error')
+        return redirect(url_for('teachers.list_teachers_for_sales'))
 
     # 获取该老师负责的客户列表
-    customers = Customer.query.filter(Customer.teacher_id == teacher_id).join(Lead).all()
+    customers = Customer.query.filter(Customer.tutor_user_id == teacher_id).join(Lead).all()
 
     return render_template('teachers/detail.html',
                          teacher=teacher,
                          customers=customers,
                          is_sales_manager_view=True)  # 标记为销售管理视图
+

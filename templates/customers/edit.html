@@ -60,14 +60,14 @@
                                 </div>
 
                                 <div>
-                                    <label for="teacher_user_id" class="block text-sm font-medium text-gray-700">责任班主任</label>
+                                    <label for="supervisor_user_id" class="block text-sm font-medium text-gray-700">责任班主任</label>
                                     <div class="mt-1">
-                                        <select name="teacher_user_id" id="teacher_user_id"
+                                        <select name="supervisor_user_id" id="supervisor_user_id"
                                                 class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
                                             <option value="">请选择班主任（可选）</option>
                                             {% for user in teacher_users %}
-                                            <option value="{{ user.id }}" {% if user.id == customer.teacher_user_id %}selected{% endif %}>
-                                                {{ user.username }}{% if user.teacher_scope == 'private_only' %}（仅私域）{% endif %}
+                                            <option value="{{ user.id }}" {% if user.id == customer.supervisor_user_id %}selected{% endif %}>
+                                                {{ user.username }}{% if user.supervisor_scope == 'private_only' %}（仅私域）{% endif %}
                                             </option>
                                             {% endfor %}
                                         </select>
@@ -75,13 +75,13 @@
                                 </div>
 
                                 <div>
-                                    <label for="teacher_id" class="block text-sm font-medium text-gray-700">辅导老师</label>
+                                    <label for="tutor_user_id" class="block text-sm font-medium text-gray-700">辅导老师</label>
                                     <div class="mt-1">
-                                        <select name="teacher_id" id="teacher_id"
+                                        <select name="tutor_user_id" id="tutor_user_id"
                                                 class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
                                             <option value="">请选择辅导老师（可选）</option>
                                             {% for teacher in teachers %}
-                                            <option value="{{ teacher.user_id }}" {% if teacher.user_id == customer.teacher_id %}selected{% endif %}>
+                                            <option value="{{ teacher.user_id }}" {% if teacher.user_id == customer.tutor_user_id %}selected{% endif %}>
                                                 {{ teacher.user.username if teacher.user else '-' }}{% if teacher.subject %} - {{ teacher.subject }}{% endif %}
                                             </option>
                                             {% endfor %}
@@ -213,3 +213,4 @@
 
 
 {% endblock %}
+

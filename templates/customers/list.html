@@ -114,7 +114,7 @@
 
         <!-- 客户列表 -->
         <div class="overflow-x-auto">
-            {% set hide_tutor_teacher_column = current_user.role == 'teacher_supervisor' and current_user.get_teacher_scope() == 'private_only' %}
+            {% set hide_tutor_teacher_column = current_user.role == 'teacher_supervisor' and current_user.get_supervisor_scope() == 'private_only' %}
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
@@ -558,7 +558,7 @@ function assignTeacher() {
     }
 
     const formData = new FormData();
-    formData.append('teacher_id', teacherId);
+    formData.append('tutor_user_id', teacherId);
 
     fetch(`/teachers/assign/${currentCustomerId}`, {
         method: 'POST',
@@ -664,7 +664,7 @@ function changeTeacher(event) {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            teacher_id: parseInt(newTeacherId),
+            tutor_user_id: parseInt(newTeacherId),
             confirmed: true
         })
     })

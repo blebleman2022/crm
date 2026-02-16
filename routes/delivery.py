@@ -41,12 +41,33 @@ def teacher_can_access_lead_scope(lead):
     if not current_user.is_teacher_supervisor():
         return False
 
+    visible_teacher_ids = get_visible_teacher_supervisor_ids()
+    if lead.supervisor_user_id and lead.supervisor_user_id not in visible_teacher_ids:
+        return False
+
     scope = normalized_lead_scope(lead)
     if current_user.is_public_only_teacher_supervisor() and scope == Lead.SCOPE_PRIVATE:
         return False
     if current_user.is_private_only_teacher_supervisor() and scope == Lead.SCOPE_PUBLIC:
         return False
     return True
+
+
+def get_visible_teacher_supervisor_ids():
+    """当前班主任可查看的数据归属班主任ID集合（主管=自己+旗下普通班主任）"""
+    if not current_user.is_teacher_supervisor():
+        return []
+
+    cached_ids = getattr(current_user, '_visible_teacher_supervisor_ids_cache', None)
+    if cached_ids is not None:
+        return cached_ids
+
+    visible_ids = current_user.get_visible_teacher_supervisor_ids()
+    if current_user.id not in visible_ids:
+        visible_ids.append(current_user.id)
+
+    current_user._visible_teacher_supervisor_ids_cache = visible_ids
+    return visible_ids
 
 def sort_teachers_by_pinyin(teachers):
     """按姓名拼音首字母排序（无库时退化为原始字符串排序）"""
@@ -93,41 +114,43 @@ def admin_required(f):
 @teacher_supervisor_required
 def dashboard():
     """交付管理仪表板"""
+    teacher_user_ids = get_visible_teacher_supervisor_ids()
+
     # 我负责的客户统计
-    my_customers = Customer.query.filter_by(teacher_user_id=current_user.id).count()
+    my_customers = Customer.query.filter(Customer.supervisor_user_id.in_(teacher_user_ids)).count()
     
     # 课题辅导统计 - 基于实际服务类型
     tutoring_total = Customer.query.join(Customer.lead).filter(
-        Customer.teacher_user_id == current_user.id,
+        Customer.supervisor_user_id.in_(teacher_user_ids),
         Lead.service_types.contains('tutoring')
     ).count()
 
     tutoring_completed = TutoringDelivery.query.join(Customer).join(Customer.lead).filter(
-        Customer.teacher_user_id == current_user.id,
+        Customer.supervisor_user_id.in_(teacher_user_ids),
         Lead.service_types.contains('tutoring'),
         TutoringDelivery.thesis_status == '已完成'
     ).count()
 
     # 竞赛辅导统计 - 基于实际服务类型
     competition_total = Customer.query.join(Customer.lead).filter(
-        Customer.teacher_user_id == current_user.id,
+        Customer.supervisor_user_id.in_(teacher_user_ids),
         Lead.service_types.contains('competition')
     ).count()
 
     # 已结束赛事统计（获奖）
     competition_completed = CustomerCompetition.query.join(Customer).filter(
-        Customer.teacher_user_id == current_user.id,
+        Customer.supervisor_user_id.in_(teacher_user_ids),
         ~CustomerCompetition.status.in_(['未报名', '已报名'])
     ).count()
 
     # 最近的交付任务
     recent_tutoring = TutoringDelivery.query.join(Customer).filter(
-        Customer.teacher_user_id == current_user.id
+        Customer.supervisor_user_id.in_(teacher_user_ids)
     ).order_by(TutoringDelivery.updated_at.desc()).limit(5).all()
 
     # 最近的赛事进展（使用 CustomerCompetition）
     recent_competition = CustomerCompetition.query.join(Customer).filter(
-        Customer.teacher_user_id == current_user.id
+        Customer.supervisor_user_id.in_(teacher_user_ids)
     ).order_by(CustomerCompetition.updated_at.desc()).limit(5).all()
 
     return render_template('delivery/dashboard.html',
@@ -148,12 +171,14 @@ def leads_list():
     search = request.args.get('search', '', type=str)
     start_date = request.args.get('start_date', '', type=str)
     end_date = request.args.get('end_date', '', type=str)
+    teacher_user_ids = get_visible_teacher_supervisor_ids()
+    show_teacher_column = current_user.is_teacher_supervisor_manager() and len(teacher_user_ids) > 1
 
     # 如果只填了开始日期，结束日期默认为当天
     if start_date and not end_date:
         end_date = datetime.now().strftime('%Y-%m-%d')
 
-    # 基础查询：班主任只看分配给自己的线索（通过 teacher_user_id 关联）
+    # 基础查询：班主任主管看自己+旗下普通班主任；普通班主任仅看自己
     # 头脑风暴阶段：已发生首笔支付，但尚未发生次笔支付（即付款笔数=1）
     payment_count_subquery = db.session.query(
         Payment.lead_id.label('lead_id'),
@@ -161,7 +186,7 @@ def leads_list():
     ).group_by(Payment.lead_id).subquery()
 
     query = Lead.query.filter(
-        Lead.teacher_user_id == current_user.id
+        Lead.supervisor_user_id.in_(teacher_user_ids)
     ).join(Customer, Customer.lead_id == Lead.id).filter(
         Customer.phase == Customer.PHASE_BRAINSTORM
     ).join(
@@ -286,13 +311,14 @@ def leads_list():
         submitted_counts = {lead_id: count for lead_id, count in submitted}
 
     return render_template('delivery/leads_list.html',
-                         leads=leads,
-                         search=search,
-                         start_date=start_date,
-                         end_date=end_date,
-                         sales_users=sales_users,
-                         first_payment_dates=first_payment_dates,
-                         assigned_counts=assigned_counts,
+                          leads=leads,
+                          search=search,
+                          start_date=start_date,
+                          end_date=end_date,
+                          show_teacher_column=show_teacher_column,
+                          sales_users=sales_users,
+                          first_payment_dates=first_payment_dates,
+                          assigned_counts=assigned_counts,
                          submitted_counts=submitted_counts,
                          teachers=sort_teachers_by_pinyin(
                              User.query.filter(User.role == 'teacher', User.status == True).all()
@@ -326,10 +352,12 @@ def manage_topic_tasks(lead_id):
             db.session.commit()
         response_tasks = []
         for task in tasks:
+            if not task.teacher or task.teacher.role != 'teacher' or not task.teacher.status:
+                continue
             submission = TopicSubmission.query.filter_by(task_id=task.id).first()
             response_tasks.append({
                 'id': task.id,
-                'teacher_id': task.teacher_user_id,
+                'tutor_user_id': task.tutor_user_id,
                 'teacher_name': task.teacher.username if task.teacher else '',
                 'due_at': task.due_at.isoformat() if task.due_at else None,
                 'status': task.status,
@@ -339,12 +367,29 @@ def manage_topic_tasks(lead_id):
         return jsonify({'success': True, 'tasks': response_tasks})
 
     data = request.get_json(silent=True) or {}
-    teacher_ids = data.get('teacher_ids') or []
+    raw_teacher_ids = data.get('tutor_user_ids') or []
+    teacher_ids = []
+    for teacher_id in raw_teacher_ids:
+        try:
+            teacher_ids.append(int(teacher_id))
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'message': '老师参数格式不正确'}), 400
+    # 去重并保持顺序
+    teacher_ids = list(dict.fromkeys(teacher_ids))
     due_at_str = (data.get('due_at') or '').strip()
     send_flag = data.get('send', True)
 
     if not teacher_ids:
         return jsonify({'success': False, 'message': '请选择老师'}), 400
+    valid_teacher_ids = {
+        row.id for row in User.query.with_entities(User.id).filter(
+            User.id.in_(teacher_ids),
+            User.role == 'teacher',
+            User.status == True
+        ).all()
+    }
+    if any(teacher_id not in valid_teacher_ids for teacher_id in teacher_ids):
+        return jsonify({'success': False, 'message': '所选老师包含已停用或无效账号'}), 400
     if not due_at_str:
         return jsonify({'success': False, 'message': '请选择截止时间'}), 400
 
@@ -354,25 +399,24 @@ def manage_topic_tasks(lead_id):
         return jsonify({'success': False, 'message': '截止时间格式不正确'}), 400
 
     existing_tasks = TopicTask.query.filter_by(lead_id=lead.id).all()
-    existing_teacher_ids = {task.teacher_user_id for task in existing_tasks}
     incoming_teacher_ids = set(teacher_ids)
 
     # 删除未包含在当前选择中的任务
     for task in existing_tasks:
-        if task.teacher_user_id not in incoming_teacher_ids:
+        if task.tutor_user_id not in incoming_teacher_ids:
             TopicSubmission.query.filter_by(task_id=task.id).delete()
             db.session.delete(task)
 
     created_tasks = []
     for teacher_id in teacher_ids:
-        task = TopicTask.query.filter_by(lead_id=lead.id, teacher_user_id=teacher_id).first()
+        task = TopicTask.query.filter_by(lead_id=lead.id, tutor_user_id=teacher_id).first()
         if task:
             task.due_at = due_at
             task.status = TopicTask.STATUS_PENDING if send_flag else TopicTask.STATUS_DRAFT
         else:
             task = TopicTask(
                 lead_id=lead.id,
-                teacher_user_id=teacher_id,
+                tutor_user_id=teacher_id,
                 due_at=due_at,
                 status=TopicTask.STATUS_PENDING if send_flag else TopicTask.STATUS_DRAFT,
                 created_by=current_user.id
@@ -392,9 +436,10 @@ def tutoring_list():
     page = request.args.get('page', 1, type=int)
     search = request.args.get('search', '', type=str)
     status_filter = request.args.get('status', '', type=str)
+    teacher_user_ids = get_visible_teacher_supervisor_ids()
     
     query = TutoringDelivery.query.join(Customer).join(Customer.lead).filter(
-        Customer.teacher_user_id == current_user.id
+        Customer.supervisor_user_id.in_(teacher_user_ids)
     )
     
     # 搜索过滤
@@ -424,7 +469,7 @@ def edit_tutoring(delivery_id):
     delivery = TutoringDelivery.query.get_or_404(delivery_id)
     
     # 检查权限
-    if delivery.customer.teacher_user_id != current_user.id:
+    if delivery.customer.supervisor_user_id not in get_visible_teacher_supervisor_ids():
         flash('您没有权限编辑此交付记录', 'error')
         return redirect(url_for('delivery.tutoring_list'))
     
@@ -491,11 +536,10 @@ def edit_tutoring(delivery_id):
 @teacher_supervisor_required
 def teacher_list():
     """辅导老师列表（role='teacher'）"""
-    # 获取该班主任创建的所有辅导老师
-    # 先查询 User 表中由当前班主任创建的 teacher 角色用户
+    # 老师创建人信息已移除，展示全部辅导老师
     user_query = User.query.filter(
         User.role == 'teacher',
-        User.created_by_user_id == current_user.id
+        User.status == True
     ).all()
     user_ids = [u.id for u in user_query]
 
@@ -505,7 +549,7 @@ def teacher_list():
     # 统计每个老师负责的学生数
     teacher_stats = {}
     for teacher in teachers:
-        student_count = Customer.query.filter_by(teacher_id=teacher.user_id).count()
+        student_count = Customer.query.filter_by(tutor_user_id=teacher.user_id).count()
         teacher_stats[teacher.user_id] = student_count
 
     return render_template('delivery/teacher_list.html',
@@ -545,8 +589,7 @@ def create_teacher():
                 username=name,
                 phone=phone,
                 role='teacher',
-                status=True,
-                created_by_user_id=current_user.id
+                status=True
             )
 
             db.session.add(user)
@@ -570,14 +613,14 @@ def create_teacher():
 
 @delivery_bp.route('/teachers/<int:teacher_id>/edit', methods=['GET', 'POST'])
 @login_required
-@teacher_supervisor_required
+@admin_required
 def edit_teacher(teacher_id):
     """编辑辅导老师信息"""
     # teacher_id 是 User.id
     user = User.query.get_or_404(teacher_id)
 
-    # 验证权限：只能编辑自己创建的辅导老师，且必须是 role='teacher'
-    if user.created_by_user_id != current_user.id or user.role != 'teacher':
+    # 验证权限：仅允许编辑老师账号
+    if user.role != 'teacher':
         flash('您无权编辑此老师信息', 'error')
         return redirect(url_for('delivery.teacher_list'))
 
@@ -610,14 +653,14 @@ def edit_teacher(teacher_id):
 
 @delivery_bp.route('/teachers/<int:teacher_id>/toggle-status', methods=['POST'])
 @login_required
-@teacher_supervisor_required
+@admin_required
 def toggle_teacher_status(teacher_id):
     """启用/停用辅导老师账号"""
     # teacher_id 是 User.id
     user = User.query.get_or_404(teacher_id)
 
-    # 验证权限：只能操作自己创建的辅导老师，且必须是 role='teacher'
-    if user.created_by_user_id != current_user.id or user.role != 'teacher':
+    # 验证权限：仅允许操作老师账号
+    if user.role != 'teacher':
         return jsonify({'success': False, 'message': '您无权操作此老师账号'}), 403
 
     try:
@@ -640,8 +683,8 @@ def view_customer_documents(customer_id):
     """班主任查看学生的所有文档"""
     customer = Customer.query.get_or_404(customer_id)
 
-    # 验证权限 - 只能查看自己负责的客户
-    if customer.teacher_user_id != current_user.id:
+    # 验证权限 - 主管可查看自己及旗下普通班主任客户
+    if customer.supervisor_user_id not in get_visible_teacher_supervisor_ids():
         return jsonify({'success': False, 'message': '您无权查看此客户的文档'}), 403
 
     # 获取所有文档（其他材料允许多份）
@@ -702,7 +745,7 @@ def get_doc_upload_folder():
 def upload_customer_document(customer_id, doc_type):
     """班主任上传文档"""
     customer = Customer.query.get_or_404(customer_id)
-    if customer.teacher_user_id != current_user.id:
+    if customer.supervisor_user_id not in get_visible_teacher_supervisor_ids():
         return jsonify({'success': False, 'message': '您无权为此客户上传文档'}), 403
 
     if doc_type not in DOC_TYPE_NAMES:
@@ -805,9 +848,11 @@ def delete_customer_document(doc_id):
     """班主任删除文档（仅删除自己上传的）"""
     doc = DeliveryDocument.query.get_or_404(doc_id)
     customer = Customer.query.get_or_404(doc.customer_id)
-    if customer.teacher_user_id != current_user.id:
+    if customer.supervisor_user_id not in get_visible_teacher_supervisor_ids():
         return jsonify({'success': False, 'message': '您无权删除此文档'}), 403
-    if doc.uploaded_by_type != 'teacher_supervisor' or doc.uploaded_by_id != current_user.id:
+    if doc.uploaded_by_type != 'teacher_supervisor':
+        return jsonify({'success': False, 'message': '您无权删除该文档'}), 403
+    if doc.uploaded_by_id != current_user.id and not current_user.is_teacher_supervisor_manager():
         return jsonify({'success': False, 'message': '您无权删除该文档'}), 403
 
     try:
@@ -828,9 +873,9 @@ def download_document(doc_id):
     """班主任下载文档"""
     doc = DeliveryDocument.query.get_or_404(doc_id)
 
-    # 验证权限 - 只能下载自己负责的客户的文档
+    # 验证权限 - 主管可下载自己及旗下普通班主任客户文档
     customer = Customer.query.get_or_404(doc.customer_id)
-    if customer.teacher_user_id != current_user.id:
+    if customer.supervisor_user_id not in get_visible_teacher_supervisor_ids():
         flash('您无权下载此文档', 'error')
         return redirect(url_for('delivery.dashboard'))
 
@@ -840,3 +885,4 @@ def download_document(doc_id):
         return redirect(url_for('customers.detail', customer_id=doc.customer_id))
 
     return send_file(doc.file_path, as_attachment=True, download_name=doc.file_name)
+

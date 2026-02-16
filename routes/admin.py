@@ -25,12 +25,70 @@ def validate_phone(phone):
     pattern = r'^1[3-9]\d{9}$'
     return re.match(pattern, phone) is not None
 
-def normalize_teacher_scope(value):
+def normalize_supervisor_scope(value):
     """标准化班主任服务范围"""
     value = (value or '').strip().lower()
     if value in User.ALLOWED_TEACHER_SCOPES:
         return value
     return User.TEACHER_SCOPE_ALL
+
+
+def normalize_supervisor_level(value):
+    """标准化班主任层级"""
+    value = (value or '').strip().lower()
+    if value in User.ALLOWED_TEACHER_LEVELS:
+        return value
+    return User.TEACHER_LEVEL_REGULAR
+
+
+def get_teacher_profile_type(user):
+    """获取班主任配置类型（public_manager/public_regular/private）"""
+    if not user or user.role != 'teacher_supervisor':
+        return ''
+    if user.get_supervisor_scope() == User.TEACHER_SCOPE_PRIVATE_ONLY:
+        return 'private'
+    if user.get_supervisor_level() == User.TEACHER_LEVEL_MANAGER:
+        return 'public_manager'
+    return 'public_regular'
+
+
+def public_teacher_supervisor_filter():
+    """公域班主任过滤条件"""
+    return db.or_(
+        User.supervisor_scope.is_(None),
+        User.supervisor_scope == '',
+        User.supervisor_scope.in_([User.TEACHER_SCOPE_ALL, User.TEACHER_SCOPE_PUBLIC_ONLY])
+    )
+
+
+def get_public_teacher_managers(exclude_user_id=None):
+    """获取可用的公域班主任主管列表"""
+    query = User.query.filter(
+        User.role == 'teacher_supervisor',
+        User.status == True,
+        public_teacher_supervisor_filter(),
+        User.supervisor_level == User.TEACHER_LEVEL_MANAGER
+    )
+    if exclude_user_id:
+        query = query.filter(User.id != exclude_user_id)
+    return query.order_by(User.username.asc()).all()
+
+
+def get_assignable_public_regular_teachers(exclude_user_id=None):
+    """获取可归属到主管名下的普通班主任列表"""
+    query = User.query.filter(
+        User.role == 'teacher_supervisor',
+        User.status == True,
+        public_teacher_supervisor_filter(),
+        db.or_(
+            User.supervisor_level.is_(None),
+            User.supervisor_level == '',
+            User.supervisor_level != User.TEACHER_LEVEL_MANAGER
+        )
+    )
+    if exclude_user_id:
+        query = query.filter(User.id != exclude_user_id)
+    return query.order_by(User.username.asc()).all()
 
 
 def is_config_enabled(value):
@@ -194,51 +252,91 @@ def users():
 @admin_required
 def add_user():
     """添加用户"""
+    def render_add_user_page():
+        return render_template(
+            'admin/add_user.html',
+            public_manager_options=get_public_teacher_managers()
+        )
+
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         phone = request.form.get('phone', '').strip()
         role = request.form.get('role', '').strip()
         group_name = request.form.get('group_name', '').strip()
         is_private_owner = request.form.get('is_private_owner') == 'on'
-        teacher_scope = normalize_teacher_scope(request.form.get('teacher_scope'))
+        supervisor_scope = normalize_supervisor_scope(request.form.get('supervisor_scope'))
+        supervisor_level = normalize_supervisor_level(request.form.get('supervisor_level'))
+        teacher_profile_type = (request.form.get('teacher_profile_type') or '').strip().lower()
+        supervisor_user_id = request.form.get('supervisor_user_id', type=int)
         
         # 验证必填字段
         if not all([username, phone, role]):
             flash('用户名、手机号和角色为必填项', 'error')
-            return render_template('admin/add_user.html')
+            return render_add_user_page()
 
         allowed_roles = {'admin', 'sales_manager', 'teacher_supervisor'}
         if role == 'teacher':
             flash('老师账号请由管理员在“老师管理-添加老师”中创建', 'error')
-            return render_template('admin/add_user.html')
+            return render_add_user_page()
         if role not in allowed_roles:
             flash('用户角色无效，请重新选择', 'error')
-            return render_template('admin/add_user.html')
+            return render_add_user_page()
         
         # 验证手机号格式
         if not validate_phone(phone):
             flash('手机号格式不正确', 'error')
-            return render_template('admin/add_user.html')
+            return render_add_user_page()
         
         # 检查手机号唯一性
         if User.query.filter_by(phone=phone).first():
             flash('该手机号已注册', 'error')
-            return render_template('admin/add_user.html')
+            return render_add_user_page()
         
         # 检查管理员数量限制
         if role == 'admin':
             admin_count = User.query.filter_by(role='admin').count()
             if admin_count >= 1:
                 flash('系统只允许创建一个管理员账号', 'error')
-                return render_template('admin/add_user.html')
+                return render_add_user_page()
 
         # 私域负责人仅支持销售管理角色
         if role != 'sales_manager':
             is_private_owner = False
 
-        # 班主任服务范围仅支持班主任角色
-        if role != 'teacher_supervisor':
-            teacher_scope = User.TEACHER_SCOPE_ALL
+        # 班主任类型配置（公域主管/公域普通/私域）
+        if role == 'teacher_supervisor':
+            if teacher_profile_type not in {'public_manager', 'public_regular', 'private'}:
+                flash('请选择班主任类型', 'error')
+                return render_add_user_page()
+
+            if teacher_profile_type == 'private':
+                supervisor_scope = User.TEACHER_SCOPE_PRIVATE_ONLY
+                supervisor_level = User.TEACHER_LEVEL_REGULAR
+                supervisor_user_id = None
+            elif teacher_profile_type == 'public_manager':
+                supervisor_scope = User.TEACHER_SCOPE_PUBLIC_ONLY
+                supervisor_level = User.TEACHER_LEVEL_MANAGER
+                supervisor_user_id = None
+            else:
+                supervisor_scope = User.TEACHER_SCOPE_PUBLIC_ONLY
+                supervisor_level = User.TEACHER_LEVEL_REGULAR
+                if not supervisor_user_id:
+                    flash('公域普通班主任必须选择班主任主管', 'error')
+                    return render_add_user_page()
+                supervisor = User.query.filter(
+                    User.id == supervisor_user_id,
+                    User.role == 'teacher_supervisor',
+                    User.status == True,
+                    public_teacher_supervisor_filter(),
+                    User.supervisor_level == User.TEACHER_LEVEL_MANAGER
+                ).first()
+                if not supervisor:
+                    flash('选择的班主任主管无效', 'error')
+                    return render_add_user_page()
+        else:
+            supervisor_scope = User.TEACHER_SCOPE_ALL
+            supervisor_level = User.TEACHER_LEVEL_REGULAR
+            supervisor_user_id = None
         
         # 创建用户
         try:
@@ -249,7 +347,9 @@ def add_user():
                 group_name=group_name if group_name else None,
                 status=True,
                 is_private_owner=is_private_owner,
-                teacher_scope=teacher_scope
+                supervisor_scope=supervisor_scope,
+                supervisor_level=supervisor_level,
+                supervisor_user_id=supervisor_user_id
             )
             db.session.add(user)
             db.session.commit()
@@ -259,7 +359,7 @@ def add_user():
             db.session.rollback()
             flash(f'创建用户失败: {str(e)}', 'error')
     
-    return render_template('admin/add_user.html')
+    return render_add_user_page()
 
 @admin_bp.route('/users/<int:user_id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -268,31 +368,56 @@ def edit_user(user_id):
     """编辑用户"""
     user = User.query.get_or_404(user_id)
 
+    def render_edit_user_page():
+        with db.session.no_autoflush:
+            teacher_profile_type = get_teacher_profile_type(user)
+            public_manager_options = get_public_teacher_managers(exclude_user_id=user.id)
+            assignable_public_regular_teachers = get_assignable_public_regular_teachers(exclude_user_id=user.id)
+            managed_teacher_ids = set()
+            if user.role == 'teacher_supervisor' and user.get_supervisor_level() == User.TEACHER_LEVEL_MANAGER:
+                managed_teacher_ids = {
+                    row.id for row in User.query.filter(
+                        User.role == 'teacher_supervisor',
+                        User.supervisor_user_id == user.id
+                    ).with_entities(User.id).all()
+                }
+
+        return render_template(
+            'admin/edit_user.html',
+            user=user,
+            teacher_profile_type=teacher_profile_type,
+            public_manager_options=public_manager_options,
+            assignable_public_regular_teachers=assignable_public_regular_teachers,
+            managed_teacher_ids=managed_teacher_ids
+        )
+
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         phone = request.form.get('phone', '').strip()
         phone_confirm = request.form.get('phone_confirm', '').strip()
         group_name = request.form.get('group_name', '').strip()
-        requested_teacher_scope = normalize_teacher_scope(request.form.get('teacher_scope'))
+        teacher_profile_type = (request.form.get('teacher_profile_type') or '').strip().lower()
+        requested_supervisor_user_id = request.form.get('supervisor_user_id', type=int)
+        managed_teacher_ids_raw = request.form.getlist('managed_teacher_ids')
 
         if not username:
             flash('用户名为必填项', 'error')
-            return render_template('admin/edit_user.html', user=user)
+            return render_edit_user_page()
         if not phone:
             flash('手机号为必填项', 'error')
-            return render_template('admin/edit_user.html', user=user)
+            return render_edit_user_page()
         if not validate_phone(phone):
             flash('手机号格式不正确', 'error')
-            return render_template('admin/edit_user.html', user=user)
+            return render_edit_user_page()
 
         # 修改手机号时需要二次确认，并校验唯一性
         if phone != user.phone:
             if not phone_confirm:
                 flash('修改手机号时请再次输入确认手机号', 'error')
-                return render_template('admin/edit_user.html', user=user)
+                return render_edit_user_page()
             if phone != phone_confirm:
                 flash('两次输入的手机号不一致', 'error')
-                return render_template('admin/edit_user.html', user=user)
+                return render_edit_user_page()
 
             existing_user = User.query.filter(
                 User.phone == phone,
@@ -300,16 +425,102 @@ def edit_user(user_id):
             ).first()
             if existing_user:
                 flash('该手机号已被其他账号使用', 'error')
-                return render_template('admin/edit_user.html', user=user)
+                return render_edit_user_page()
 
         try:
             user.username = username
             user.phone = phone
             user.group_name = group_name if group_name else None
+
             if user.role == 'teacher_supervisor':
-                user.teacher_scope = requested_teacher_scope
+                if teacher_profile_type not in {'public_manager', 'public_regular', 'private'}:
+                    flash('请选择班主任类型', 'error')
+                    return render_edit_user_page()
+
+                if teacher_profile_type == 'private':
+                    user.supervisor_scope = User.TEACHER_SCOPE_PRIVATE_ONLY
+                    user.supervisor_level = User.TEACHER_LEVEL_REGULAR
+                    user.supervisor_user_id = None
+                elif teacher_profile_type == 'public_manager':
+                    user.supervisor_scope = User.TEACHER_SCOPE_PUBLIC_ONLY
+                    user.supervisor_level = User.TEACHER_LEVEL_MANAGER
+                    user.supervisor_user_id = None
+                else:
+                    user.supervisor_scope = User.TEACHER_SCOPE_PUBLIC_ONLY
+                    user.supervisor_level = User.TEACHER_LEVEL_REGULAR
+                    available_managers = get_public_teacher_managers(exclude_user_id=user.id)
+                    if not requested_supervisor_user_id:
+                        if available_managers:
+                            flash('公域普通班主任必须选择班主任主管', 'error')
+                            return render_edit_user_page()
+                        user.supervisor_user_id = None
+                    else:
+                        if requested_supervisor_user_id == user.id:
+                            flash('班主任不能归属自己', 'error')
+                            return render_edit_user_page()
+                        supervisor = User.query.filter(
+                            User.id == requested_supervisor_user_id,
+                            User.role == 'teacher_supervisor',
+                            User.status == True,
+                            public_teacher_supervisor_filter(),
+                            User.supervisor_level == User.TEACHER_LEVEL_MANAGER
+                        ).first()
+                        if not supervisor:
+                            flash('选择的班主任主管无效', 'error')
+                            return render_edit_user_page()
+                        user.supervisor_user_id = requested_supervisor_user_id
             else:
-                user.teacher_scope = User.TEACHER_SCOPE_ALL
+                user.supervisor_scope = User.TEACHER_SCOPE_ALL
+                user.supervisor_level = User.TEACHER_LEVEL_REGULAR
+                user.supervisor_user_id = None
+
+            # 主管编辑页维护旗下普通班主任归属关系
+            if user.role == 'teacher_supervisor' and user.get_supervisor_level() == User.TEACHER_LEVEL_MANAGER:
+                normalized_ids = set()
+                for value in managed_teacher_ids_raw:
+                    try:
+                        normalized_ids.add(int(value))
+                    except (TypeError, ValueError):
+                        continue
+
+                assignable_teachers = get_assignable_public_regular_teachers(exclude_user_id=user.id)
+                assignable_ids = {teacher.id for teacher in assignable_teachers}
+                if not normalized_ids.issubset(assignable_ids):
+                    flash('所选普通班主任中包含无效账号，请刷新页面后重试', 'error')
+                    return render_edit_user_page()
+
+                # 取消此前归属但未被选中的普通班主任
+                if normalized_ids:
+                    User.query.filter(
+                        User.role == 'teacher_supervisor',
+                        User.supervisor_user_id == user.id,
+                        ~User.id.in_(list(normalized_ids))
+                    ).update({User.supervisor_user_id: None}, synchronize_session=False)
+                else:
+                    User.query.filter(
+                        User.role == 'teacher_supervisor',
+                        User.supervisor_user_id == user.id
+                    ).update({User.supervisor_user_id: None}, synchronize_session=False)
+
+                # 设置当前选中普通班主任归属
+                if normalized_ids:
+                    User.query.filter(
+                        User.id.in_(list(normalized_ids))
+                    ).update(
+                        {
+                            User.supervisor_user_id: user.id,
+                            User.supervisor_scope: User.TEACHER_SCOPE_PUBLIC_ONLY,
+                            User.supervisor_level: User.TEACHER_LEVEL_REGULAR
+                        },
+                        synchronize_session=False
+                    )
+            else:
+                # 非主管时，清空其下属归属关系
+                User.query.filter(
+                    User.role == 'teacher_supervisor',
+                    User.supervisor_user_id == user.id
+                ).update({User.supervisor_user_id: None}, synchronize_session=False)
+
             user.updated_at = datetime.utcnow()
 
             db.session.commit()
@@ -319,7 +530,7 @@ def edit_user(user_id):
             db.session.rollback()
             flash(f'更新用户失败: {str(e)}', 'error')
 
-    return render_template('admin/edit_user.html', user=user)
+    return render_edit_user_page()
 
 @admin_bp.route('/users/<int:user_id>/delete', methods=['POST'])
 @login_required
@@ -615,9 +826,9 @@ def edit_lead_form(lead_id):
 
     lead = Lead.query.get_or_404(lead_id)
     customer = Customer.query.filter_by(lead_id=lead.id).first()
-    current_teacher_user_id = lead.teacher_user_id
-    if not current_teacher_user_id and customer:
-        current_teacher_user_id = customer.teacher_user_id
+    current_supervisor_user_id = lead.supervisor_user_id
+    if not current_supervisor_user_id and customer:
+        current_supervisor_user_id = customer.supervisor_user_id
     can_assign_teacher = lead.stage in ['首笔支付', '次笔支付', '全款支付']
     lead_scope = (lead.customer_scope or Lead.SCOPE_PUBLIC).strip().lower()
     if lead_scope != Lead.SCOPE_PRIVATE:
@@ -636,9 +847,9 @@ def edit_lead_form(lead_id):
     )
     if lead_scope == Lead.SCOPE_PUBLIC:
         teacher_users_query = teacher_users_query.filter(db.or_(
-            User.teacher_scope != User.TEACHER_SCOPE_PRIVATE_ONLY,
-            User.teacher_scope.is_(None),
-            User.teacher_scope == ''
+            User.supervisor_scope != User.TEACHER_SCOPE_PRIVATE_ONLY,
+            User.supervisor_scope.is_(None),
+            User.supervisor_scope == ''
         ))
     elif lead_scope == Lead.SCOPE_PRIVATE:
         # 私域线索可分配给：仅私域班主任 或 公私域都可分配的班主任
@@ -648,9 +859,9 @@ def edit_lead_form(lead_id):
     teacher_users = teacher_users_query.order_by(User.username.asc()).all()
 
     # 若当前已分配班主任不在筛选结果中，追加以保证可见
-    if current_teacher_user_id and not any(t.id == current_teacher_user_id for t in teacher_users):
+    if current_supervisor_user_id and not any(t.id == current_supervisor_user_id for t in teacher_users):
         current_teacher = User.query.filter(
-            User.id == current_teacher_user_id,
+            User.id == current_supervisor_user_id,
             User.role == 'teacher_supervisor'
         ).first()
         if current_teacher:
@@ -666,7 +877,7 @@ def edit_lead_form(lead_id):
         sales_users=sales_users,
         payments=payments,
         teacher_users=teacher_users,
-        current_teacher_user_id=current_teacher_user_id,
+        current_supervisor_user_id=current_supervisor_user_id,
         can_assign_teacher=can_assign_teacher,
         customer_exists=bool(customer),
         lead_scope=lead_scope
@@ -748,19 +959,19 @@ def update_lead(lead_id):
 
         # 更新班主任（首笔支付后可选择；写入线索表，客户已存在时同步）
         customer = Customer.query.filter_by(lead_id=lead.id).first()
-        teacher_user_id_raw = request.form.get('teacher_user_id')
+        supervisor_user_id_raw = request.form.get('supervisor_user_id')
         can_assign_teacher = lead.stage in ['首笔支付', '次笔支付', '全款支付']
-        teacher_user_id = teacher_user_id_raw.strip() if teacher_user_id_raw is not None else None
-        if teacher_user_id:
+        supervisor_user_id = supervisor_user_id_raw.strip() if supervisor_user_id_raw is not None else None
+        if supervisor_user_id:
             if not can_assign_teacher:
                 return jsonify({'success': False, 'message': '线索未到首笔支付阶段，暂不能分配班主任'})
             try:
-                teacher_user_id_int = int(teacher_user_id)
+                supervisor_user_id_int = int(supervisor_user_id)
             except ValueError:
                 return jsonify({'success': False, 'message': '班主任参数格式不正确'})
 
             teacher = User.query.filter(
-                User.id == teacher_user_id_int,
+                User.id == supervisor_user_id_int,
                 User.role == 'teacher_supervisor',
                 User.status == True
             ).first()
@@ -773,13 +984,13 @@ def update_lead(lead_id):
             if not teacher.can_serve_customer_scope(lead_scope):
                 return jsonify({'success': False, 'message': '该班主任仅可分配私域客户，当前客户为公域客户'})
 
-            lead.teacher_user_id = teacher_user_id_int
+            lead.supervisor_user_id = supervisor_user_id_int
             if customer:
-                customer.teacher_user_id = teacher_user_id_int
-        elif teacher_user_id is not None:
-            lead.teacher_user_id = None
+                customer.supervisor_user_id = supervisor_user_id_int
+        elif supervisor_user_id is not None:
+            lead.supervisor_user_id = None
             if customer:
-                customer.teacher_user_id = None
+                customer.supervisor_user_id = None
 
         # 更新时间戳
         lead.updated_at = datetime.now()
@@ -820,3 +1031,4 @@ def delete_lead(lead_id):
             'success': False,
             'message': f'删除失败：{str(e)}'
         })
+

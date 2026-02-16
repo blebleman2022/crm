@@ -74,11 +74,15 @@
                             {% endif %}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                            <a href="{{ url_for('delivery.edit_teacher', teacher_id=teacher.user_id) }}" class="text-blue-600 hover:text-blue-900">编辑</a>
-                            <button onclick="toggleStatus({{ teacher.user_id }}, {{ 'true' if teacher.user and teacher.user.status else 'false' }})"
-                                    class="{% if teacher.user and teacher.user.status %}text-red-600 hover:text-red-900{% else %}text-green-600 hover:text-green-900{% endif %}">
-                                {% if teacher.user and teacher.user.status %}停用{% else %}启用{% endif %}
-                            </button>
+                            {% if current_user.is_admin() %}
+                                <a href="{{ url_for('delivery.edit_teacher', teacher_id=teacher.user_id) }}" class="text-blue-600 hover:text-blue-900">编辑</a>
+                                <button onclick="toggleStatus({{ teacher.user_id }}, {{ 'true' if teacher.user and teacher.user.status else 'false' }})"
+                                        class="{% if teacher.user and teacher.user.status %}text-red-600 hover:text-red-900{% else %}text-green-600 hover:text-green-900{% endif %}">
+                                    {% if teacher.user and teacher.user.status %}停用{% else %}启用{% endif %}
+                                </button>
+                            {% else %}
+                                <span class="text-gray-400">只读</span>
+                            {% endif %}
                         </td>
                     </tr>
                     {% endfor %}

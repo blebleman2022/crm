@@ -47,7 +47,7 @@ EXPORTABLE_TABLES = {
     'customers': {
         'name': '客户表',
         'model': Customer,
-        'columns': ['id', 'lead_id', 'sales_user_id', 'teacher_user_id', 'teacher_id', 
+        'columns': ['id', 'lead_id', 'sales_user_id', 'supervisor_user_id', 'tutor_user_id',
                    'service_type', 'payment_amount', 'is_priority', 'customer_notes', 
                    'converted_at', 'created_at', 'updated_at'],
         'column_names': ['ID', '线索ID', '销售负责人ID', '班主任ID', '辅导老师ID', '服务类型', 
@@ -63,11 +63,11 @@ EXPORTABLE_TABLES = {
     'teachers': {
         'name': '老师表',
         'model': Teacher,
-        'columns': ['id', 'current_institution', 'major', 
-                   'highest_degree', 'education_background', 'research_achievements', 
-                   'innovation_achievements', 'social_roles', 'status', 'created_at', 'updated_at'],
-        'column_names': ['ID', '中文名', '英文名', '现单位', '专业方向', '最高学历', '教育背景', 
-                        '科研成果', '科创辅导成果', '社会角色', '状态', '创建时间', '更新时间']
+        'columns': ['user_id', 'current_institution', 'major_direction',
+                   'highest_degree', 'degree_description', 'research_achievements',
+                   'innovation_coaching_achievements', 'social_roles', 'status', 'created_at', 'updated_at'],
+        'column_names': ['用户ID', '现单位', '专业方向', '最高学历', '学历说明',
+                        '科研成果', '科创辅导成果', '社会角色', '账号状态', '创建时间', '更新时间']
     },
     'tutoring_deliveries': {
         'name': '课题辅导交付表',
@@ -83,7 +83,7 @@ EXPORTABLE_TABLES = {
         'model': CustomerCompetition,
         'columns': ['id', 'customer_id', 'competition_name_id', 'status',
                    'notes', 'created_by_user_id', 'created_at', 'updated_at'],
-        'column_names': ['ID', '客户ID', '赛事ID', '状态', '自定义奖项', '备注', '创建人ID', '创建时间', '更新时间']
+        'column_names': ['ID', '客户ID', '赛事ID', '状态', '备注', '创建人ID', '创建时间', '更新时间']
     },
     'communication_records': {
         'name': '沟通记录表',
@@ -163,6 +163,20 @@ def download_data():
                                 value = value.strftime('%Y-%m-%d %H:%M:%S')
                             row[col] = value
                         data.append(row)
+                elif table_key == 'teachers':
+                    data = []
+                    for record in query.all():
+                        row = {}
+                        for col in columns:
+                            if col == 'status':
+                                value = bool(record.user.status) if record.user else None
+                                value = '启用' if value else '停用'
+                            else:
+                                value = getattr(record, col, None)
+                            if isinstance(value, datetime):
+                                value = value.strftime('%Y-%m-%d %H:%M:%S')
+                            row[col] = value
+                        data.append(row)
                 else:
                     # 其他表直接导出
                     data = []
@@ -231,7 +245,11 @@ def preview_table(table_key):
         for record in records:
             row = {}
             for i, col in enumerate(columns):
-                value = getattr(record, col, None)
+                if table_key == 'teachers' and col == 'status':
+                    value = bool(record.user.status) if record.user else None
+                    value = '启用' if value else '停用'
+                else:
+                    value = getattr(record, col, None)
                 # 格式化显示
                 if isinstance(value, datetime):
                     value = value.strftime('%Y-%m-%d %H:%M:%S')

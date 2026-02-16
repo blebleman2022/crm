@@ -46,7 +46,7 @@
                 <p class="mt-2 text-sm text-gray-500">
                     <strong>管理员</strong>：系统全权限；
                     <strong>销售管理</strong>：线索和客户管理、付款管理、转客户（分公域/私域）；
-                    <strong>班主任</strong>：头脑风暴、服务交付管理。
+                    <strong>班主任</strong>：分公域主管/公域普通/私域班主任，负责头脑风暴、服务交付、付款管理。
                     老师账号请在管理员侧“老师管理-添加老师”中创建。
                 </p>
             </div>
@@ -71,16 +71,31 @@
                 <p class="mt-2 text-sm text-gray-500">仅销售管理角色可设置。勾选后该账号只处理私域线索/客户。</p>
             </div>
 
-            <div id="teacherScopeSection">
-                <label for="teacher_scope" class="block text-sm font-medium text-gray-700">班主任服务范围</label>
+            <div id="teacherProfileSection">
+                <label for="teacher_profile_type" class="block text-sm font-medium text-gray-700">班主任类型</label>
                 <div class="mt-1">
-                    <select name="teacher_scope" id="teacher_scope"
+                    <select name="teacher_profile_type" id="teacher_profile_type"
                             class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
-                        <option value="all">公私域都可分配</option>
-                        <option value="private_only">仅私域客户</option>
+                        <option value="public_manager">公域班主任主管</option>
+                        <option value="public_regular">公域普通班主任</option>
+                        <option value="private">私域班主任</option>
                     </select>
                 </div>
-                <p class="mt-2 text-sm text-gray-500">仅对班主任角色生效。非班主任角色不显示该设置。</p>
+                <p class="mt-2 text-sm text-gray-500">仅对班主任角色生效。公域普通班主任需归属一个班主任主管。</p>
+            </div>
+
+            <div id="supervisorSection">
+                <label for="supervisor_user_id" class="block text-sm font-medium text-gray-700">归属班主任主管</label>
+                <div class="mt-1">
+                    <select name="supervisor_user_id" id="supervisor_user_id"
+                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                        <option value="">请选择班主任主管</option>
+                        {% for manager in public_manager_options %}
+                            <option value="{{ manager.id }}">{{ manager.username }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <p class="mt-2 text-sm text-gray-500">仅“公域普通班主任”需要设置归属主管。</p>
             </div>
 
             <div class="flex items-center justify-between pt-6 border-t border-gray-200">
@@ -110,12 +125,15 @@ document.getElementById('phone').addEventListener('input', function(e) {
 const roleSelect = document.getElementById('role');
 const privateOwnerSection = document.getElementById('privateOwnerSection');
 const privateOwnerCheckbox = document.getElementById('is_private_owner');
-const teacherScopeSection = document.getElementById('teacherScopeSection');
-const teacherScopeSelect = document.getElementById('teacher_scope');
+const teacherProfileSection = document.getElementById('teacherProfileSection');
+const teacherProfileSelect = document.getElementById('teacher_profile_type');
+const supervisorSection = document.getElementById('supervisorSection');
+const supervisorSelect = document.getElementById('supervisor_user_id');
 
 function syncRoleToggles() {
     const isSalesManager = roleSelect.value === 'sales_manager';
     const isTeacherSupervisor = roleSelect.value === 'teacher_supervisor';
+    const isPublicRegularTeacher = isTeacherSupervisor && teacherProfileSelect.value === 'public_regular';
 
     privateOwnerSection.classList.toggle('hidden', !isSalesManager);
     privateOwnerCheckbox.disabled = !isSalesManager;
@@ -123,19 +141,31 @@ function syncRoleToggles() {
         privateOwnerCheckbox.checked = false;
     }
 
-    teacherScopeSection.classList.toggle('hidden', !isTeacherSupervisor);
-    teacherScopeSelect.disabled = !isTeacherSupervisor;
-    if (!isTeacherSupervisor) {
-        teacherScopeSelect.value = 'all';
+    teacherProfileSection.classList.toggle('hidden', !isTeacherSupervisor);
+    teacherProfileSelect.disabled = !isTeacherSupervisor;
+
+    supervisorSection.classList.toggle('hidden', !isPublicRegularTeacher);
+    supervisorSelect.disabled = !isPublicRegularTeacher;
+    if (!isPublicRegularTeacher) {
+        supervisorSelect.value = '';
     }
 }
 roleSelect.addEventListener('change', syncRoleToggles);
+teacherProfileSelect.addEventListener('change', syncRoleToggles);
 syncRoleToggles();
 
 // 表单验证
 document.querySelector('form').addEventListener('submit', function(e) {
     const phone = document.getElementById('phone').value;
     const phoneRegex = /^1[3-9]\d{9}$/;
+    const isTeacherSupervisor = roleSelect.value === 'teacher_supervisor';
+    const isPublicRegularTeacher = teacherProfileSelect.value === 'public_regular';
+
+    if (isTeacherSupervisor && isPublicRegularTeacher && !supervisorSelect.value) {
+        e.preventDefault();
+        alert('公域普通班主任必须选择班主任主管');
+        return false;
+    }
     
     if (!phoneRegex.test(phone)) {
         e.preventDefault();

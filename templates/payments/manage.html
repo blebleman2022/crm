@@ -111,6 +111,9 @@
                         <th class="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 w-24">课题</th>
                         <th class="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 w-24">竞赛</th>
                         <th class="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 w-24">奖项</th>
+                        {% if show_teacher_column %}
+                        <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-24">班主任</th>
+                        {% endif %}
 
                         <!-- 付款信息字段（可编辑） -->
                         <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 w-28">总金额</th>
@@ -149,6 +152,9 @@
                                 <span class="text-gray-400">{{ payment.award_level }}</span>
                             {% endif %}
                         </td>
+                        {% if show_teacher_column %}
+                        <td class="px-4 py-3 text-sm text-gray-700 w-24">{{ payment.teacher_user_name }}</td>
+                        {% endif %}
 
                         <!-- 付款信息字段（可编辑） -->
                         <td class="px-4 py-3 text-sm text-right font-medium text-gray-900 w-28 editable-cell"
@@ -212,7 +218,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="14" class="px-6 py-12 text-center text-gray-500">
+                        <td colspan="{% if show_teacher_column %}15{% else %}14{% endif %}" class="px-6 py-12 text-center text-gray-500">
                             <span class="material-symbols-outlined text-6xl text-gray-300 mb-2">receipt_long</span>
                             <p class="text-lg">暂无客户付款记录</p>
                             <p class="text-sm text-gray-400 mt-2">请先在客户管理中分配客户</p>

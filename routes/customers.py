@@ -36,14 +36,36 @@ def invalid_teacher_scope_message(scope):
         return '该班主任仅可分配私域客户，当前客户为公域客户'
     return '选择的班主任服务范围不匹配当前客户归属域'
 
-def can_assign_teacher_supervisor_to_scope(teacher, scope):
+def can_assign_teacher_supervisor_to_scope(supervisor, scope):
     """班主任是否可分配到指定scope客户"""
     return bool(
-        teacher and
-        teacher.role == 'teacher_supervisor' and
-        teacher.status and
-        teacher.can_serve_customer_scope(scope)
+        supervisor and
+        supervisor.role == 'teacher_supervisor' and
+        supervisor.status and
+        supervisor.can_serve_customer_scope(scope)
     )
+
+
+def get_visible_teacher_supervisor_ids():
+    """当前班主任可见的数据归属班主任ID集合（主管=自己+旗下普通班主任）"""
+    if not current_user.is_teacher_supervisor():
+        return []
+
+    cached_ids = getattr(current_user, '_visible_teacher_supervisor_ids_cache', None)
+    if cached_ids is not None:
+        return cached_ids
+
+    visible_ids = current_user.get_visible_teacher_supervisor_ids()
+    if current_user.id not in visible_ids:
+        visible_ids.append(current_user.id)
+
+    current_user._visible_teacher_supervisor_ids_cache = visible_ids
+    return visible_ids
+
+
+def can_access_teacher_customer(customer):
+    """班主任是否可访问该客户（主管=自己+旗下普通班主任）"""
+    return bool(customer and customer.supervisor_user_id in get_visible_teacher_supervisor_ids())
 
 
 def can_view_customer_record(customer):
@@ -55,11 +77,11 @@ def can_view_customer_record(customer):
 
     if scope == PRIVATE_SCOPE:
         if current_user.is_teacher_supervisor():
-            return customer.teacher_user_id == current_user.id
+            return can_access_teacher_customer(customer)
         return is_private_owner_user(current_user) and customer.private_owner_id == current_user.id
 
     if current_user.is_teacher_supervisor():
-        return customer.teacher_user_id == current_user.id
+        return can_access_teacher_customer(customer)
 
     if current_user.is_sales_manager():
         if is_private_owner_user(current_user):
@@ -69,9 +91,9 @@ def can_view_customer_record(customer):
 
     if current_user.role == 'teacher':
         return bool(
-            customer.teacher_id and
+            customer.tutor_user_id and
             getattr(current_user, 'teacher_profile', None) and
-            customer.teacher_id == current_user.teacher_profile.user_id
+            customer.tutor_user_id == current_user.teacher_profile.user_id
         )
 
     return False
@@ -83,7 +105,7 @@ def can_update_progress(customer):
         return True
 
     if current_user.is_teacher_supervisor():
-        return customer.teacher_user_id == current_user.id
+        return can_access_teacher_customer(customer)
 
     if current_user.is_sales_manager():
         scope = customer_scope_value(customer)
@@ -122,9 +144,9 @@ def get_teachers(scope=None, include_user_id=None):
     normalized_scope = normalize_scope(scope)
     if normalized_scope == PUBLIC_SCOPE:
         query = query.filter(db.or_(
-            User.teacher_scope != User.TEACHER_SCOPE_PRIVATE_ONLY,
-            User.teacher_scope.is_(None),
-            User.teacher_scope == ''
+            User.supervisor_scope != User.TEACHER_SCOPE_PRIVATE_ONLY,
+            User.supervisor_scope.is_(None),
+            User.supervisor_scope == ''
         ))
 
     teachers = query.order_by(User.username).all()
@@ -185,8 +207,8 @@ def list_customers():
         )
         effective_scope_filter = PRIVATE_SCOPE
     elif current_user.role == 'teacher_supervisor':
-        # 班主任只看自己负责的客户，不再按服务范围做scope筛选
-        query = query.filter(Customer.teacher_user_id == current_user.id)
+        # 班主任主管看自己+旗下普通班主任；普通班主任仅看自己
+        query = query.filter(Customer.supervisor_user_id.in_(get_visible_teacher_supervisor_ids()))
         effective_scope_filter = 'all'
     elif current_user.is_sales_manager():
         # 公域销售管理可看所有公域销售的客户（只读，只能编辑自己的）
@@ -397,7 +419,7 @@ def edit_customer(customer_id):
 
     def render_edit_page():
         sales_users = get_sales_users()
-        teacher_users = get_teachers(scope=customer_scope, include_user_id=customer.teacher_user_id)
+        teacher_users = get_teachers(scope=customer_scope, include_user_id=customer.supervisor_user_id)
         # 查询 Teacher 对象（辅导老师列表）
         teacher_users_active = User.query.filter(User.status == True, User.role == 'teacher').all()
         teacher_user_ids = [u.id for u in teacher_users_active]
@@ -417,8 +439,8 @@ def edit_customer(customer_id):
         student_name = request.form.get('student_name', '').strip()
         contact_info = request.form.get('contact_info', '').strip()
         sales_user_id = request.form.get('sales_user_id', type=int)
-        teacher_user_id = request.form.get('teacher_user_id', type=int)
-        teacher_id = request.form.get('teacher_id', type=int)  # 新增：辅导老师ID
+        supervisor_user_id = request.form.get('supervisor_user_id', type=int)
+        tutor_user_id = request.form.get('tutor_user_id', type=int)  # 新增：辅导老师ID
         competition_award_level = request.form.get('competition_award_level', '').strip()
         additional_requirements = request.form.get('additional_requirements', '').strip()
         exam_year = request.form.get('exam_year', type=int)
@@ -444,9 +466,9 @@ def edit_customer(customer_id):
             return render_edit_page()
 
         # 验证班主任（可选）- 允许teacher_supervisor角色
-        if teacher_user_id:
+        if supervisor_user_id:
             teacher = User.query.filter(
-                User.id == teacher_user_id,
+                User.id == supervisor_user_id,
                 User.role == 'teacher_supervisor',
                 User.status == True
             ).first()
@@ -454,7 +476,7 @@ def edit_customer(customer_id):
                 flash('选择的班主任无效', 'error')
                 return render_edit_page()
             if (
-                teacher_user_id != customer.teacher_user_id and
+                supervisor_user_id != customer.supervisor_user_id and
                 not can_assign_teacher_supervisor_to_scope(teacher, customer_scope)
             ):
                 flash(invalid_teacher_scope_message(customer_scope), 'error')
@@ -468,8 +490,8 @@ def edit_customer(customer_id):
             customer.lead.updated_at = datetime.utcnow()
 
             # 更新客户信息
-            customer.teacher_user_id = teacher_user_id if teacher_user_id else None
-            customer.teacher_id = teacher_id if teacher_id else None  # 新增：保存辅导老师ID
+            customer.supervisor_user_id = supervisor_user_id if supervisor_user_id else None
+            customer.tutor_user_id = tutor_user_id if tutor_user_id else None  # 新增：保存辅导老师ID
             # 注意：competition_award_level和additional_requirements是@property,从线索表读取,不能直接设置
             # 需要更新线索表中的对应字段
             customer.lead.competition_award_level = competition_award_level if competition_award_level else None
@@ -502,7 +524,7 @@ def edit_customer(customer_id):
             customer.updated_at = datetime.utcnow()
 
             # 如果分配了班主任，创建对应的交付记录
-            if teacher_user_id and not customer.tutoring_delivery:
+            if supervisor_user_id and not customer.tutoring_delivery:
                 tutoring_delivery = TutoringDelivery(customer_id=customer.id)
                 db.session.add(tutoring_delivery)
 
@@ -530,14 +552,21 @@ def assign_teacher(customer_id):
     if not (current_user.is_admin() or current_user.is_sales_manager()):
         return jsonify({'success': False, 'message': '您没有权限分配班主任'}), 403
 
-    teacher_id = request.json.get('teacher_id')
+    data = request.get_json(silent=True) or {}
+    supervisor_id = data.get('supervisor_id')
+    if supervisor_id in (None, ''):
+        supervisor_id = request.form.get('supervisor_id')
 
-    if not teacher_id:
+    if supervisor_id in (None, ''):
         return jsonify({'success': False, 'message': '请选择班主任'})
+    try:
+        supervisor_id = int(supervisor_id)
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'message': '班主任参数格式不正确'})
 
     # 仅允许分配给班主任角色
     teacher = User.query.filter(
-        User.id == teacher_id,
+        User.id == supervisor_id,
         User.role == 'teacher_supervisor',
         User.status == True
     ).first()
@@ -548,7 +577,7 @@ def assign_teacher(customer_id):
         return jsonify({'success': False, 'message': invalid_teacher_scope_message(scope)})
     
     try:
-        customer.teacher_user_id = teacher_id
+        customer.supervisor_user_id = supervisor_id
         customer.updated_at = datetime.utcnow()
 
         # 创建交付记录
@@ -647,7 +676,8 @@ def customer_api(customer_id):
         'school': customer.lead.school,
         'district': customer.lead.district,
         'sales_user': customer.lead.sales_user.username if customer.lead.sales_user else None,
-        'teacher_user': customer.teacher_user.username if customer.teacher_user else None,
+        'supervisor_user_id': customer.supervisor_user_id,
+        'supervisor_user': customer.teacher_user.username if customer.teacher_user else None,
         'service_types': customer.lead.get_service_types_list(),
         'tutoring_topic_type': customer.lead.tutoring_topic_type,
         'competition_award_level': customer.competition_award_level,
@@ -806,7 +836,7 @@ def get_customer_competitions(customer_id):
             return jsonify({'success': False, 'message': '无权限查看此客户的赛事'}), 403
 
         # 权限检查：班主任只能查看自己负责的客户
-        if current_user.role == 'teacher_supervisor' and customer.teacher_user_id != current_user.id:
+        if current_user.role == 'teacher_supervisor' and not can_access_teacher_customer(customer):
             return jsonify({'success': False, 'message': '无权限查看此客户的赛事'}), 403
 
         # 获取客户的所有赛事
@@ -844,12 +874,12 @@ def add_customer_competition(customer_id):
 
         # 权限检查：班主任或老师可以添加赛事
         if current_user.role == 'teacher_supervisor':
-            # 班主任只能为自己负责的客户添加赛事
-            if customer.teacher_user_id != current_user.id:
+            # 班主任主管可为自己及旗下普通班主任客户添加赛事
+            if not can_access_teacher_customer(customer):
                 return jsonify({'success': False, 'message': '无权限为此客户添加赛事'}), 403
         elif current_user.role == 'teacher':
             # 老师只能为自己负责的学生添加赛事
-            if customer.teacher_id != current_user.teacher_profile.user_id:
+            if customer.tutor_user_id != current_user.teacher_profile.user_id:
                 return jsonify({'success': False, 'message': '无权限为此客户添加赛事'}), 403
         else:
             return jsonify({'success': False, 'message': '无权限添加赛事'}), 403
@@ -919,12 +949,12 @@ def update_competition_status(competition_id):
 
         # 权限检查：班主任或老师可以更新赛事状态
         if current_user.role == 'teacher_supervisor':
-            # 班主任只能更新自己负责的客户的赛事
-            if competition.customer.teacher_user_id != current_user.id:
+            # 班主任主管可更新自己及旗下普通班主任客户赛事
+            if not can_access_teacher_customer(competition.customer):
                 return jsonify({'success': False, 'message': '无权限更新此赛事'}), 403
         elif current_user.role == 'teacher':
             # 老师只能更新自己负责的学生的赛事
-            if competition.customer.teacher_id != current_user.teacher_profile.user_id:
+            if competition.customer.tutor_user_id != current_user.teacher_profile.user_id:
                 return jsonify({'success': False, 'message': '无权限更新此赛事'}), 403
         else:
             return jsonify({'success': False, 'message': '无权限更新赛事状态'}), 403
@@ -969,12 +999,12 @@ def delete_competition(competition_id):
 
         # 权限检查：班主任或老师可以删除赛事
         if current_user.role == 'teacher_supervisor':
-            # 班主任只能删除自己负责的客户的赛事
-            if competition.customer.teacher_user_id != current_user.id:
+            # 班主任主管可删除自己及旗下普通班主任客户赛事
+            if not can_access_teacher_customer(competition.customer):
                 return jsonify({'success': False, 'message': '无权限删除此赛事'}), 403
         elif current_user.role == 'teacher':
             # 老师只能删除自己负责的学生的赛事
-            if competition.customer.teacher_id != current_user.teacher_profile.user_id:
+            if competition.customer.tutor_user_id != current_user.teacher_profile.user_id:
                 return jsonify({'success': False, 'message': '无权限删除此赛事'}), 403
         else:
             return jsonify({'success': False, 'message': '无权限删除赛事'}), 403
@@ -1035,9 +1065,9 @@ def upload_course_record_image(customer_id):
     if current_user.role != 'teacher_supervisor':
         return jsonify({'success': False, 'message': '只有班主任可以上传图片'}), 403
 
-    # 权限检查：只能为自己负责的客户上传图片
-    if customer.teacher_user_id != current_user.id:
-        return jsonify({'success': False, 'message': '您只能为自己负责的客户上传图片'}), 403
+    # 权限检查：主管可为自己及旗下普通班主任客户上传图片
+    if not can_access_teacher_customer(customer):
+        return jsonify({'success': False, 'message': '您只能为自己或旗下班主任负责的客户上传图片'}), 403
 
     # 检查当前图片数量
     current_image_count = CourseRecordImage.query.filter_by(customer_id=customer_id).count()
@@ -1125,9 +1155,9 @@ def upload_award_certificate_image(customer_id):
     if current_user.role != 'teacher_supervisor':
         return jsonify({'success': False, 'message': '只有班主任可以上传图片'}), 403
 
-    # 权限检查：只能为自己负责的客户上传图片
-    if customer.teacher_user_id != current_user.id:
-        return jsonify({'success': False, 'message': '您只能为自己负责的客户上传图片'}), 403
+    # 权限检查：主管可为自己及旗下普通班主任客户上传图片
+    if not can_access_teacher_customer(customer):
+        return jsonify({'success': False, 'message': '您只能为自己或旗下班主任负责的客户上传图片'}), 403
 
     # 检查当前图片数量
     current_image_count = AwardCertificateImage.query.filter_by(customer_id=customer_id).count()
@@ -1217,9 +1247,9 @@ def delete_course_record_image(image_id):
         if current_user.role != 'teacher_supervisor':
             return jsonify({'success': False, 'message': '只有班主任可以删除图片'}), 403
 
-        # 权限检查：只能删除自己负责的客户的图片
-        if customer.teacher_user_id != current_user.id:
-            return jsonify({'success': False, 'message': '您只能删除自己负责的客户的图片'}), 403
+        # 权限检查：主管可删除自己及旗下普通班主任客户图片
+        if not can_access_teacher_customer(customer):
+            return jsonify({'success': False, 'message': '您只能删除自己或旗下班主任负责的客户图片'}), 403
 
         # 1. 先记录文件路径
         filepath = os.path.join('static', image.image_path)
@@ -1254,9 +1284,9 @@ def delete_award_certificate_image(image_id):
         if current_user.role != 'teacher_supervisor':
             return jsonify({'success': False, 'message': '只有班主任可以删除图片'}), 403
 
-        # 权限检查：只能删除自己负责的客户的图片
-        if customer.teacher_user_id != current_user.id:
-            return jsonify({'success': False, 'message': '您只能删除自己负责的客户的图片'}), 403
+        # 权限检查：主管可删除自己及旗下普通班主任客户图片
+        if not can_access_teacher_customer(customer):
+            return jsonify({'success': False, 'message': '您只能删除自己或旗下班主任负责的客户图片'}), 403
 
         # 1. 先记录文件路径
         filepath = os.path.join('static', image.image_path)
@@ -1346,9 +1376,9 @@ def update_customer_basic_info(customer_id):
         if current_user.role != 'teacher_supervisor':
             return jsonify({'success': False, 'message': '只有班主任可以更新学员信息'}), 403
 
-        # 权限检查：只能更新自己负责的客户
-        if customer.teacher_user_id != current_user.id:
-            return jsonify({'success': False, 'message': '您只能更新自己负责的学员信息'}), 403
+        # 权限检查：主管可更新自己及旗下普通班主任客户
+        if not can_access_teacher_customer(customer):
+            return jsonify({'success': False, 'message': '您只能更新自己或旗下班主任负责的学员信息'}), 403
 
         # 获取请求数据
         data = request.get_json()
@@ -1372,3 +1402,4 @@ def update_customer_basic_info(customer_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'更新失败: {str(e)}'}), 500
+

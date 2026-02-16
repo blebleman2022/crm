@@ -27,12 +27,12 @@
         <!-- 班主任公私域切换（仅同时有公域+私域客户时显示） -->
         {% if show_scope_switch %}
         <div class="mb-4 flex items-center gap-2">
-            <a href="{{ url_for('payments.reconciliation', scope='public', tab=active_tab, search=search, start_date=start_date, end_date=end_date, teacher_user_id=selected_teacher_id) }}"
+            <a href="{{ url_for('payments.reconciliation', scope='public', tab=active_tab, search=search, start_date=start_date, end_date=end_date, supervisor_user_id=selected_supervisor_id) }}"
                class="inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium {% if scope_filter == 'public' and not selected_private_owner_id %}bg-blue-600 text-white{% else %}bg-gray-100 text-gray-700 hover:bg-gray-200{% endif %}">
                 轩
             </a>
             {% for private_owner in private_owner_options %}
-            <a href="{{ url_for('payments.reconciliation', scope='private', private_owner_id=private_owner.id, tab=active_tab, search=search, start_date=start_date, end_date=end_date, teacher_user_id=selected_teacher_id) }}"
+            <a href="{{ url_for('payments.reconciliation', scope='private', private_owner_id=private_owner.id, tab=active_tab, search=search, start_date=start_date, end_date=end_date, supervisor_user_id=selected_supervisor_id) }}"
                class="inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium {% if scope_filter == 'private' and selected_private_owner_id == private_owner.id %}bg-blue-600 text-white{% else %}bg-gray-100 text-gray-700 hover:bg-gray-200{% endif %}">
                 {{ private_owner.username[:1] }}
             </a>
@@ -43,12 +43,12 @@
         {% if current_user.is_sales_manager() and show_teacher_switch %}
         <div class="mb-4 flex items-center gap-2 overflow-x-auto">
             <a href="{{ url_for('payments.reconciliation', tab=active_tab, search=search, start_date=start_date, end_date=end_date, scope=scope_filter, private_owner_id=selected_private_owner_id) }}"
-               class="inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium whitespace-nowrap {% if not selected_teacher_id %}bg-blue-600 text-white{% else %}bg-gray-100 text-gray-700 hover:bg-gray-200{% endif %}">
+               class="inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium whitespace-nowrap {% if not selected_supervisor_id %}bg-blue-600 text-white{% else %}bg-gray-100 text-gray-700 hover:bg-gray-200{% endif %}">
                 全部班主任
             </a>
             {% for teacher in teacher_switch_options %}
-            <a href="{{ url_for('payments.reconciliation', tab=active_tab, search=search, start_date=start_date, end_date=end_date, scope=scope_filter, private_owner_id=selected_private_owner_id, teacher_user_id=teacher.id) }}"
-               class="inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium whitespace-nowrap {% if selected_teacher_id == teacher.id %}bg-blue-600 text-white{% else %}bg-gray-100 text-gray-700 hover:bg-gray-200{% endif %}">
+            <a href="{{ url_for('payments.reconciliation', tab=active_tab, search=search, start_date=start_date, end_date=end_date, scope=scope_filter, private_owner_id=selected_private_owner_id, supervisor_user_id=teacher.id) }}"
+               class="inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium whitespace-nowrap {% if selected_supervisor_id == teacher.id %}bg-blue-600 text-white{% else %}bg-gray-100 text-gray-700 hover:bg-gray-200{% endif %}">
                 {{ teacher.username }}
             </a>
             {% endfor %}
@@ -61,8 +61,8 @@
             {% if selected_private_owner_id %}
             <input type="hidden" name="private_owner_id" value="{{ selected_private_owner_id }}">
             {% endif %}
-            {% if selected_teacher_id %}
-            <input type="hidden" name="teacher_user_id" value="{{ selected_teacher_id }}">
+            {% if selected_supervisor_id %}
+            <input type="hidden" name="supervisor_user_id" value="{{ selected_supervisor_id }}">
             {% endif %}
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <!-- 搜索框 -->

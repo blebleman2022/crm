@@ -106,7 +106,10 @@ def consultation_details_data(lead_id):
 
         # 权限检查：班主任只能查看自己负责的客户
         if current_user.role == 'teacher_supervisor':
-            if not customer or customer.teacher_user_id != current_user.id:
+            visible_supervisor_ids = current_user.get_visible_teacher_supervisor_ids()
+            if current_user.id not in visible_supervisor_ids:
+                visible_supervisor_ids.append(current_user.id)
+            if not customer or customer.supervisor_user_id not in visible_supervisor_ids:
                 return jsonify({
                     'success': False,
                     'message': '您没有权限查看此客户的沟通记录'
@@ -196,7 +199,10 @@ def add_communication_record(lead_id):
 
         # 权限检查：班主任只能为自己负责的客户添加沟通记录
         if current_user.role == 'teacher_supervisor':
-            if not customer or customer.teacher_user_id != current_user.id:
+            visible_supervisor_ids = current_user.get_visible_teacher_supervisor_ids()
+            if current_user.id not in visible_supervisor_ids:
+                visible_supervisor_ids.append(current_user.id)
+            if not customer or customer.supervisor_user_id not in visible_supervisor_ids:
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or 'application/json' in request.headers.get('Accept', ''):
                     return jsonify({
                         'success': False,
@@ -306,3 +312,4 @@ def update_meeting_time(lead_id):
         db.session.rollback()
         flash(f'更新约见时间失败: {str(e)}', 'error')
         return redirect(url_for('consultations.list_consultations'))
+

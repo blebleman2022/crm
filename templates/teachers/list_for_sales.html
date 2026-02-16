@@ -22,20 +22,12 @@
                            placeholder="搜索老师姓名、单位、专业方向..." 
                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
                 </div>
-                <div>
-                    <select name="status" 
-                            class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
-                        <option value="">全部状态</option>
-                        <option value="active" {% if status_filter == 'active' %}selected{% endif %}>启用</option>
-                        <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>停用</option>
-                    </select>
-                </div>
                 <button type="submit" 
                         class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
                     <span class="material-symbols-outlined mr-1 text-sm">search</span>
                     搜索
                 </button>
-                {% if search or status_filter %}
+                {% if search %}
                 <a href="{{ url_for('teachers.list_teachers_for_sales') }}" 
                    class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
                     清除
@@ -84,7 +76,7 @@
                                 {{ teacher_customer_counts.get(teacher.user_id, 0) }}
                             </td>
                             <td class="whitespace-nowrap px-6 py-4 text-sm">
-                                {% if teacher.status %}
+                                {% if teacher.user and teacher.user.status %}
                                     <span class="inline-flex rounded-full bg-green-100 px-2 text-xs font-semibold leading-5 text-green-800">启用</span>
                                 {% else %}
                                     <span class="inline-flex rounded-full bg-gray-100 px-2 text-xs font-semibold leading-5 text-gray-800">停用</span>
@@ -102,7 +94,7 @@
                                 <div class="flex flex-col items-center">
                                     <span class="material-symbols-outlined text-6xl text-gray-300 mb-2">school</span>
                                     <p>暂无老师信息</p>
-                                    {% if search or status_filter %}
+                                    {% if search %}
                                     <p class="mt-2">
                                         <a href="{{ url_for('teachers.list_teachers_for_sales') }}" 
                                            class="text-blue-600 hover:text-blue-900">清除筛选条件</a>

@@ -88,9 +88,17 @@
                                     <span class="ml-1 inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">私域</span>
                                 {% endif %}
                             {% elif user.role == 'teacher_supervisor' %}
-                                <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">班主任</span>
-                                {% if user.teacher_scope == 'private_only' %}
-                                    <span class="ml-1 inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">仅私域</span>
+                                {% if user.supervisor_scope == 'private_only' %}
+                                    <span class="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">私域班主任</span>
+                                {% elif user.supervisor_level == 'manager' %}
+                                    <span class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">公域班主任主管</span>
+                                {% else %}
+                                    <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">公域普通班主任</span>
+                                    {% if user.supervisor_user %}
+                                        <span class="ml-1 inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+                                            归属{{ user.supervisor_user.username }}
+                                        </span>
+                                    {% endif %}
                                 {% endif %}
                             {% else %}
                                 <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">{{ user.role }}</span>
@@ -205,3 +213,4 @@ function deleteUser(userId, username) {
 
 </script>
 {% endblock %}
+

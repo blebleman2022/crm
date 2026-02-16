@@ -6,6 +6,9 @@ EduConnect CRM 启动脚本
 
 import os
 import sys
+import shutil
+import sqlite3
+from datetime import datetime
 from flask import Flask, request, render_template
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, current_user
@@ -16,6 +19,7 @@ def create_app(config_name=None):
     # 确定配置环境
     if config_name is None:
         config_name = os.environ.get('FLASK_ENV', 'development')
+    config_name = (config_name or 'development').strip().lower()
 
     # 创建Flask应用
     app = Flask(__name__)
@@ -472,6 +476,13 @@ def init_database(app):
         try:
             from sqlalchemy import text
 
+            def _table_columns(table_name):
+                rows = db.session.execute(text(f"PRAGMA table_info({table_name})")).fetchall()
+                return [row[1] for row in rows]
+
+            def _column_exists(table_name, column_name):
+                return column_name in _table_columns(table_name)
+
             # 添加meeting_location字段
             try:
                 db.session.execute(text("ALTER TABLE leads ADD COLUMN meeting_location VARCHAR(20)"))
@@ -583,27 +594,97 @@ def init_database(app):
 
             # 添加班主任服务范围字段
             try:
-                db.session.execute(text("ALTER TABLE users ADD COLUMN teacher_scope VARCHAR(20) DEFAULT 'all'"))
+                db.session.execute(text("ALTER TABLE users ADD COLUMN supervisor_scope VARCHAR(20) DEFAULT 'all'"))
                 db.session.commit()
-                print("✅ teacher_scope字段添加成功")
+                print("✅ supervisor_scope字段添加成功")
             except Exception as e:
                 if "duplicate column name" in str(e).lower():
-                    print("✅ teacher_scope字段已存在")
+                    print("✅ supervisor_scope字段已存在")
                 else:
-                    print(f"⚠️ teacher_scope字段添加失败: {e}")
+                    print(f"⚠️ supervisor_scope字段添加失败: {e}")
 
             try:
                 db.session.execute(text("""
                     UPDATE users
-                    SET teacher_scope = 'all'
-                    WHERE teacher_scope IS NULL
-                       OR teacher_scope = ''
-                       OR teacher_scope NOT IN ('all', 'public_only', 'private_only')
+                    SET supervisor_scope = 'all'
+                    WHERE supervisor_scope IS NULL
+                       OR supervisor_scope = ''
+                       OR supervisor_scope NOT IN ('all', 'public_only', 'private_only')
                 """))
                 db.session.commit()
                 print("✅ 已初始化班主任服务范围默认值（all）")
             except Exception as e:
-                print(f"⚠️ 初始化teacher_scope失败: {e}")
+                print(f"⚠️ 初始化supervisor_scope失败: {e}")
+                db.session.rollback()
+
+            # 添加班主任层级字段（regular/manager）
+            try:
+                db.session.execute(text("ALTER TABLE users ADD COLUMN supervisor_level VARCHAR(20) DEFAULT 'regular'"))
+                db.session.commit()
+                print("✅ supervisor_level字段添加成功")
+            except Exception as e:
+                if "duplicate column name" in str(e).lower():
+                    print("✅ supervisor_level字段已存在")
+                else:
+                    print(f"⚠️ supervisor_level字段添加失败: {e}")
+
+            try:
+                db.session.execute(text("""
+                    UPDATE users
+                    SET supervisor_level = 'regular'
+                    WHERE supervisor_level IS NULL
+                       OR supervisor_level = ''
+                       OR supervisor_level NOT IN ('regular', 'manager')
+                """))
+                db.session.commit()
+                print("✅ 已初始化班主任层级默认值（regular）")
+            except Exception as e:
+                print(f"⚠️ 初始化supervisor_level失败: {e}")
+                db.session.rollback()
+
+            # 添加普通班主任归属主管字段
+            try:
+                db.session.execute(text("ALTER TABLE users ADD COLUMN supervisor_user_id INTEGER"))
+                db.session.commit()
+                print("✅ supervisor_user_id字段添加成功")
+            except Exception as e:
+                if "duplicate column name" in str(e).lower():
+                    print("✅ supervisor_user_id字段已存在")
+                else:
+                    print(f"⚠️ supervisor_user_id字段添加失败: {e}")
+
+            # 清洗主管归属数据
+            try:
+                db.session.execute(text("""
+                    UPDATE users
+                    SET supervisor_user_id = NULL
+                    WHERE role != 'teacher_supervisor'
+                       OR supervisor_user_id = id
+                """))
+                db.session.execute(text("""
+                    UPDATE users
+                    SET supervisor_user_id = NULL
+                    WHERE role = 'teacher_supervisor'
+                      AND (
+                            supervisor_scope = 'private_only'
+                            OR supervisor_level = 'manager'
+                          )
+                """))
+                db.session.execute(text("""
+                    UPDATE users
+                    SET supervisor_user_id = NULL
+                    WHERE supervisor_user_id IS NOT NULL
+                      AND supervisor_user_id NOT IN (
+                          SELECT id FROM users
+                          WHERE role = 'teacher_supervisor'
+                            AND (supervisor_scope IS NULL OR supervisor_scope != 'private_only')
+                            AND supervisor_level = 'manager'
+                      )
+                """))
+                db.session.commit()
+                print("✅ 已清洗班主任主管归属历史数据")
+            except Exception as e:
+                print(f"⚠️ 清洗supervisor_user_id失败: {e}")
                 db.session.rollback()
 
             # 添加线索私域字段
@@ -785,19 +866,19 @@ def init_database(app):
                     CREATE TABLE IF NOT EXISTS topic_tasks (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         lead_id INTEGER NOT NULL,
-                        teacher_user_id INTEGER NOT NULL,
+                        tutor_user_id INTEGER NOT NULL,
                         due_at DATETIME NOT NULL,
                         status VARCHAR(20) DEFAULT '待提交',
                         created_by INTEGER NOT NULL,
                         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                         FOREIGN KEY (lead_id) REFERENCES leads (id),
-                        FOREIGN KEY (teacher_user_id) REFERENCES users (id),
+                        FOREIGN KEY (tutor_user_id) REFERENCES users (id),
                         FOREIGN KEY (created_by) REFERENCES users (id)
                     )
                 """))
                 db.session.execute(text("CREATE INDEX IF NOT EXISTS idx_topic_tasks_lead_id ON topic_tasks (lead_id)"))
-                db.session.execute(text("CREATE INDEX IF NOT EXISTS idx_topic_tasks_teacher_id ON topic_tasks (teacher_user_id)"))
+                db.session.execute(text("CREATE INDEX IF NOT EXISTS idx_topic_tasks_tutor_user_id ON topic_tasks (tutor_user_id)"))
                 db.session.commit()
                 print("✅ topic_tasks表创建成功")
             except Exception as e:
@@ -825,16 +906,16 @@ def init_database(app):
 
             # ========== 业务规则重构迁移 ==========
 
-            # 1. Lead表新增 teacher_user_id 字段
+            # 1. Lead表新增 supervisor_user_id 字段
             try:
-                db.session.execute(text("ALTER TABLE leads ADD COLUMN teacher_user_id INTEGER REFERENCES users(id)"))
+                db.session.execute(text("ALTER TABLE leads ADD COLUMN supervisor_user_id INTEGER REFERENCES users(id)"))
                 db.session.commit()
-                print("✅ leads.teacher_user_id字段添加成功")
+                print("✅ leads.supervisor_user_id字段添加成功")
             except Exception as e:
                 if "duplicate column name" in str(e).lower():
-                    print("✅ leads.teacher_user_id字段已存在")
+                    print("✅ leads.supervisor_user_id字段已存在")
                 else:
-                    print(f"⚠️ leads.teacher_user_id字段添加失败: {e}")
+                    print(f"⚠️ leads.supervisor_user_id字段添加失败: {e}")
                 db.session.rollback()
 
             # 2. Customer表新增 phase 字段
@@ -865,27 +946,27 @@ def init_database(app):
                 print(f"⚠️ 升级salesperson失败: {e}")
                 db.session.rollback()
 
-            # 4. 回填 Lead.teacher_user_id（从已有的 Customer.teacher_user_id 回填）
+            # 4. 回填 Lead.supervisor_user_id（从已有的 Customer.supervisor_user_id 回填）
             try:
                 db.session.execute(text("""
                     UPDATE leads
-                    SET teacher_user_id = (
-                        SELECT customers.teacher_user_id
+                    SET supervisor_user_id = (
+                        SELECT customers.supervisor_user_id
                         FROM customers
                         WHERE customers.lead_id = leads.id
-                          AND customers.teacher_user_id IS NOT NULL
+                          AND customers.supervisor_user_id IS NOT NULL
                     )
-                    WHERE teacher_user_id IS NULL
+                    WHERE supervisor_user_id IS NULL
                       AND EXISTS (
                           SELECT 1 FROM customers
                           WHERE customers.lead_id = leads.id
-                            AND customers.teacher_user_id IS NOT NULL
+                            AND customers.supervisor_user_id IS NOT NULL
                       )
                 """))
                 db.session.commit()
-                print("✅ 已回填 Lead.teacher_user_id（从 Customer.teacher_user_id）")
+                print("✅ 已回填 Lead.supervisor_user_id（从 Customer.supervisor_user_id）")
             except Exception as e:
-                print(f"⚠️ 回填Lead.teacher_user_id失败: {e}")
+                print(f"⚠️ 回填Lead.supervisor_user_id失败: {e}")
                 db.session.rollback()
 
             # 5. 根据付款笔数设置 Customer.phase
@@ -912,12 +993,404 @@ def init_database(app):
                 print(f"⚠️ 设置Customer.phase失败: {e}")
                 db.session.rollback()
 
+            # ========== 班主任/老师字段收口迁移（Contract 阶段） ==========
+            canonical_columns = [
+                ("users", "supervisor_scope", "VARCHAR(20)", "users.supervisor_scope"),
+                ("users", "supervisor_level", "VARCHAR(20)", "users.supervisor_level"),
+                ("leads", "supervisor_user_id", "INTEGER", "leads.supervisor_user_id"),
+                ("customers", "supervisor_user_id", "INTEGER", "customers.supervisor_user_id"),
+                ("customer_payments", "supervisor_user_id", "INTEGER", "customer_payments.supervisor_user_id"),
+                ("customers", "tutor_user_id", "INTEGER", "customers.tutor_user_id"),
+                ("topic_tasks", "tutor_user_id", "INTEGER", "topic_tasks.tutor_user_id"),
+                ("teacher_images", "tutor_user_id", "INTEGER", "teacher_images.tutor_user_id"),
+            ]
+            for table_name, column_name, column_type, label in canonical_columns:
+                try:
+                    db.session.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}"))
+                    db.session.commit()
+                    print(f"✅ {label}字段添加成功")
+                except Exception as e:
+                    error_msg = str(e).lower()
+                    if "duplicate column name" in error_msg or "already exists" in error_msg:
+                        print(f"✅ {label}字段已存在")
+                        db.session.rollback()
+                    else:
+                        print(f"⚠️ {label}字段添加失败: {e}")
+                        db.session.rollback()
+
+            # 仅在旧字段仍存在时执行 old -> new 回填（不再 new -> old）
+            legacy_to_canonical_pairs = [
+                ("users", "teacher_scope", "supervisor_scope"),
+                ("users", "teacher_level", "supervisor_level"),
+                ("leads", "teacher_user_id", "supervisor_user_id"),
+                ("customers", "teacher_user_id", "supervisor_user_id"),
+                ("customer_payments", "teacher_user_id", "supervisor_user_id"),
+                ("customers", "teacher_id", "tutor_user_id"),
+                ("topic_tasks", "teacher_user_id", "tutor_user_id"),
+                ("teacher_images", "teacher_id", "tutor_user_id"),
+            ]
+            for table_name, old_field, new_field in legacy_to_canonical_pairs:
+                if not (_column_exists(table_name, old_field) and _column_exists(table_name, new_field)):
+                    continue
+                try:
+                    db.session.execute(text(f"""
+                        UPDATE {table_name}
+                        SET {new_field} = {old_field}
+                        WHERE {new_field} IS NULL
+                          AND {old_field} IS NOT NULL
+                    """))
+                    db.session.commit()
+                    print(f"✅ 已完成 {table_name}.{old_field} -> {new_field} 回填")
+                except Exception as e:
+                    print(f"⚠️ 回填 {table_name}.{old_field}/{new_field} 失败: {e}")
+                    db.session.rollback()
+
+            # 规范化班主任范围和层级默认值
+            try:
+                db.session.execute(text("""
+                    UPDATE users
+                    SET supervisor_scope = 'all'
+                    WHERE supervisor_scope IS NULL
+                       OR supervisor_scope = ''
+                       OR supervisor_scope NOT IN ('all', 'public_only', 'private_only')
+                """))
+                db.session.execute(text("""
+                    UPDATE users
+                    SET supervisor_level = 'regular'
+                    WHERE supervisor_level IS NULL
+                       OR supervisor_level = ''
+                       OR supervisor_level NOT IN ('regular', 'manager')
+                """))
+                db.session.commit()
+                print("✅ 已规范化 supervisor_scope/supervisor_level 默认值")
+            except Exception as e:
+                print(f"⚠️ 规范化supervisor_scope/supervisor_level失败: {e}")
+                db.session.rollback()
+
+            # 新字段索引
+            canonical_indexes = [
+                ("idx_leads_supervisor_user_id", "leads", "supervisor_user_id"),
+                ("idx_customers_supervisor_user_id", "customers", "supervisor_user_id"),
+                ("idx_customer_payments_supervisor_user_id", "customer_payments", "supervisor_user_id"),
+                ("idx_customers_tutor_user_id", "customers", "tutor_user_id"),
+                ("idx_topic_tasks_tutor_user_id", "topic_tasks", "tutor_user_id"),
+                ("idx_teacher_images_tutor_user_id", "teacher_images", "tutor_user_id"),
+            ]
+            for index_name, table_name, column_name in canonical_indexes:
+                try:
+                    db.session.execute(text(f"CREATE INDEX IF NOT EXISTS {index_name} ON {table_name} ({column_name})"))
+                    db.session.commit()
+                    print(f"✅ 索引 {index_name} 已就绪")
+                except Exception as e:
+                    print(f"⚠️ 索引 {index_name} 创建失败: {e}")
+                    db.session.rollback()
+
+            # 清理旧索引（若存在）
+            for legacy_idx in ["idx_topic_tasks_teacher_id", "idx_customers_teacher_id"]:
+                try:
+                    db.session.execute(text(f"DROP INDEX IF EXISTS {legacy_idx}"))
+                    db.session.commit()
+                    print(f"✅ 已清理旧索引 {legacy_idx}")
+                except Exception as e:
+                    print(f"⚠️ 清理旧索引失败 {legacy_idx}: {e}")
+                    db.session.rollback()
+
         except Exception as e:
             print(f"❌ 数据库迁移失败: {e}")
             db.session.rollback()
 
         # 测试账号初始化已移除 - 系统使用真实用户数据
         print("✅ 数据库初始化完成（不再创建测试账号）")
+
+
+def contract_drop_legacy_columns(app):
+    """执行班主任/老师字段重命名的 Contract 阶段（物理删旧列）"""
+    with app.app_context():
+        from models import db
+
+        db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
+        if not db_uri.startswith('sqlite:///'):
+            raise RuntimeError('当前命令仅支持 SQLite 数据库')
+
+        db_path = os.path.abspath(db_uri.replace('sqlite:///', '', 1))
+        if not os.path.exists(db_path):
+            raise RuntimeError(f'数据库文件不存在: {db_path}')
+
+        ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+        backup_path = f"{db_path}.backup_contract_drop_{ts}"
+
+        # 释放 SQLAlchemy 连接，避免文件锁冲突
+        db.session.remove()
+        db.engine.dispose()
+
+        shutil.copy2(db_path, backup_path)
+        print(f"✅ 已创建数据库备份: {backup_path}")
+
+        conn = sqlite3.connect(db_path)
+        try:
+            cur = conn.cursor()
+            cur.execute("PRAGMA foreign_keys=OFF")
+            cur.execute("BEGIN")
+
+            # 前置校验：确保新列可承接数据
+            prechecks = [
+                ("topic_tasks", "COALESCE(tutor_user_id, teacher_user_id) IS NULL"),
+                ("teacher_images", "COALESCE(tutor_user_id, teacher_id) IS NULL"),
+            ]
+            for table_name, cond in prechecks:
+                cur.execute(f"SELECT COUNT(1) FROM {table_name} WHERE {cond}")
+                count = cur.fetchone()[0]
+                if count > 0:
+                    raise RuntimeError(f"预检查失败：{table_name} 有 {count} 行无法回填到新字段")
+
+            # 1) 直接删除可安全 drop 的旧列
+            cur.execute("DROP INDEX IF EXISTS idx_topic_tasks_teacher_id")
+            cur.execute("DROP INDEX IF EXISTS idx_customers_teacher_id")
+
+            cur.execute("ALTER TABLE users DROP COLUMN teacher_scope")
+            cur.execute("ALTER TABLE users DROP COLUMN teacher_level")
+            cur.execute("ALTER TABLE leads DROP COLUMN teacher_user_id")
+
+            # 2) customers 重建（移除 teacher_user_id / teacher_id）
+            cur.execute("""
+                CREATE TABLE customers_new (
+                    id INTEGER NOT NULL PRIMARY KEY,
+                    lead_id INTEGER NOT NULL,
+                    sales_user_id INTEGER NOT NULL,
+                    payment_amount NUMERIC(10, 2) NOT NULL,
+                    award_requirement VARCHAR(20) NOT NULL,
+                    tutoring_expire_date DATE,
+                    award_expire_date DATE,
+                    customer_notes TEXT,
+                    created_at DATETIME,
+                    updated_at DATETIME,
+                    service_type VARCHAR(30) DEFAULT 'tutoring',
+                    exam_year INTEGER,
+                    converted_at DATETIME,
+                    is_priority BOOLEAN DEFAULT FALSE,
+                    competition_award_level VARCHAR(20),
+                    additional_requirements TEXT,
+                    thesis_name VARCHAR(200),
+                    thesis_deadline DATE,
+                    first_competition_id INTEGER,
+                    customer_scope VARCHAR(20) NOT NULL DEFAULT 'public',
+                    private_owner_id INTEGER,
+                    phase VARCHAR(30) NOT NULL DEFAULT 'brainstorm',
+                    supervisor_user_id INTEGER,
+                    tutor_user_id INTEGER,
+                    FOREIGN KEY(lead_id) REFERENCES leads(id),
+                    FOREIGN KEY(sales_user_id) REFERENCES users(id),
+                    FOREIGN KEY(private_owner_id) REFERENCES users(id),
+                    FOREIGN KEY(supervisor_user_id) REFERENCES users(id),
+                    FOREIGN KEY(tutor_user_id) REFERENCES teachers(user_id)
+                )
+            """)
+            cur.execute("""
+                INSERT INTO customers_new (
+                    id, lead_id, sales_user_id, payment_amount, award_requirement,
+                    tutoring_expire_date, award_expire_date, customer_notes, created_at, updated_at,
+                    service_type, exam_year, converted_at, is_priority,
+                    competition_award_level, additional_requirements,
+                    thesis_name, thesis_deadline, first_competition_id,
+                    customer_scope, private_owner_id, phase, supervisor_user_id, tutor_user_id
+                )
+                SELECT
+                    id, lead_id, sales_user_id, payment_amount, award_requirement,
+                    tutoring_expire_date, award_expire_date, customer_notes, created_at, updated_at,
+                    service_type, exam_year, converted_at, is_priority,
+                    competition_award_level, additional_requirements,
+                    thesis_name, thesis_deadline, first_competition_id,
+                    customer_scope, private_owner_id, phase,
+                    COALESCE(supervisor_user_id, teacher_user_id),
+                    COALESCE(tutor_user_id, teacher_id)
+                FROM customers
+            """)
+            cur.execute("DROP TABLE customers")
+            cur.execute("ALTER TABLE customers_new RENAME TO customers")
+            cur.execute("CREATE UNIQUE INDEX idx_customers_lead_id ON customers (lead_id)")
+            cur.execute("CREATE INDEX idx_customers_exam_year ON customers (exam_year)")
+            cur.execute("CREATE INDEX idx_customers_priority ON customers (is_priority)")
+            cur.execute("CREATE INDEX idx_customers_converted_at ON customers (converted_at)")
+            cur.execute("CREATE INDEX idx_customers_supervisor_user_id ON customers (supervisor_user_id)")
+            cur.execute("CREATE INDEX idx_customers_tutor_user_id ON customers (tutor_user_id)")
+
+            # 3) customer_payments 重建（移除 teacher_user_id）
+            cur.execute("""
+                CREATE TABLE customer_payments_new (
+                    id INTEGER NOT NULL PRIMARY KEY,
+                    customer_id INTEGER NOT NULL,
+                    supervisor_user_id INTEGER,
+                    total_amount NUMERIC(10, 2),
+                    first_payment NUMERIC(10, 2),
+                    first_payment_date DATE,
+                    second_payment NUMERIC(10, 2),
+                    second_payment_date DATE,
+                    third_payment NUMERIC(10, 2),
+                    third_payment_date DATE,
+                    created_at DATETIME,
+                    updated_at DATETIME,
+                    scope_snapshot VARCHAR(20) DEFAULT 'public',
+                    FOREIGN KEY(customer_id) REFERENCES customers(id),
+                    FOREIGN KEY(supervisor_user_id) REFERENCES users(id)
+                )
+            """)
+            cur.execute("""
+                INSERT INTO customer_payments_new (
+                    id, customer_id, supervisor_user_id, total_amount,
+                    first_payment, first_payment_date, second_payment, second_payment_date,
+                    third_payment, third_payment_date, created_at, updated_at, scope_snapshot
+                )
+                SELECT
+                    id, customer_id, COALESCE(supervisor_user_id, teacher_user_id), total_amount,
+                    first_payment, first_payment_date, second_payment, second_payment_date,
+                    third_payment, third_payment_date, created_at, updated_at, scope_snapshot
+                FROM customer_payments
+            """)
+            cur.execute("DROP TABLE customer_payments")
+            cur.execute("ALTER TABLE customer_payments_new RENAME TO customer_payments")
+            cur.execute("CREATE INDEX idx_customer_payments_supervisor_user_id ON customer_payments (supervisor_user_id)")
+
+            # 4) topic_tasks 重建（移除 teacher_user_id）
+            cur.execute("""
+                CREATE TABLE topic_tasks_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    lead_id INTEGER NOT NULL,
+                    tutor_user_id INTEGER NOT NULL,
+                    due_at DATETIME NOT NULL,
+                    status VARCHAR(20) DEFAULT '待提交',
+                    created_by INTEGER NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY(lead_id) REFERENCES leads(id),
+                    FOREIGN KEY(tutor_user_id) REFERENCES users(id),
+                    FOREIGN KEY(created_by) REFERENCES users(id)
+                )
+            """)
+            cur.execute("""
+                INSERT INTO topic_tasks_new (
+                    id, lead_id, tutor_user_id, due_at, status, created_by, created_at, updated_at
+                )
+                SELECT
+                    id, lead_id, COALESCE(tutor_user_id, teacher_user_id), due_at, status, created_by, created_at, updated_at
+                FROM topic_tasks
+            """)
+            cur.execute("DROP TABLE topic_tasks")
+            cur.execute("ALTER TABLE topic_tasks_new RENAME TO topic_tasks")
+            cur.execute("CREATE INDEX idx_topic_tasks_lead_id ON topic_tasks (lead_id)")
+            cur.execute("CREATE INDEX idx_topic_tasks_tutor_user_id ON topic_tasks (tutor_user_id)")
+
+            # 5) teacher_images 重建（移除 teacher_id）
+            cur.execute("""
+                CREATE TABLE teacher_images_new (
+                    id INTEGER NOT NULL PRIMARY KEY,
+                    tutor_user_id INTEGER NOT NULL,
+                    image_path VARCHAR(500) NOT NULL,
+                    description VARCHAR(200),
+                    file_size INTEGER,
+                    file_name VARCHAR(200),
+                    created_at DATETIME,
+                    FOREIGN KEY(tutor_user_id) REFERENCES teachers(user_id)
+                )
+            """)
+            cur.execute("""
+                INSERT INTO teacher_images_new (
+                    id, tutor_user_id, image_path, description, file_size, file_name, created_at
+                )
+                SELECT
+                    id, COALESCE(tutor_user_id, teacher_id), image_path, description, file_size, file_name, created_at
+                FROM teacher_images
+            """)
+            cur.execute("DROP TABLE teacher_images")
+            cur.execute("ALTER TABLE teacher_images_new RENAME TO teacher_images")
+            cur.execute("CREATE INDEX idx_teacher_images_tutor_user_id ON teacher_images (tutor_user_id)")
+
+            conn.commit()
+            cur.execute("PRAGMA foreign_keys=ON")
+            fk_errors = cur.execute("PRAGMA foreign_key_check").fetchall()
+            if fk_errors:
+                raise RuntimeError(f"外键校验失败，共 {len(fk_errors)} 条，请使用备份回滚: {backup_path}")
+
+            # 收口后结构核验
+            legacy_columns = [
+                ("users", "teacher_scope"),
+                ("users", "teacher_level"),
+                ("leads", "teacher_user_id"),
+                ("customers", "teacher_user_id"),
+                ("customer_payments", "teacher_user_id"),
+                ("customers", "teacher_id"),
+                ("topic_tasks", "teacher_user_id"),
+                ("teacher_images", "teacher_id"),
+            ]
+            for table_name, legacy_col in legacy_columns:
+                cols = [r[1] for r in cur.execute(f"PRAGMA table_info({table_name})").fetchall()]
+                if legacy_col in cols:
+                    raise RuntimeError(f"删列未完成：{table_name}.{legacy_col} 仍存在")
+
+            print("✅ Contract 阶段完成：旧列已物理删除")
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+
+def contract_drop_teacher_profile_status(app):
+    """删除 teachers.status 冗余字段，仅保留 users.status 作为账号状态来源"""
+    with app.app_context():
+        from models import db
+
+        db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
+        if not db_uri.startswith('sqlite:///'):
+            raise RuntimeError('当前命令仅支持 SQLite 数据库')
+
+        db_path = os.path.abspath(db_uri.replace('sqlite:///', '', 1))
+        if not os.path.exists(db_path):
+            raise RuntimeError(f'数据库文件不存在: {db_path}')
+
+        ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+        backup_path = f"{db_path}.backup_drop_teachers_status_{ts}"
+
+        db.session.remove()
+        db.engine.dispose()
+        shutil.copy2(db_path, backup_path)
+        print(f"✅ 已创建数据库备份: {backup_path}")
+
+        conn = sqlite3.connect(db_path)
+        try:
+            cur = conn.cursor()
+            cur.execute("PRAGMA table_info(teachers)")
+            cols = [r[1] for r in cur.fetchall()]
+            if 'status' not in cols:
+                print("✅ teachers.status 已不存在，无需处理")
+                return
+
+            # 仅用于告警参考：Teacher.status 与 User.status 的历史差异行数
+            diff_count = cur.execute("""
+                SELECT COUNT(1)
+                FROM teachers t
+                JOIN users u ON u.id = t.user_id
+                WHERE COALESCE(CAST(t.status AS INTEGER), 1) != COALESCE(CAST(u.status AS INTEGER), 1)
+            """).fetchone()[0]
+            if diff_count:
+                print(f"⚠️ 检测到 {diff_count} 行 teachers.status 与 users.status 不一致，已按 users.status 为准收口")
+
+            cur.execute("PRAGMA foreign_keys=OFF")
+            cur.execute("BEGIN")
+            cur.execute("ALTER TABLE teachers DROP COLUMN status")
+            conn.commit()
+            cur.execute("PRAGMA foreign_keys=ON")
+
+            cur.execute("PRAGMA table_info(teachers)")
+            cols_after = [r[1] for r in cur.fetchall()]
+            if 'status' in cols_after:
+                raise RuntimeError("删除失败：teachers.status 仍存在")
+
+            print("✅ 已删除 teachers.status，账号状态统一由 users.status 管理")
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
 
 def main():
     """主函数"""
@@ -928,7 +1401,7 @@ def main():
         command = 'run'
 
     # 获取环境配置
-    config_name = os.environ.get('FLASK_ENV', 'development')
+    config_name = (os.environ.get('FLASK_ENV', 'development') or 'development').strip().lower()
 
     # 创建应用
     app = create_app(config_name)
@@ -938,6 +1411,16 @@ def main():
         print(f"正在初始化数据库 (环境: {config_name})...")
         init_database(app)
         print("数据库初始化完成!")
+
+    elif command == 'contract-drop-legacy-columns':
+        print(f"正在执行 Contract 删旧列 (环境: {config_name})...")
+        contract_drop_legacy_columns(app)
+        print("Contract 删旧列完成!")
+
+    elif command == 'contract-drop-teachers-status':
+        print(f"正在执行 teachers.status 删列 (环境: {config_name})...")
+        contract_drop_teacher_profile_status(app)
+        print("teachers.status 删列完成!")
 
     elif command == 'run':
         # 运行应用
@@ -982,6 +1465,8 @@ def main():
         print("可用命令:")
         print("  run      - 运行应用 (默认)")
         print("  init-db  - 初始化数据库")
+        print("  contract-drop-legacy-columns - 物理删除 teacher_* 旧列")
+        print("  contract-drop-teachers-status - 物理删除 teachers.status 冗余列")
         print("  test     - 运行测试")
         print("")
         print("环境变量:")

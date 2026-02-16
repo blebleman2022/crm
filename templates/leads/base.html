@@ -52,7 +52,7 @@
 
             <nav class="flex-1 overflow-y-auto">
                 {% set is_teacher_supervisor = current_user.is_teacher_supervisor() %}
-                {% set is_private_only_teacher = is_teacher_supervisor and current_user.get_teacher_scope() == 'private_only' %}
+                {% set is_private_only_teacher = is_teacher_supervisor and current_user.get_supervisor_scope() == 'private_only' %}
                 <ul class="space-y-1 p-4">
                     {% if not is_private_only_teacher %}
                     <li>
@@ -132,7 +132,7 @@
                         </a>
                     </li>
                     {% endif %}
-                    {% if current_user.is_sales_manager() or (current_user.is_teacher_supervisor() and not is_private_only_teacher) %}
+                    {% if current_user.is_sales_manager() or current_user.is_teacher_supervisor_manager() %}
                     <li>
                         <a class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium {% if request.endpoint == 'payments.reconciliation' %}text-white bg-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}"
                            href="{{ url_for('payments.reconciliation') }}">
@@ -141,7 +141,7 @@
                         </a>
                     </li>
                     {% endif %}
-                    {% if current_user.is_teacher_supervisor() and not is_private_only_teacher %}
+                    {% if current_user.is_teacher_supervisor_manager() %}
                     <li>
                         <a class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium {% if request.endpoint == 'payments.manage' %}text-white bg-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}"
                            href="{{ url_for('payments.manage') }}">

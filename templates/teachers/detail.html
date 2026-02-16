@@ -46,11 +46,13 @@
             <span class="material-symbols-outlined mr-1 text-sm">arrow_back</span>
             返回列表
         </a>
+        {% if current_user.is_admin() %}
         <a href="{{ url_for('teachers.edit_teacher', teacher_id=teacher.user_id) }}"
            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-800 hover:bg-blue-900 shadow-sm">
             <span class="material-symbols-outlined mr-1 text-sm">edit</span>
             编辑资料
         </a>
+        {% endif %}
         {% endif %}
     </div>
 

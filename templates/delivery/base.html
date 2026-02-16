@@ -78,6 +78,7 @@
                             服务交付
                         </a>
                     </li>
+                    {% if current_user.is_teacher_supervisor_manager() %}
                     <li>
                         <a class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium {% if request.endpoint == 'payments.manage' %}text-white bg-green-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}"
                            href="{{ url_for('payments.manage') }}">
@@ -85,6 +86,7 @@
                             付款管理
                         </a>
                     </li>
+                    {% endif %}
                 </ul>
             </nav>
         </aside>
