@@ -270,6 +270,11 @@ def leads_list():
             lead.brainstorm_days_elapsed = delta_days
         else:
             lead.brainstorm_days_elapsed = None
+        if lead.brainstorm_topics_at:
+            topics_end_at = lead.second_payment_at if lead.second_payment_at else now
+            lead.brainstorm_topics_days_elapsed = max((topics_end_at - lead.brainstorm_topics_at).days, 0)
+        else:
+            lead.brainstorm_topics_days_elapsed = None
 
     # 获取所有销售用户（用于显示）
     sales_users = User.query.filter(

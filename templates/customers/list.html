@@ -235,8 +235,14 @@
                             {% if customer.tutoring_delivery %}
                                 <div class="flex items-center">
                                     <div class="flex-1">
-                                        <div class="text-sm font-medium text-gray-900">
-                                            {{ customer.tutoring_delivery.completed_sessions }}/{{ customer.tutoring_delivery.total_sessions }}
+                                        <div class="text-sm font-medium text-gray-900 flex items-center gap-2">
+                                            {% set topic_suffix = '定' if customer.lead.tutoring_topic_type == 'custom' else ('储' if customer.lead.tutoring_topic_type == 'reserve' else '') %}
+                                            <span>{{ customer.tutoring_delivery.completed_sessions }}/{{ customer.tutoring_delivery.total_sessions }}</span>
+                                            {% if topic_suffix %}
+                                                <span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+                                                    {{ topic_suffix }}
+                                                </span>
+                                            {% endif %}
                                         </div>
                                         {% set progress = (customer.tutoring_delivery.completed_sessions / customer.tutoring_delivery.total_sessions * 100) if customer.tutoring_delivery.total_sessions > 0 else 0 %}
                                     </div>

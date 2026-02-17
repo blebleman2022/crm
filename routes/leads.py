@@ -523,6 +523,11 @@ def list_leads():
             lead.brainstorm_days_elapsed = delta_days
         else:
             lead.brainstorm_days_elapsed = None
+        if lead.brainstorm_topics_at:
+            topics_end_at = lead.second_payment_at if lead.second_payment_at else now
+            lead.brainstorm_topics_days_elapsed = max((topics_end_at - lead.brainstorm_topics_at).days, 0)
+        else:
+            lead.brainstorm_topics_days_elapsed = None
     
     # 获取所有销售人员用于筛选
     if is_private_owner_user(current_user):
@@ -685,6 +690,11 @@ def brainstorm_list():
             lead.brainstorm_days_elapsed = delta_days
         else:
             lead.brainstorm_days_elapsed = None
+        if lead.brainstorm_topics_at:
+            topics_end_at = lead.second_payment_at if lead.second_payment_at else now
+            lead.brainstorm_topics_days_elapsed = max((topics_end_at - lead.brainstorm_topics_at).days, 0)
+        else:
+            lead.brainstorm_topics_days_elapsed = None
 
     # 批量获取首笔支付日期
     lead_ids = [lead.id for lead in leads.items]

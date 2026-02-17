@@ -75,10 +75,11 @@
                         {% endif %}
                         <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">年级</th>
                         <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">定金支付时间</th>
-                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">已过天数</th>
                         <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">头脑风暴</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">已过天数</th>
                         <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">课题选项上传</th>
                         <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">课题选项</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">已过天数</th>
                         <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">更新时间</th>
                     </tr>
                 </thead>
@@ -127,6 +128,18 @@
                             {% endif %}
                         </td>
                         <td class="whitespace-nowrap px-3 py-3 text-sm">
+                            {% if lead.brainstorm_conclusion %}
+                                <button type="button" onclick="openBrainstormModal({{ lead.id }}, 'conclusion')" class="text-blue-600 hover:text-blue-800" title="查看结论">
+                                    <span class="material-symbols-outlined">description</span>
+                                </button>
+                            {% else %}
+                                <button type="button" onclick="openBrainstormModal({{ lead.id }}, 'conclusion')"
+                                        class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                                    添加
+                                </button>
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-3 text-sm">
                             {% if lead.brainstorm_days_elapsed is not none %}
                                 {% if lead.brainstorm_days_elapsed >= 7 %}
                                     <span class="font-semibold text-red-600">{{ lead.brainstorm_days_elapsed }}天</span>
@@ -139,35 +152,23 @@
                                 <span class="text-gray-400">未开始</span>
                             {% endif %}
                         </td>
-                            <td class="whitespace-nowrap px-3 py-3 text-sm">
-                                {% if lead.brainstorm_conclusion %}
-                                    <button type="button" onclick="openBrainstormModal({{ lead.id }}, 'conclusion')" class="text-blue-600 hover:text-blue-800" title="查看结论">
-                                        <span class="material-symbols-outlined">description</span>
-                                    </button>
-                                {% else %}
-                                    <button type="button" onclick="openBrainstormModal({{ lead.id }}, 'conclusion')"
-                                            class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-                                        添加
-                                    </button>
-                                {% endif %}
-                            </td>
-                            <td class="whitespace-nowrap px-3 py-3 text-sm">
-                                {% set submitted_count = submitted_counts.get(lead.id, 0) %}
-                                {% set assigned_count = assigned_counts.get(lead.id, 0) %}
-                                {% if assigned_count > 0 %}
-                                    <button type="button" onclick="openTopicSubmissionModal({{ lead.id }})"
-                                            class="text-blue-600 hover:text-blue-800">
-                                        {{ submitted_count }}/{{ assigned_count }}
-                                    </button>
-                                {% else %}
-                                    <span class="text-gray-400">-</span>
-                                {% endif %}
-                            </td>
-                            <td class="whitespace-nowrap px-3 py-3 text-sm">
-                                {% if lead.brainstorm_topics %}
-                                    <button type="button" onclick="openBrainstormModal({{ lead.id }}, 'topics')" class="text-blue-600 hover:text-blue-800">
-                                        <span class="material-symbols-outlined">description</span>
-                                    </button>
+                        <td class="whitespace-nowrap px-3 py-3 text-sm">
+                            {% set submitted_count = submitted_counts.get(lead.id, 0) %}
+                            {% set assigned_count = assigned_counts.get(lead.id, 0) %}
+                            {% if assigned_count > 0 %}
+                                <button type="button" onclick="openTopicSubmissionModal({{ lead.id }})"
+                                        class="text-blue-600 hover:text-blue-800">
+                                    {{ submitted_count }}/{{ assigned_count }}
+                                </button>
+                            {% else %}
+                                <span class="text-gray-400">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-3 text-sm">
+                            {% if lead.brainstorm_topics %}
+                                <button type="button" onclick="openBrainstormModal({{ lead.id }}, 'topics')" class="text-blue-600 hover:text-blue-800">
+                                    <span class="material-symbols-outlined">description</span>
+                                </button>
                             {% else %}
                                 <button type="button" onclick="openBrainstormModal({{ lead.id }}, 'topics')"
                                         class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
@@ -175,11 +176,24 @@
                                 </button>
                             {% endif %}
                         </td>
+                        <td class="whitespace-nowrap px-3 py-3 text-sm">
+                            {% if lead.brainstorm_topics_days_elapsed is not none %}
+                                {% if lead.brainstorm_topics_days_elapsed >= 7 %}
+                                    <span class="font-semibold text-red-600">{{ lead.brainstorm_topics_days_elapsed }}天</span>
+                                {% elif lead.brainstorm_topics_days_elapsed >= 5 %}
+                                    <span class="font-semibold text-orange-600">{{ lead.brainstorm_topics_days_elapsed }}天</span>
+                                {% else %}
+                                    <span class="text-gray-700">{{ lead.brainstorm_topics_days_elapsed }}天</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-gray-400">未开始</span>
+                            {% endif %}
+                        </td>
                         <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-500">{{ lead.updated_at.strftime('%m-%d') }}</td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="{% if show_teacher_column %}11{% else %}10{% endif %}" class="px-3 py-8 text-center text-sm text-gray-500">
+                        <td colspan="{% if show_teacher_column %}12{% else %}11{% endif %}" class="px-3 py-8 text-center text-sm text-gray-500">
                             <div class="flex flex-col items-center">
                                 <span class="material-symbols-outlined text-4xl text-gray-300 mb-2">inbox</span>
                                 <p>暂无头脑风暴阶段的客户</p>
