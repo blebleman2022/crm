@@ -95,6 +95,11 @@ def login():
             clear_impersonation_session()
             flash('维护模式入口仅允许管理员登录', 'error')
             return redirect(url_for('auth.login', maintenance_entry='admin'))
+        if request.method == 'GET' and getattr(current_user, 'must_change_password', False) and not is_impersonating():
+            clear_impersonation_session()
+            logout_user()
+            flash('请先登录', 'info')
+            return render_template('auth/login.html')
         return redirect_role_home(current_user)
 
     if request.method == 'POST':
@@ -315,7 +320,11 @@ def check_user_status():
     if endpoint.startswith('static'):
         return None
 
+    if endpoint == 'index':
+        return redirect(url_for('auth.login'))
+
     allowed_endpoints = {
+        'auth.login',
         'auth.force_change_password',
         'auth.logout',
         'auth.check_session',
