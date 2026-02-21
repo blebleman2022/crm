@@ -10,11 +10,18 @@
             <h2 class="text-3xl font-bold">用户账号</h2>
             <p class="mt-2 text-gray-600">管理系统用户账号和权限</p>
         </div>
-        <a href="{{ url_for('admin.add_user') }}"
-           class="flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700">
-            <span class="material-symbols-outlined">add</span>
-            <span>添加用户</span>
-        </a>
+        <div class="flex items-center gap-3">
+            <a href="{{ url_for('admin.impersonation') }}"
+               class="flex items-center justify-center gap-2 rounded-md bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-amber-600">
+                <span class="material-symbols-outlined">switch_account</span>
+                <span>代登入</span>
+            </a>
+            <a href="{{ url_for('admin.add_user') }}"
+               class="flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700">
+                <span class="material-symbols-outlined">add</span>
+                <span>添加用户</span>
+            </a>
+        </div>
     </div>
 
     <div class="bg-white p-6 rounded-lg shadow-sm">
@@ -108,6 +115,15 @@
                         <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ '%02d'|format(user.created_at.year % 100) }}/{{ user.created_at.month }}/{{ user.created_at.day }} {{ user.created_at.strftime('%H:%M') }}</td>
                         <td class="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
                             <a class="text-blue-600 hover:text-blue-800 mr-3" href="{{ url_for('admin.edit_user', user_id=user.id) }}">编辑</a>
+                            {% if user.id != current_user.id and user.role != 'admin' and user.status %}
+                                <form method="POST" action="{{ url_for('admin.start_impersonation', user_id=user.id) }}" class="inline">
+                                    <button type="submit"
+                                            onclick="return confirm('确认代登入账号：{{ user.username }}？')"
+                                            class="mr-3 text-amber-600 hover:text-amber-800">
+                                        代登入
+                                    </button>
+                                </form>
+                            {% endif %}
                             {% if user.id != current_user.id %}
                                 <button onclick="deleteUser({{ user.id }}, '{{ user.username }}')"
                                         class="text-red-600 hover:text-red-800">
@@ -213,4 +229,3 @@ function deleteUser(userId, username) {
 
 </script>
 {% endblock %}
-

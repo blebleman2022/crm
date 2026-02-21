@@ -9,7 +9,7 @@ import sys
 import shutil
 import sqlite3
 from datetime import datetime
-from flask import Flask, request, render_template
+from flask import Flask, request, render_template, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, current_user
 
@@ -149,7 +149,7 @@ def create_app(config_name=None):
     # 添加全局模板函数
     @app.context_processor
     def inject_logo():
-        """注入logo路径到所有模板"""
+        """注入logo路径及会话状态到所有模板"""
         import os
 
         def get_logo_url():
@@ -163,7 +163,11 @@ def create_app(config_name=None):
                     return f"images/{logo_filename}.{ext}"
             return None
 
-        return dict(get_logo_url=get_logo_url)
+        return dict(
+            get_logo_url=get_logo_url,
+            is_impersonating=bool(session.get('impersonator_user_id')),
+            impersonator_username=session.get('impersonator_username')
+        )
 
     # 添加千位分隔符过滤器
     @app.template_filter('format_currency')
@@ -685,6 +689,58 @@ def init_database(app):
                 print("✅ 已清洗班主任主管归属历史数据")
             except Exception as e:
                 print(f"⚠️ 清洗supervisor_user_id失败: {e}")
+                db.session.rollback()
+
+            # 添加密码登录与首次改密字段
+            try:
+                db.session.execute(text("ALTER TABLE users ADD COLUMN password_hash VARCHAR(255)"))
+                db.session.commit()
+                print("✅ password_hash字段添加成功")
+            except Exception as e:
+                if "duplicate column name" in str(e).lower():
+                    print("✅ password_hash字段已存在")
+                else:
+                    print(f"⚠️ password_hash字段添加失败: {e}")
+
+            try:
+                db.session.execute(text("ALTER TABLE users ADD COLUMN must_change_password BOOLEAN DEFAULT 1"))
+                db.session.commit()
+                print("✅ must_change_password字段添加成功")
+            except Exception as e:
+                if "duplicate column name" in str(e).lower():
+                    print("✅ must_change_password字段已存在")
+                else:
+                    print(f"⚠️ must_change_password字段添加失败: {e}")
+
+            try:
+                db.session.execute(text("ALTER TABLE users ADD COLUMN password_changed_at DATETIME"))
+                db.session.commit()
+                print("✅ password_changed_at字段添加成功")
+            except Exception as e:
+                if "duplicate column name" in str(e).lower():
+                    print("✅ password_changed_at字段已存在")
+                else:
+                    print(f"⚠️ password_changed_at字段添加失败: {e}")
+
+            # 全量初始化：无密码账号统一设置初始密码123456，首次登录强制改密
+            try:
+                users_without_password = User.query.filter(
+                    db.or_(User.password_hash.is_(None), User.password_hash == '')
+                ).all()
+                for account in users_without_password:
+                    account.set_password(User.DEFAULT_PASSWORD)
+                    account.must_change_password = True
+                    account.password_changed_at = None
+
+                db.session.execute(text("""
+                    UPDATE users
+                    SET must_change_password = 1
+                    WHERE must_change_password IS NULL
+                """))
+                db.session.commit()
+                print(f"✅ 已初始化登录密码（默认123456）：{len(users_without_password)}个账号")
+            except Exception as e:
+                print(f"⚠️ 初始化用户密码失败: {e}")
                 db.session.rollback()
 
             # 添加线索私域字段

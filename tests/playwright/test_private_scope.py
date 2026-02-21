@@ -6,8 +6,15 @@ from playwright.sync_api import expect
 def _login(page, base_url, phone):
     page.goto(f"{base_url}/auth/login", wait_until="domcontentloaded")
     page.fill("input#phone", phone)
+    page.fill("input#password", "123456")
     page.click("form button[type='submit']")
     page.wait_for_load_state("networkidle")
+    if "/auth/force-change-password" in page.url:
+        page.fill("input#current_password", "123456")
+        page.fill("input#new_password", "Playwright@123")
+        page.fill("input#confirm_password", "Playwright@123")
+        page.click("form button[type='submit']")
+        page.wait_for_load_state("networkidle")
     expect(page).to_have_url(re.compile(r"^(?!.*?/auth/login).*$"))
     expect(page.locator("a[href='/auth/logout']")).to_be_visible()
 
@@ -40,8 +47,8 @@ def test_private_manager_can_only_see_private_scope(page, e2e_env):
 
     page.goto(f"{base_url}/payments/reconciliation", wait_until="networkidle")
     body = _body_text(page)
-    assert "私域对账" in body
-    assert "公域对账" not in body
+    assert students["private"] in body
+    assert students["public"] not in body
 
 
 def test_public_manager_cannot_view_private_scope(page, e2e_env):
@@ -69,8 +76,6 @@ def test_public_manager_cannot_view_private_scope(page, e2e_env):
 
     page.goto(f"{base_url}/payments/reconciliation?search=PWTEST", wait_until="networkidle")
     body = _body_text(page)
-    assert "公域对账" in body
-    assert "私域对账" not in body
     assert students["public"] in body
     assert students["private"] not in body
 
@@ -79,21 +84,26 @@ def test_teacher_supervisor_can_switch_public_and_private_scope(page, e2e_env):
     base_url = e2e_env["base_url"]
     phones = e2e_env["phones"]
     students = e2e_env["students"]
+    private_owner_id = e2e_env["private_owner_id"]
 
     _login(page, base_url, phones["teacher_supervisor"])
 
-    expect(page.get_by_role("link", name="私域客户")).to_be_visible()
+    expect(page.get_by_role("link", name="头脑风暴")).to_be_visible()
 
-    page.goto(f"{base_url}/customers/list?scope=private&search=PWTEST", wait_until="networkidle")
+    page.goto(f"{base_url}/customers/list?search=PWTEST", wait_until="networkidle")
     body = _body_text(page)
     assert students["private"] in body
-    assert students["public"] not in body
+    assert students["public"] in body
 
-    page.goto(f"{base_url}/customers/list?scope=public&search=PWTEST", wait_until="networkidle")
+    page.goto(f"{base_url}/payments/reconciliation", wait_until="networkidle")
     body = _body_text(page)
     assert students["public"] in body
     assert students["private"] not in body
 
-    page.goto(f"{base_url}/payments/reconciliation", wait_until="networkidle")
-    expect(page.get_by_role("link", name="公域对账")).to_be_visible()
-    expect(page.get_by_role("link", name="私域对账")).to_be_visible()
+    page.goto(
+        f"{base_url}/payments/reconciliation?scope=private&private_owner_id={private_owner_id}",
+        wait_until="networkidle",
+    )
+    body = _body_text(page)
+    assert students["private"] in body
+    assert students["public"] not in body

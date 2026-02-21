@@ -3,6 +3,7 @@ from flask_login import login_required, current_user
 from functools import wraps
 from models import User, Customer, Lead, TutoringDelivery, CustomerCompetition, CompetitionName, CourseRecordImage, AwardCertificateImage, db
 from sqlalchemy.orm import joinedload
+from sqlalchemy import select
 from datetime import datetime, date
 from decimal import Decimal
 import os
@@ -11,6 +12,26 @@ from werkzeug.utils import secure_filename
 customers_bp = Blueprint('customers', __name__)
 PUBLIC_SCOPE = Lead.SCOPE_PUBLIC
 PRIVATE_SCOPE = Lead.SCOPE_PRIVATE
+NATIONAL_AWARD_STATUSES = (
+    '国家一等奖',
+    '国家二等奖',
+    '国家三等奖',
+)
+CITY_AWARD_STATUSES = (
+    '市级一等奖',
+    '市级二等奖',
+    '市级三等奖',
+)
+DISTRICT_AWARD_STATUSES = (
+    '区级一等奖',
+    '区级二等奖',
+    '区级三等奖',
+)
+CITY_OR_ABOVE_AWARD_STATUSES = CITY_AWARD_STATUSES + NATIONAL_AWARD_STATUSES
+DISTRICT_OR_ABOVE_AWARD_STATUSES = DISTRICT_AWARD_STATUSES + CITY_AWARD_STATUSES + NATIONAL_AWARD_STATUSES
+DISTRICT_OR_ABOVE_AWARD_STATUS_SET = set(DISTRICT_OR_ABOVE_AWARD_STATUSES)
+CITY_OR_ABOVE_AWARD_STATUS_SET = set(CITY_OR_ABOVE_AWARD_STATUSES)
+NATIONAL_AWARD_STATUS_SET = set(NATIONAL_AWARD_STATUSES)
 
 
 def normalize_scope(value, default=''):
@@ -29,6 +50,22 @@ def is_private_owner_user(user):
 def customer_scope_value(customer):
     """返回客户scope（带默认值）"""
     return (customer.customer_scope or PUBLIC_SCOPE).strip()
+
+
+def competition_award_meets_requirement(statuses, award_level):
+    """竞赛获奖是否达到要求（等于或高于）"""
+    status_set = {status for status in (statuses or []) if status}
+    if not status_set:
+        return False
+
+    if award_level == '国奖':
+        return bool(status_set & NATIONAL_AWARD_STATUS_SET)
+    if award_level == '市奖':
+        return bool(status_set & CITY_OR_ABOVE_AWARD_STATUS_SET)
+    if award_level == '区奖':
+        return bool(status_set & DISTRICT_OR_ABOVE_AWARD_STATUS_SET)
+    return bool(status_set & DISTRICT_OR_ABOVE_AWARD_STATUS_SET)
+
 
 def invalid_teacher_scope_message(scope):
     """班主任范围校验失败提示"""
@@ -254,11 +291,51 @@ def list_customers():
 
     # 已完成筛选
     if completed == 'true':
-        # 筛选已完成的客户（课题辅导已完成或竞赛辅导已完成）
-        # 竞赛已完成：状态不是"未报名"或"已报名"
+        # 完成口径：课题辅导已完成 且 竞赛获奖等级达到要求（等于或高于）
+        tutoring_completed_customer_ids = select(TutoringDelivery.customer_id).where(
+            TutoringDelivery.thesis_status == '已完成'
+        )
+        national_award_customer_ids = select(CustomerCompetition.customer_id).where(
+            CustomerCompetition.status.in_(NATIONAL_AWARD_STATUSES)
+        )
+        city_or_above_award_customer_ids = select(CustomerCompetition.customer_id).where(
+            CustomerCompetition.status.in_(CITY_OR_ABOVE_AWARD_STATUSES)
+        )
+        district_or_above_award_customer_ids = select(CustomerCompetition.customer_id).where(
+            CustomerCompetition.status.in_(DISTRICT_OR_ABOVE_AWARD_STATUSES)
+        )
+
+        competition_meets_requirement = db.or_(
+            db.and_(
+                Lead.competition_award_level == '国奖',
+                Customer.id.in_(national_award_customer_ids)
+            ),
+            db.and_(
+                Lead.competition_award_level == '市奖',
+                Customer.id.in_(city_or_above_award_customer_ids)
+            ),
+            db.and_(
+                Lead.competition_award_level == '区奖',
+                Customer.id.in_(district_or_above_award_customer_ids)
+            ),
+            db.and_(
+                db.or_(
+                    Lead.competition_award_level.is_(None),
+                    Lead.competition_award_level == '',
+                    Lead.competition_award_level == '无'
+                ),
+                Customer.id.in_(district_or_above_award_customer_ids)
+            )
+        )
+
+        has_competition_service = Lead.service_types.contains('competition')
         query = query.filter(
-            (TutoringDelivery.thesis_status == '已完成') |
-            (~CustomerCompetition.status.in_(['未报名', '已报名']))
+            Lead.service_types.contains('tutoring'),
+            Customer.id.in_(tutoring_completed_customer_ids),
+            db.or_(
+                db.and_(has_competition_service, competition_meets_requirement),
+                db.and_(~has_competition_service)
+            )
         )
 
     # 中高考时间筛选
@@ -343,32 +420,21 @@ def list_customers():
 
         competition_registered_counts = {customer_id: count for customer_id, count in counts}
 
-        # 判断每个客户是否达成奖项要求
+        competition_rows = db.session.query(
+            CustomerCompetition.customer_id,
+            CustomerCompetition.status
+        ).filter(
+            CustomerCompetition.customer_id.in_(customer_ids)
+        ).all()
+        competition_status_map = {}
+        for customer_id, status in competition_rows:
+            competition_status_map.setdefault(customer_id, []).append(status)
+
+        # 判断每个客户是否达成奖项要求（等于或高于）
         for customer in customers.items:
             award_level = customer.lead.competition_award_level
-            if not award_level:
-                competition_award_achieved[customer.id] = False
-                continue
-
-            # 获取客户的所有赛事
-            competitions = CustomerCompetition.query.filter_by(customer_id=customer.id).all()
-            achieved = False
-
-            for comp in competitions:
-                status = comp.status
-                # 市奖要求：市级或以上奖项
-                if award_level == '市奖':
-                    if status in ['市级一等奖', '市级二等奖', '市级三等奖',
-                                  '国家一等奖', '国家二等奖', '国家三等奖']:
-                        achieved = True
-                        break
-                # 国奖要求：国家级奖项
-                elif award_level == '国奖':
-                    if status in ['国家一等奖', '国家二等奖', '国家三等奖']:
-                        achieved = True
-                        break
-
-            competition_award_achieved[customer.id] = achieved
+            statuses = competition_status_map.get(customer.id, [])
+            competition_award_achieved[customer.id] = competition_award_meets_requirement(statuses, award_level)
 
     # 获取所有不同的中高考年份用于筛选
     exam_years = db.session.query(Customer.exam_year).filter(
@@ -1402,4 +1468,3 @@ def update_customer_basic_info(customer_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'更新失败: {str(e)}'}), 500
-

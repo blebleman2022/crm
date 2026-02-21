@@ -1,0 +1,145 @@
+{% extends "admin/base.html" %}
+
+{% block title %}代登入 - EduConnect CRM{% endblock %}
+{% block page_title %}管理员代登入{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <div class="mb-8">
+        <h2 class="text-3xl font-bold">代登入管理</h2>
+        <p class="mt-2 text-gray-600">管理员可临时进入其他角色账号，排查权限和页面问题。</p>
+    </div>
+
+    <div class="bg-white p-6 rounded-lg shadow-sm">
+        <form method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="md:col-span-2">
+                <label class="sr-only" for="search">搜索</label>
+                <div class="relative">
+                    <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                        <span class="material-symbols-outlined text-gray-400">search</span>
+                    </div>
+                    <input id="search" name="search" type="search" value="{{ search }}"
+                           placeholder="搜索用户名或手机号"
+                           class="block w-full rounded-md border-0 py-2.5 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-blue-600 sm:text-sm" />
+                </div>
+            </div>
+
+            <div>
+                <select name="role"
+                        class="block w-full rounded-md border-0 py-2.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-blue-600 sm:text-sm">
+                    <option value="">所有角色</option>
+                    <option value="admin" {% if role_filter == 'admin' %}selected{% endif %}>管理员</option>
+                    <option value="sales_manager" {% if role_filter == 'sales_manager' %}selected{% endif %}>销售管理</option>
+                    <option value="salesperson" {% if role_filter == 'salesperson' %}selected{% endif %}>销售</option>
+                    <option value="teacher_supervisor" {% if role_filter == 'teacher_supervisor' %}selected{% endif %}>班主任</option>
+                    <option value="teacher" {% if role_filter == 'teacher' %}selected{% endif %}>辅导老师</option>
+                </select>
+            </div>
+
+            <div>
+                <select name="status"
+                        class="block w-full rounded-md border-0 py-2.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-blue-600 sm:text-sm">
+                    <option value="">全部状态</option>
+                    <option value="active" {% if status_filter == 'active' %}selected{% endif %}>启用</option>
+                    <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>禁用</option>
+                </select>
+            </div>
+
+            <button type="submit" class="hidden">搜索</button>
+        </form>
+
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">用户名</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">手机号</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">角色</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">状态</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">操作</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 bg-white">
+                    {% for user in users.items %}
+                    <tr>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">{{ user.username }}</td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ user.phone }}</td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ user.role }}</td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                            {% if user.status %}
+                                <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">启用</span>
+                            {% else %}
+                                <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">禁用</span>
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-6 py-4 text-right text-sm">
+                            {% if user.id == current_user.id %}
+                                <span class="text-gray-400">当前账号</span>
+                            {% elif user.role == 'admin' %}
+                                <span class="text-gray-400">管理员不可代登入</span>
+                            {% elif not user.status %}
+                                <span class="text-gray-400">账号已禁用</span>
+                            {% else %}
+                                <form method="POST" action="{{ url_for('admin.start_impersonation', user_id=user.id) }}" class="inline">
+                                    <button type="submit"
+                                            onclick="return confirm('确认代登入账号：{{ user.username }}？')"
+                                            class="inline-flex items-center rounded-md bg-amber-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-600">
+                                        代登入
+                                    </button>
+                                </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if users.pages > 1 %}
+        <div class="mt-4 flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
+            <div class="hidden sm:block text-sm text-gray-700">
+                共 <span class="font-medium">{{ users.total }}</span> 条记录
+            </div>
+            <div>
+                <nav class="isolate inline-flex -space-x-px rounded-md shadow-sm">
+                    {% if users.has_prev %}
+                    <a href="{{ url_for('admin.impersonation', page=users.prev_num, search=search, role=role_filter, status=status_filter) }}"
+                       class="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                        <span class="material-symbols-outlined h-5 w-5">chevron_left</span>
+                    </a>
+                    {% endif %}
+
+                    {% for page_num in users.iter_pages() %}
+                        {% if page_num %}
+                            {% if page_num != users.page %}
+                            <a href="{{ url_for('admin.impersonation', page=page_num, search=search, role=role_filter, status=status_filter) }}"
+                               class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">{{ page_num }}</a>
+                            {% else %}
+                            <span class="relative z-10 inline-flex items-center bg-blue-600 px-4 py-2 text-sm font-semibold text-white">{{ page_num }}</span>
+                            {% endif %}
+                        {% else %}
+                        <span class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-700 ring-1 ring-inset ring-gray-300">…</span>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if users.has_next %}
+                    <a href="{{ url_for('admin.impersonation', page=users.next_num, search=search, role=role_filter, status=status_filter) }}"
+                       class="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                        <span class="material-symbols-outlined h-5 w-5">chevron_right</span>
+                    </a>
+                    {% endif %}
+                </nav>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+document.querySelectorAll('select[name="role"], select[name="status"]').forEach(select => {
+    select.addEventListener('change', function() {
+        this.form.submit();
+    });
+});
+</script>
+{% endblock %}

@@ -51,10 +51,7 @@
                             </div>
                         </div>
                         
-                        <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                            个人设置
-                        </a>
-                        <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                        <a href="{{ url_for('auth.settings_password') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                             修改密码
                         </a>
                         <a href="{{ url_for('auth.logout') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">

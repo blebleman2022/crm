@@ -69,6 +69,13 @@
                             课题选项任务
                         </a>
                     </li>
+                    <li>
+                        <a class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium {{ 'text-white bg-blue-600' if request.endpoint == 'auth.settings_password' else 'text-gray-700 hover:bg-gray-100' }}"
+                           href="{{ url_for('auth.settings_password') }}">
+                            <span class="material-symbols-outlined text-lg {{ 'text-white' if request.endpoint == 'auth.settings_password' else 'text-blue-600' }}">settings</span>
+                            设置
+                        </a>
+                    </li>
                 </ul>
             </nav>
         </aside>
@@ -84,6 +91,14 @@
                     </h1>
                 </div>
                 <div class="flex items-center gap-2 lg:gap-4">
+                    {% if is_impersonating %}
+                        <div class="hidden md:flex items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs text-red-700">
+                            <span>代登入中（管理员：{{ impersonator_username }}）</span>
+                            <form method="POST" action="{{ url_for('auth.stop_impersonation') }}">
+                                <button type="submit" class="rounded bg-red-600 px-2 py-0.5 text-white hover:bg-red-700">退出</button>
+                            </form>
+                        </div>
+                    {% endif %}
                     <div class="flex items-center gap-2">
                         <span class="text-xs lg:text-sm text-gray-700 hidden sm:inline">
                             {{ current_user.username }}老师

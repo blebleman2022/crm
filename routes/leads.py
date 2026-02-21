@@ -58,9 +58,14 @@ def can_view_lead_record(lead):
         return is_private_owner_user(current_user) and lead.private_owner_id == current_user.id
 
     if current_user.is_teacher_supervisor():
-        if not lead.supervisor_user_id:
-            return False
-        return lead.supervisor_user_id in get_visible_teacher_supervisor_ids()
+        visible_teacher_ids = get_visible_teacher_supervisor_ids()
+        if lead.supervisor_user_id and lead.supervisor_user_id in visible_teacher_ids:
+            return True
+        # 兼容历史数据：Lead 未回填时，按 Customer 责任班主任兜底
+        return Customer.query.filter(
+            Customer.lead_id == lead.id,
+            Customer.supervisor_user_id.in_(visible_teacher_ids)
+        ).first() is not None
 
     # 公域销售管理可以看到所有公域销售的线索（只读）
     if current_user.is_sales_manager():
@@ -1872,4 +1877,3 @@ def update_contract_total_sessions():
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'更新课程数量失败: {str(e)}'})
-

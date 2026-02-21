@@ -100,6 +100,20 @@
                     <span class="material-symbols-outlined {% if request.endpoint == 'data_export.export_page' %}text-white{% else %}text-gray-500{% endif %}">download</span>
                     <span>数据下载</span>
                 </a>
+
+                <a class="flex items-center gap-3 px-4 py-2 text-sm font-medium rounded-md
+                   {% if request.endpoint in ['admin.impersonation'] %}text-white bg-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}"
+                   href="{{ url_for('admin.impersonation') }}">
+                    <span class="material-symbols-outlined {% if request.endpoint in ['admin.impersonation'] %}text-white{% else %}text-gray-500{% endif %}">switch_account</span>
+                    <span>代登入</span>
+                </a>
+
+                <a class="flex items-center gap-3 px-4 py-2 text-sm font-medium rounded-md
+                   {% if request.endpoint == 'auth.settings_password' %}text-white bg-blue-600{% else %}text-gray-700 hover:bg-gray-100{% endif %}"
+                   href="{{ url_for('auth.settings_password') }}">
+                    <span class="material-symbols-outlined {% if request.endpoint == 'auth.settings_password' %}text-white{% else %}text-gray-500{% endif %}">settings</span>
+                    <span>设置</span>
+                </a>
             </nav>
         </aside>
 
@@ -110,6 +124,14 @@
                     <h2 class="text-xl font-semibold text-gray-900">{% block page_title %}管理员后台{% endblock %}</h2>
                 </div>
                 <div class="flex items-center gap-4">
+                    {% if is_impersonating %}
+                        <div class="flex items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs text-red-700">
+                            <span>代登入中（管理员：{{ impersonator_username }}）</span>
+                            <form method="POST" action="{{ url_for('auth.stop_impersonation') }}">
+                                <button type="submit" class="rounded bg-red-600 px-2 py-0.5 text-white hover:bg-red-700">退出</button>
+                            </form>
+                        </div>
+                    {% endif %}
                     <div class="flex items-center gap-2">
                         <span class="text-sm text-gray-700">{{ current_user.username }}</span>
                         <a href="{{ url_for('auth.logout') }}" class="text-sm text-gray-500 hover:text-gray-700">退出</a>

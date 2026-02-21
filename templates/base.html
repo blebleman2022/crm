@@ -64,6 +64,16 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body class="bg-slate-50">
+    {% if is_impersonating %}
+    <div class="fixed top-0 left-0 right-0 z-50 bg-red-50 border-b border-red-200 px-4 py-2 text-xs text-red-700">
+        <div class="mx-auto max-w-7xl flex items-center justify-between">
+            <span>当前为代登入状态（管理员：{{ impersonator_username }}）</span>
+            <form method="POST" action="{{ url_for('auth.stop_impersonation') }}">
+                <button type="submit" class="rounded bg-red-600 px-2 py-1 text-white hover:bg-red-700">退出代登入</button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
     {% block content %}{% endblock %}
     
     <!-- Flash Messages -->

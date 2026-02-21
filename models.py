@@ -16,6 +16,7 @@ class User(UserMixin, db.Model):
     TEACHER_LEVEL_REGULAR = 'regular'
     TEACHER_LEVEL_MANAGER = 'manager'
     ALLOWED_TEACHER_LEVELS = [TEACHER_LEVEL_REGULAR, TEACHER_LEVEL_MANAGER]
+    DEFAULT_PASSWORD = '123456'
 
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), nullable=False, comment='用户名')
@@ -27,6 +28,9 @@ class User(UserMixin, db.Model):
     supervisor_scope = db.Column(db.String(20), nullable=False, default=TEACHER_SCOPE_ALL, comment='班主任服务范围：all/public_only/private_only')
     supervisor_level = db.Column(db.String(20), nullable=False, default=TEACHER_LEVEL_REGULAR, comment='班主任层级：regular/manager')
     supervisor_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), comment='上级班主任ID（普通班主任归属）')
+    password_hash = db.Column(db.String(255), comment='登录密码哈希')
+    must_change_password = db.Column(db.Boolean, nullable=False, default=True, comment='是否必须修改密码')
+    password_changed_at = db.Column(db.DateTime, comment='密码修改时间')
     created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -42,6 +46,21 @@ class User(UserMixin, db.Model):
 
     def __repr__(self):
         return f'<User {self.username}>'
+
+    def set_password(self, raw_password):
+        """设置密码哈希"""
+        # 显式使用 pbkdf2，兼容当前 Python 运行环境
+        self.password_hash = generate_password_hash(raw_password, method='pbkdf2:sha256')
+
+    def check_password(self, raw_password):
+        """校验密码"""
+        if not self.password_hash:
+            return False
+        return check_password_hash(self.password_hash, raw_password)
+
+    def is_default_password(self):
+        """是否仍在使用系统默认初始密码"""
+        return self.check_password(self.DEFAULT_PASSWORD)
     
     def is_admin(self):
         return self.role == 'admin'
@@ -595,6 +614,26 @@ class LoginLog(db.Model):
 
     def __repr__(self):
         return f'<LoginLog {self.phone} at {self.login_time}>'
+
+
+class AdminImpersonationLog(db.Model):
+    """管理员代登入审计日志"""
+    __tablename__ = 'admin_impersonation_logs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    admin_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, comment='管理员用户ID')
+    target_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, comment='被代登入用户ID')
+    started_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, comment='开始时间')
+    ended_at = db.Column(db.DateTime, comment='结束时间')
+    ip_address = db.Column(db.String(45), comment='IP地址')
+    user_agent = db.Column(db.String(500), comment='用户代理')
+    reason = db.Column(db.String(200), comment='代登入原因')
+
+    admin_user = db.relationship('User', foreign_keys=[admin_user_id], backref='started_impersonations')
+    target_user = db.relationship('User', foreign_keys=[target_user_id], backref='received_impersonations')
+
+    def __repr__(self):
+        return f'<AdminImpersonationLog admin={self.admin_user_id} target={self.target_user_id}>'
 
 
 class CommunicationRecord(db.Model):

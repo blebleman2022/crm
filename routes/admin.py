@@ -1,7 +1,7 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
-from flask_login import login_required, current_user
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session
+from flask_login import login_required, current_user, login_user
 from functools import wraps
-from models import User, LoginLog, Lead, Customer, Payment, SystemConfig, db
+from models import User, LoginLog, Lead, Customer, Payment, SystemConfig, AdminImpersonationLog, db
 from datetime import datetime, timedelta
 import re
 import os
@@ -108,6 +108,33 @@ def get_service_types_display(service_types_list):
 
     display_names = [type_map.get(service_type, service_type) for service_type in service_types_list]
     return ', '.join(display_names)
+
+
+def clear_impersonation_session():
+    """清理代登入会话信息"""
+    for key in [
+        'impersonator_user_id',
+        'impersonator_username',
+        'impersonation_log_id',
+        'impersonated_user_id',
+        'impersonation_started_at',
+    ]:
+        session.pop(key, None)
+
+
+def role_home_endpoint(user):
+    """根据角色返回首页 endpoint"""
+    if user.role == 'admin':
+        return 'admin.dashboard'
+    if user.role in ['sales_manager', 'salesperson']:
+        return 'leads.dashboard'
+    if user.role == 'teacher_supervisor':
+        if user.is_private_only_teacher_supervisor():
+            return 'customers.list_customers'
+        return 'delivery.dashboard'
+    if user.role == 'teacher':
+        return 'teacher.student_list'
+    return 'auth.login'
 
 @admin_bp.route('/dashboard')
 @login_required
@@ -247,6 +274,110 @@ def users():
                          group_filter=group_filter,
                          groups=groups)
 
+
+@admin_bp.route('/impersonation')
+@login_required
+@admin_required
+def impersonation():
+    """管理员代登入页面"""
+    page = request.args.get('page', 1, type=int)
+    search = request.args.get('search', '', type=str).strip()
+    role_filter = request.args.get('role', '', type=str).strip()
+    status_filter = request.args.get('status', '', type=str).strip()
+
+    query = User.query
+
+    if search:
+        query = query.filter(
+            db.or_(
+                User.username.contains(search),
+                User.phone.contains(search)
+            )
+        )
+
+    allowed_roles = {'admin', 'sales_manager', 'salesperson', 'teacher_supervisor', 'teacher'}
+    if role_filter in allowed_roles:
+        query = query.filter(User.role == role_filter)
+    else:
+        role_filter = ''
+
+    if status_filter == 'active':
+        query = query.filter(User.status == True)
+    elif status_filter == 'inactive':
+        query = query.filter(User.status == False)
+    else:
+        status_filter = ''
+
+    users = query.order_by(User.created_at.desc()).paginate(
+        page=page, per_page=20, error_out=False
+    )
+
+    return render_template(
+        'admin/impersonation.html',
+        users=users,
+        search=search,
+        role_filter=role_filter,
+        status_filter=status_filter
+    )
+
+
+@admin_bp.route('/impersonation/start/<int:user_id>', methods=['POST'])
+@login_required
+@admin_required
+def start_impersonation(user_id):
+    """开始管理员代登入"""
+    if session.get('impersonator_user_id'):
+        flash('当前已在代登入状态，请先退出', 'error')
+        return redirect(url_for('admin.impersonation'))
+
+    target_user = User.query.get_or_404(user_id)
+    if target_user.id == current_user.id:
+        flash('不能代登入当前管理员账号', 'error')
+        return redirect(url_for('admin.impersonation'))
+
+    if target_user.role == 'admin':
+        flash('安全限制：不支持代登入管理员账号', 'error')
+        return redirect(url_for('admin.impersonation'))
+
+    if not target_user.status:
+        flash('目标账号已禁用，无法代登入', 'error')
+        return redirect(url_for('admin.impersonation'))
+
+    reason = (request.form.get('reason') or '').strip()
+    if reason:
+        reason = reason[:200]
+
+    admin_user_id = current_user.id
+    admin_username = current_user.username
+
+    try:
+        log = AdminImpersonationLog(
+            admin_user_id=admin_user_id,
+            target_user_id=target_user.id,
+            started_at=datetime.utcnow(),
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent', ''),
+            reason=reason if reason else None
+        )
+        db.session.add(log)
+        db.session.commit()
+
+        clear_impersonation_session()
+        session['impersonator_user_id'] = admin_user_id
+        session['impersonator_username'] = admin_username
+        session['impersonation_log_id'] = log.id
+        session['impersonated_user_id'] = target_user.id
+        session['impersonation_started_at'] = datetime.utcnow().isoformat()
+
+        login_user(target_user, remember=False)
+        flash(f'已代登入账号：{target_user.username}（{target_user.phone}）', 'success')
+        return redirect(url_for(role_home_endpoint(target_user)))
+    except Exception as e:
+        db.session.rollback()
+        clear_impersonation_session()
+        flash(f'代登入失败：{str(e)}', 'error')
+        return redirect(url_for('admin.impersonation'))
+
 @admin_bp.route('/users/add', methods=['GET', 'POST'])
 @login_required
 @admin_required
@@ -349,11 +480,14 @@ def add_user():
                 is_private_owner=is_private_owner,
                 supervisor_scope=supervisor_scope,
                 supervisor_level=supervisor_level,
-                supervisor_user_id=supervisor_user_id
+                supervisor_user_id=supervisor_user_id,
+                must_change_password=True,
+                password_changed_at=None
             )
+            user.set_password(User.DEFAULT_PASSWORD)
             db.session.add(user)
             db.session.commit()
-            flash(f'用户 {username} 创建成功', 'success')
+            flash(f'用户 {username} 创建成功，初始密码：{User.DEFAULT_PASSWORD}（首次登录需修改）', 'success')
             return redirect(url_for('admin.users'))
         except Exception as e:
             db.session.rollback()
@@ -1063,4 +1197,3 @@ def delete_lead(lead_id):
             'success': False,
             'message': f'删除失败：{str(e)}'
         })
-

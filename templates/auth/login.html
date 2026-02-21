@@ -27,7 +27,7 @@
                     欢迎回来
                 </h2>
                 <p class="mt-2 text-sm text-slate-600">
-                    请输入手机号登录您的账户
+                    请输入手机号和密码登录
                 </p>
                 <p class="mt-1 text-xs text-slate-500">
                     支持管理员、班主任、销售、老师登录
@@ -53,7 +53,23 @@
                             pattern="[0-9]{11}"
                         />
                     </div>
-                    <p class="mt-2 text-xs text-slate-500">免密登录，系统将自动识别您的身份。</p>
+                    <p class="mt-2 text-xs text-slate-500">请输入已注册手机号。</p>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-700" for="password">密码</label>
+                    <div class="mt-1">
+                        <input
+                            autocomplete="current-password"
+                            class="form-input block w-full appearance-none rounded-md border border-slate-300 px-4 py-3 placeholder-slate-400 shadow-sm transition focus:border-[#177ccf] focus:outline-none focus:ring-1 focus:ring-[#177ccf] sm:text-sm"
+                            id="password"
+                            name="password"
+                            placeholder="请输入密码"
+                            required
+                            type="password"
+                        />
+                    </div>
+                    <p class="mt-2 text-xs text-slate-500">初始密码为123456，首次登录后需立即修改。</p>
                 </div>
 
                 <div>
@@ -85,6 +101,12 @@ document.querySelector('form').addEventListener('submit', function(e) {
     if (!/^1[3-9]\d{9}$/.test(phone)) {
         e.preventDefault();
         alert('请输入正确的手机号格式');
+        return false;
+    }
+    const password = document.getElementById('password').value;
+    if (!password) {
+        e.preventDefault();
+        alert('请输入密码');
         return false;
     }
 });

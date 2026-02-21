@@ -4,10 +4,28 @@ from functools import wraps
 from models import User, Customer, Lead, TutoringDelivery, CustomerCompetition, Payment, DeliveryDocument, TopicTask, TopicSubmission, db
 from datetime import datetime, date
 from werkzeug.utils import secure_filename
-from sqlalchemy import and_, func
+from sqlalchemy import and_, func, select
 import os
 
 delivery_bp = Blueprint('delivery', __name__)
+
+NATIONAL_AWARD_STATUSES = (
+    '国家一等奖',
+    '国家二等奖',
+    '国家三等奖',
+)
+CITY_AWARD_STATUSES = (
+    '市级一等奖',
+    '市级二等奖',
+    '市级三等奖',
+)
+DISTRICT_AWARD_STATUSES = (
+    '区级一等奖',
+    '区级二等奖',
+    '区级三等奖',
+)
+CITY_OR_ABOVE_AWARD_STATUSES = CITY_AWARD_STATUSES + NATIONAL_AWARD_STATUSES
+DISTRICT_OR_ABOVE_AWARD_STATUSES = DISTRICT_AWARD_STATUSES + CITY_AWARD_STATUSES + NATIONAL_AWARD_STATUSES
 
 
 def normalize_parent_wechat_display_name(raw_name, student_name=None):
@@ -42,8 +60,17 @@ def teacher_can_access_lead_scope(lead):
         return False
 
     visible_teacher_ids = get_visible_teacher_supervisor_ids()
-    if lead.supervisor_user_id and lead.supervisor_user_id not in visible_teacher_ids:
-        return False
+    if lead.supervisor_user_id:
+        if lead.supervisor_user_id not in visible_teacher_ids:
+            return False
+    else:
+        # 兼容历史数据：Lead 未回填时，按 Customer 责任班主任兜底
+        has_visible_customer = Customer.query.filter(
+            Customer.lead_id == lead.id,
+            Customer.supervisor_user_id.in_(visible_teacher_ids)
+        ).first() is not None
+        if not has_visible_customer:
+            return False
 
     scope = normalized_lead_scope(lead)
     if current_user.is_public_only_teacher_supervisor() and scope == Lead.SCOPE_PRIVATE:
@@ -137,10 +164,55 @@ def dashboard():
         Lead.service_types.contains('competition')
     ).count()
 
-    # 已结束赛事统计（获奖）
-    competition_completed = CustomerCompetition.query.join(Customer).filter(
+    # “已完成”口径：课题辅导已完成 且 竞赛获奖等级达到要求（等于或高于）
+    tutoring_completed_customer_ids = select(TutoringDelivery.customer_id).where(
+        TutoringDelivery.thesis_status == '已完成'
+    )
+    national_award_customer_ids = select(CustomerCompetition.customer_id).where(
+        CustomerCompetition.status.in_(NATIONAL_AWARD_STATUSES)
+    )
+    city_or_above_award_customer_ids = select(CustomerCompetition.customer_id).where(
+        CustomerCompetition.status.in_(CITY_OR_ABOVE_AWARD_STATUSES)
+    )
+    district_or_above_award_customer_ids = select(CustomerCompetition.customer_id).where(
+        CustomerCompetition.status.in_(DISTRICT_OR_ABOVE_AWARD_STATUSES)
+    )
+
+    competition_meets_requirement = db.or_(
+        db.and_(
+            Lead.competition_award_level == '国奖',
+            Customer.id.in_(national_award_customer_ids)
+        ),
+        db.and_(
+            Lead.competition_award_level == '市奖',
+            Customer.id.in_(city_or_above_award_customer_ids)
+        ),
+        db.and_(
+            Lead.competition_award_level == '区奖',
+            Customer.id.in_(district_or_above_award_customer_ids)
+        ),
+        db.and_(
+            db.or_(
+                Lead.competition_award_level.is_(None),
+                Lead.competition_award_level == '',
+                Lead.competition_award_level == '无'
+            ),
+            Customer.id.in_(district_or_above_award_customer_ids)
+        )
+    )
+
+    has_competition_service = Lead.service_types.contains('competition')
+    # 完成判定：
+    # 1) 课题+竞赛服务：课题完成 + 竞赛达标
+    # 2) 仅课题服务：课题完成即可
+    completed_customers = Customer.query.join(Customer.lead).filter(
         Customer.supervisor_user_id.in_(teacher_user_ids),
-        ~CustomerCompetition.status.in_(['未报名', '已报名'])
+        Lead.service_types.contains('tutoring'),
+        Customer.id.in_(tutoring_completed_customer_ids),
+        db.or_(
+            db.and_(has_competition_service, competition_meets_requirement),
+            db.and_(~has_competition_service)
+        )
     ).count()
 
     # 最近的交付任务
@@ -158,7 +230,7 @@ def dashboard():
                          tutoring_total=tutoring_total,
                          tutoring_completed=tutoring_completed,
                          competition_total=competition_total,
-                         competition_completed=competition_completed,
+                         completed_customers=completed_customers,
                          recent_tutoring=recent_tutoring,
                          recent_competition=recent_competition)
 
@@ -185,9 +257,8 @@ def leads_list():
         func.count(Payment.id).label('payment_count')
     ).group_by(Payment.lead_id).subquery()
 
-    query = Lead.query.filter(
-        Lead.supervisor_user_id.in_(teacher_user_ids)
-    ).join(Customer, Customer.lead_id == Lead.id).filter(
+    query = Lead.query.join(Customer, Customer.lead_id == Lead.id).filter(
+        Customer.supervisor_user_id.in_(teacher_user_ids),
         Customer.phase == Customer.PHASE_BRAINSTORM
     ).join(
         payment_count_subquery,
@@ -565,7 +636,7 @@ def teacher_list():
 @login_required
 @admin_required
 def create_teacher():
-    """创建辅导老师账号 - 免密登录（保存到 User 表，role='teacher'）"""
+    """创建辅导老师账号（保存到 User 表，role='teacher'）"""
     if request.method == 'POST':
         name = request.form.get('name', '').strip()
         phone = request.form.get('phone', '').strip()
@@ -589,13 +660,16 @@ def create_teacher():
             return render_template('delivery/create_teacher.html')
 
         try:
-            # 创建辅导老师账号（保存到 User 表，role='teacher'）
+            # 创建辅导老师账号（默认密码123456，首次登录强制修改）
             user = User(
                 username=name,
                 phone=phone,
                 role='teacher',
-                status=True
+                status=True,
+                must_change_password=True,
+                password_changed_at=None
             )
+            user.set_password(User.DEFAULT_PASSWORD)
 
             db.session.add(user)
             db.session.flush()
@@ -608,7 +682,7 @@ def create_teacher():
             db.session.add(teacher)
             db.session.commit()
 
-            flash(f'辅导老师账号创建成功！登录手机号：{phone}（免密登录）', 'success')
+            flash(f'辅导老师账号创建成功！登录手机号：{phone}，初始密码：{User.DEFAULT_PASSWORD}（首次登录需修改）', 'success')
             return redirect(url_for('delivery.teacher_list'))
         except Exception as e:
             db.session.rollback()
@@ -890,4 +964,3 @@ def download_document(doc_id):
         return redirect(url_for('customers.detail', customer_id=doc.customer_id))
 
     return send_file(doc.file_path, as_attachment=True, download_name=doc.file_name)
-

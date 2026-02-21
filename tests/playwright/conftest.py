@@ -10,6 +10,7 @@ from pathlib import Path
 from urllib.request import urlopen
 
 import pytest
+from werkzeug.security import generate_password_hash
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -33,28 +34,62 @@ def _find_free_port():
         return sock.getsockname()[1]
 
 
+def _resolve_python_bin():
+    """Resolve Python executable for spawning the app server."""
+    if VENV_PYTHON.exists():
+        return str(VENV_PYTHON)
+    system_python = shutil.which("python3")
+    if not system_python:
+        raise RuntimeError("未找到可用的 python3 可执行文件")
+    return system_python
+
+
 def _ensure_user(conn, username, phone, role, is_private_owner=0):
     row = conn.execute("SELECT id FROM users WHERE phone = ?", (phone,)).fetchone()
     now = _now_str()
+    password_hash = generate_password_hash("123456", method="pbkdf2:sha256")
     if row:
         user_id = row[0]
-        conn.execute(
-            """
-            UPDATE users
-            SET username = ?, role = ?, status = 1, is_private_owner = ?, updated_at = ?
-            WHERE id = ?
-            """,
-            (username, role, is_private_owner, now, user_id),
-        )
+        try:
+            conn.execute(
+                """
+                UPDATE users
+                SET username = ?, role = ?, status = 1, is_private_owner = ?,
+                    password_hash = ?, must_change_password = 0, password_changed_at = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (username, role, is_private_owner, password_hash, now, now, user_id),
+            )
+        except sqlite3.OperationalError:
+            conn.execute(
+                """
+                UPDATE users
+                SET username = ?, role = ?, status = 1, is_private_owner = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (username, role, is_private_owner, now, user_id),
+            )
         return user_id
 
-    cursor = conn.execute(
-        """
-        INSERT INTO users (username, phone, role, status, created_at, updated_at, is_private_owner)
-        VALUES (?, ?, ?, 1, ?, ?, ?)
-        """,
-        (username, phone, role, now, now, is_private_owner),
-    )
+    try:
+        cursor = conn.execute(
+            """
+            INSERT INTO users (
+                username, phone, role, status, created_at, updated_at, is_private_owner,
+                password_hash, must_change_password, password_changed_at
+            )
+            VALUES (?, ?, ?, 1, ?, ?, ?, ?, 0, ?)
+            """,
+            (username, phone, role, now, now, is_private_owner, password_hash, now),
+        )
+    except sqlite3.OperationalError:
+        cursor = conn.execute(
+            """
+            INSERT INTO users (username, phone, role, status, created_at, updated_at, is_private_owner)
+            VALUES (?, ?, ?, 1, ?, ?, ?)
+            """,
+            (username, phone, role, now, now, is_private_owner),
+        )
     return cursor.lastrowid
 
 
@@ -160,7 +195,7 @@ def _ensure_test_customer(
     *,
     lead_id,
     sales_user_id,
-    teacher_user_id,
+    supervisor_user_id,
     scope,
     private_owner_id,
 ):
@@ -171,29 +206,29 @@ def _ensure_test_customer(
         conn.execute(
             """
             UPDATE customers
-            SET sales_user_id = ?, teacher_user_id = ?, payment_amount = 10000,
+            SET sales_user_id = ?, supervisor_user_id = ?, tutor_user_id = NULL, payment_amount = 10000,
                 award_requirement = '无', service_type = 'tutoring', exam_year = 2027,
-                customer_scope = ?, private_owner_id = ?, updated_at = ?
+                customer_scope = ?, private_owner_id = ?, phase = 'service_delivery', updated_at = ?
             WHERE id = ?
             """,
-            (sales_user_id, teacher_user_id, scope, private_owner_id, now, customer_id),
+            (sales_user_id, supervisor_user_id, scope, private_owner_id, now, customer_id),
         )
         return customer_id
 
     cursor = conn.execute(
         """
         INSERT INTO customers (
-            lead_id, sales_user_id, teacher_user_id, payment_amount,
+            lead_id, sales_user_id, supervisor_user_id, tutor_user_id, payment_amount,
             award_requirement, service_type, exam_year,
-            converted_at, created_at, updated_at, customer_scope, private_owner_id
-        ) VALUES (?, ?, ?, 10000, '无', 'tutoring', 2027, ?, ?, ?, ?, ?)
+            converted_at, created_at, updated_at, customer_scope, private_owner_id, phase
+        ) VALUES (?, ?, ?, NULL, 10000, '无', 'tutoring', 2027, ?, ?, ?, ?, ?, 'service_delivery')
         """,
-        (lead_id, sales_user_id, teacher_user_id, now, now, now, scope, private_owner_id),
+        (lead_id, sales_user_id, supervisor_user_id, now, now, now, scope, private_owner_id),
     )
     return cursor.lastrowid
 
 
-def _ensure_customer_payment(conn, *, customer_id, teacher_user_id, scope_snapshot):
+def _ensure_customer_payment(conn, *, customer_id, supervisor_user_id, scope_snapshot):
     row = conn.execute("SELECT id FROM customer_payments WHERE customer_id = ?", (customer_id,)).fetchone()
     pay_date = (datetime.now() - timedelta(days=2)).strftime("%Y-%m-%d")
     now = _now_str()
@@ -201,22 +236,22 @@ def _ensure_customer_payment(conn, *, customer_id, teacher_user_id, scope_snapsh
         conn.execute(
             """
             UPDATE customer_payments
-            SET teacher_user_id = ?, total_amount = 10000, first_payment = 3000,
+            SET supervisor_user_id = ?, total_amount = 10000, first_payment = 3000,
                 first_payment_date = ?, scope_snapshot = ?, updated_at = ?
             WHERE id = ?
             """,
-            (teacher_user_id, pay_date, scope_snapshot, now, row[0]),
+            (supervisor_user_id, pay_date, scope_snapshot, now, row[0]),
         )
         return
 
     conn.execute(
         """
         INSERT INTO customer_payments (
-            customer_id, teacher_user_id, total_amount,
+            customer_id, supervisor_user_id, total_amount,
             first_payment, first_payment_date, scope_snapshot, created_at, updated_at
         ) VALUES (?, ?, 10000, 3000, ?, ?, ?, ?)
         """,
-        (customer_id, teacher_user_id, pay_date, scope_snapshot, now, now),
+        (customer_id, supervisor_user_id, pay_date, scope_snapshot, now, now),
     )
 
 
@@ -274,14 +309,14 @@ def _seed_test_data(db_path):
         conn,
         lead_id=private_lead_id,
         sales_user_id=private_manager_id,
-        teacher_user_id=teacher_id,
+        supervisor_user_id=teacher_id,
         scope="private",
         private_owner_id=private_manager_id,
     )
     _ensure_customer_payment(
         conn,
         customer_id=private_customer_id,
-        teacher_user_id=teacher_id,
+        supervisor_user_id=teacher_id,
         scope_snapshot="private",
     )
 
@@ -299,14 +334,14 @@ def _seed_test_data(db_path):
         conn,
         lead_id=public_lead_id,
         sales_user_id=public_manager_id,
-        teacher_user_id=teacher_id,
+        supervisor_user_id=teacher_id,
         scope="public",
         private_owner_id=None,
     )
     _ensure_customer_payment(
         conn,
         customer_id=public_customer_id,
-        teacher_user_id=teacher_id,
+        supervisor_user_id=teacher_id,
         scope_snapshot="public",
     )
 
@@ -319,6 +354,7 @@ def _seed_test_data(db_path):
             "public_manager": public_manager_phone,
             "teacher_supervisor": teacher_phone,
         },
+        "private_owner_id": private_manager_id,
         "customers": {
             "private_customer_id": private_customer_id,
             "public_customer_id": public_customer_id,
@@ -364,7 +400,7 @@ def e2e_env():
     log_handle = open(log_file_path, "w", encoding="utf-8")
 
     server_cmd = [
-        str(VENV_PYTHON),
+        _resolve_python_bin(),
         "-c",
         (
             "import os;"
@@ -398,6 +434,7 @@ def e2e_env():
     yield {
         "base_url": base_url,
         "phones": seeded["phones"],
+        "private_owner_id": seeded["private_owner_id"],
         "customers": seeded["customers"],
         "students": seeded["students"],
     }

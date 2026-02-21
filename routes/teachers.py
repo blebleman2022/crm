@@ -158,8 +158,11 @@ def add_teacher():
                 username=name,
                 phone=phone,
                 role='teacher',
-                status=True
+                status=True,
+                must_change_password=True,
+                password_changed_at=None
             )
+            user.set_password(User.DEFAULT_PASSWORD)
             db.session.add(user)
             db.session.flush()  # 获取 user.id
 
@@ -179,7 +182,7 @@ def add_teacher():
             db.session.add(teacher)
             db.session.commit()
 
-            flash(f'辅导老师 {name} 添加成功', 'success')
+            flash(f'辅导老师 {name} 添加成功，初始密码：{User.DEFAULT_PASSWORD}（首次登录需修改）', 'success')
             return redirect(url_for('teachers.list_teachers'))
 
         except Exception as e:
@@ -736,4 +739,3 @@ def detail_teacher_for_sales(teacher_id):
                          teacher=teacher,
                          customers=customers,
                          is_sales_manager_view=True)  # 标记为销售管理视图
-
