@@ -126,7 +126,14 @@
                                 </button>
                             </div>
                         </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">家长微信名</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                            <div class="flex items-center gap-2">
+                                <span>家长微信名</span>
+                                <button type="button" onclick="toggleParentWechatVisibility()" class="focus:outline-none hover:scale-110 transition-transform" title="显示/隐藏家长微信名">
+                                    <span id="parentWechatEyeIcon" class="material-symbols-outlined text-sm text-gray-600">visibility</span>
+                                </button>
+                            </div>
+                        </th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500" style="max-width: 150px;">学校</th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">责任销售</th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">班主任</th>
@@ -174,7 +181,7 @@
                                 {% endif %}
                             </div>
                         </td>
-                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500 parent-wechat-cell">
                             {% set parent_wechat_name = customer.lead.parent_wechat_display_name or '-' %}
                             {{ parent_wechat_name }}
                         </td>
@@ -470,6 +477,7 @@ let allTeachers = [];
 // 学员姓名和辅导老师姓名显示/隐藏功能
 let studentNameVisible = true;
 let teacherNameVisible = true;
+let parentWechatVisible = true;
 
 function toggleStudentNameVisibility() {
     studentNameVisible = !studentNameVisible;
@@ -505,6 +513,26 @@ function toggleTeacherNameVisibility() {
     } else {
         eyeIcon.textContent = 'visibility_off';
         teacherNameCells.forEach(cell => {
+            cell.style.filter = 'blur(5px)';
+            cell.style.userSelect = 'none';
+        });
+    }
+}
+
+function toggleParentWechatVisibility() {
+    parentWechatVisible = !parentWechatVisible;
+    const eyeIcon = document.getElementById('parentWechatEyeIcon');
+    const parentWechatCells = document.querySelectorAll('.parent-wechat-cell');
+
+    if (parentWechatVisible) {
+        eyeIcon.textContent = 'visibility';
+        parentWechatCells.forEach(cell => {
+            cell.style.filter = 'none';
+            cell.style.userSelect = 'auto';
+        });
+    } else {
+        eyeIcon.textContent = 'visibility_off';
+        parentWechatCells.forEach(cell => {
             cell.style.filter = 'blur(5px)';
             cell.style.userSelect = 'none';
         });
