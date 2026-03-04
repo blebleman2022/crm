@@ -124,7 +124,8 @@ def reconciliation():
         ).outerjoin(
             CustomerPayment, Customer.id == CustomerPayment.customer_id
         ).filter(
-            Customer.supervisor_user_id.in_(visible_teacher_ids)
+            Customer.supervisor_user_id.in_(visible_teacher_ids),
+            Customer.phase == Customer.PHASE_SERVICE_DELIVERY
         ).all()
 
         has_public_customers = any(row.effective_scope == PUBLIC_SCOPE for row in assigned_scope_rows)
@@ -160,7 +161,8 @@ def reconciliation():
         ).outerjoin(
             CustomerPayment, Customer.id == CustomerPayment.customer_id
         ).filter(
-            scope_expr == scope_filter
+            scope_expr == scope_filter,
+            Customer.phase == Customer.PHASE_SERVICE_DELIVERY
         )
 
         if is_private_owner_user(current_user):
@@ -240,6 +242,8 @@ def reconciliation():
 
     # 对账按scope硬隔离（付款记录优先读快照，无记录则回退客户当前scope）
     query = query.filter(scope_expr == scope_filter)
+    # 付款对账仅展示次笔付款及以后阶段客户（service_delivery）
+    query = query.filter(Customer.phase == Customer.PHASE_SERVICE_DELIVERY)
 
     # 如果是班主任，只显示自己负责的客户
     if current_user.is_teacher_supervisor():
@@ -469,7 +473,8 @@ def manage():
     ).outerjoin(
         CustomerPayment, Customer.id == CustomerPayment.customer_id
     ).filter(
-        Customer.supervisor_user_id.in_(visible_teacher_ids)
+        Customer.supervisor_user_id.in_(visible_teacher_ids),
+        Customer.phase == Customer.PHASE_SERVICE_DELIVERY
     ).all()
 
     has_public_customers = any(row.effective_scope == PUBLIC_SCOPE for row in assigned_scope_rows)
@@ -509,6 +514,8 @@ def manage():
     ).filter(
         Customer.supervisor_user_id.in_(visible_teacher_ids)
     )
+    # 付款管理仅展示次笔付款及以后阶段客户（service_delivery）
+    query = query.filter(Customer.phase == Customer.PHASE_SERVICE_DELIVERY)
     query = query.filter(scope_expr == scope_filter)
     if selected_private_owner_id:
         query = query.filter(Customer.private_owner_id == selected_private_owner_id)
@@ -877,4 +884,3 @@ def clear_lock_month():
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'清除失败：{str(e)}'}), 500
-
