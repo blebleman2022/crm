@@ -1812,6 +1812,8 @@ def update_contract_amount():
 
         # 更新合同金额
         lead.contract_amount = contract_amount
+        # 合同金额变化可能影响“全款支付”判定，需立即重算阶段
+        auto_update_lead_stage(lead)
         lead.updated_at = datetime.utcnow()
 
         db.session.commit()
