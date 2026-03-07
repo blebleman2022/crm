@@ -41,6 +41,18 @@ def build_education_summary(form):
     return highest_degree, '\n'.join(lines)
 
 
+def education_form_has_updates(form):
+    """判断学历三行输入是否有显式修改，用于兼容历史自由文本数据。"""
+    for degree_key in ('phd', 'master', 'bachelor'):
+        if form.get(f'education_{degree_key}_removed', '0') == '1':
+            return True
+        if form.get(f'education_{degree_key}_school', '').strip():
+            return True
+        if form.get(f'education_{degree_key}_major', '').strip():
+            return True
+    return False
+
+
 def parse_education_summary(teacher):
     """将已保存的学历说明解析为三行输入的初始值。"""
     initial = {
@@ -58,6 +70,7 @@ def parse_education_summary(teacher):
     if not description:
         return initial
 
+    parsed_any = False
     for raw_line in description.splitlines():
         line = (raw_line or '').strip()
         if not line:
@@ -80,7 +93,15 @@ def parse_education_summary(teacher):
             major = major.strip()
             initial[key]['school'] = '' if school == '-' else school
             initial[key]['major'] = '' if major == '-' else major
+            parsed_any = True
             break
+
+    # 兼容旧数据：若是历史自由文本，放入最高学历对应行，避免编辑后丢失。
+    if not parsed_any:
+        fallback_key = label_to_key.get((teacher.highest_degree or '').strip())
+        if not fallback_key:
+            fallback_key = 'bachelor'
+        initial[fallback_key]['major'] = description
 
     return initial
 
@@ -287,13 +308,15 @@ def external_edit_teacher(token):
                     expires_in_minutes=EXTERNAL_EDIT_LINK_SECONDS // 60
                 )
 
+            education_updated = education_form_has_updates(request.form)
             highest_degree, degree_description = build_education_summary(request.form)
 
             user.username = name
             teacher.current_institution = request.form.get('current_institution', '').strip()
             teacher.major_direction = request.form.get('major_direction', '').strip()
-            teacher.highest_degree = highest_degree
-            teacher.degree_description = degree_description
+            if education_updated:
+                teacher.highest_degree = highest_degree
+                teacher.degree_description = degree_description
             teacher.research_achievements = request.form.get('research_achievements', '').strip()
             teacher.innovation_coaching_achievements = request.form.get('innovation_coaching_achievements', '').strip()
             teacher.social_roles = request.form.get('social_roles', '').strip()
@@ -479,19 +502,22 @@ def edit_teacher(teacher_id):
             name = request.form.get('chinese_name', '').strip()
             if not name:
                 flash('中文名为必填项', 'error')
-                return render_template('teachers/edit.html', teacher=teacher, user=user)
+                education_initial = parse_education_summary(teacher)
+                return render_template('teachers/edit.html', teacher=teacher, user=user, education_initial=education_initial)
+
+            education_updated = education_form_has_updates(request.form)
+            highest_degree, degree_description = build_education_summary(request.form)
 
             # 更新 User 表
             user.username = name
             teacher.current_institution = request.form.get('current_institution', '').strip()
             teacher.major_direction = request.form.get('major_direction', '').strip()
-            teacher.highest_degree = request.form.get('highest_degree', '').strip()
-            teacher.degree_description = request.form.get('degree_description', '').strip()
+            if education_updated:
+                teacher.highest_degree = highest_degree
+                teacher.degree_description = degree_description
             teacher.research_achievements = request.form.get('research_achievements', '').strip()
             teacher.innovation_coaching_achievements = request.form.get('innovation_coaching_achievements', '').strip()
             teacher.social_roles = request.form.get('social_roles', '').strip()
-            teacher.email = request.form.get('email', '').strip()
-            teacher.subject = request.form.get('subject', '').strip()
             teacher.updated_at = datetime.utcnow()
 
             db.session.commit()
@@ -503,7 +529,8 @@ def edit_teacher(teacher_id):
             db.session.rollback()
             flash(f'更新老师失败：{str(e)}', 'error')
 
-    return render_template('teachers/edit.html', teacher=teacher, user=user)
+    education_initial = parse_education_summary(teacher)
+    return render_template('teachers/edit.html', teacher=teacher, user=user, education_initial=education_initial)
 
 @teachers_bp.route('/detail/<int:teacher_id>')
 @login_required
