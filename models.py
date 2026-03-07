@@ -540,7 +540,18 @@ class CustomerPayment(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # 关联关系
-    customer = db.relationship('Customer', backref='payment_info', uselist=False)
+    # 线索删除会级联删除 Customer，这里确保其下的付款汇总记录也一并删除，
+    # 避免 ORM 在父记录删除时尝试将 customer_id 置空触发 NOT NULL 约束。
+    customer = db.relationship(
+        'Customer',
+        backref=db.backref(
+            'payment_info',
+            uselist=False,
+            cascade='all, delete-orphan',
+            single_parent=True
+        ),
+        uselist=False
+    )
     teacher_user = db.relationship('User', foreign_keys=[supervisor_user_id], backref='managed_payments')
 
     def get_total_paid(self):

@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session
 from flask_login import login_required, current_user, login_user
 from functools import wraps
-from models import User, LoginLog, Lead, Customer, Payment, SystemConfig, AdminImpersonationLog, db
+from models import User, LoginLog, Lead, Customer, Payment, CustomerPayment, SystemConfig, AdminImpersonationLog, db
 from datetime import datetime, timedelta
 import re
 import os
@@ -1182,6 +1182,10 @@ def delete_lead(lead_id):
     lead_name = lead.student_name or "未命名"
 
     try:
+        # 兜底清理客户付款汇总，避免历史关系配置导致删除时将 FK 置空触发 NOT NULL 报错
+        if lead.customer:
+            CustomerPayment.query.filter_by(customer_id=lead.customer.id).delete(synchronize_session=False)
+
         # 直接删除线索，级联删除会自动处理所有关联数据
         db.session.delete(lead)
         db.session.commit()
