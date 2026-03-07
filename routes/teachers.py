@@ -8,6 +8,35 @@ from werkzeug.utils import secure_filename
 
 teachers_bp = Blueprint('teachers', __name__)
 
+
+def build_education_summary(form):
+    """从学历三行输入构建最高学历和学历说明文本。"""
+    degree_rows = [
+        ('博士', 'phd'),
+        ('硕士', 'master'),
+        ('本科', 'bachelor'),
+    ]
+
+    highest_degree = ''
+    lines = []
+
+    for degree_label, degree_key in degree_rows:
+        removed = (form.get(f'education_{degree_key}_removed', '0') == '1')
+        school = form.get(f'education_{degree_key}_school', '').strip()
+        major = form.get(f'education_{degree_key}_major', '').strip()
+
+        if removed or (not school and not major):
+            continue
+
+        if not highest_degree:
+            highest_degree = degree_label
+
+        school_text = school if school else '-'
+        major_text = major if major else '-'
+        lines.append(f'{degree_label}：{school_text} / {major_text}')
+
+    return highest_degree, '\n'.join(lines)
+
 def admin_required(f):
     """管理员权限装饰器"""
     @wraps(f)
@@ -113,13 +142,82 @@ def list_teachers():
         count = Customer.query.filter(Customer.tutor_user_id == teacher.user_id).count()
         teacher_customer_counts[teacher.user_id] = count
 
+    public_teacher_form_url = url_for('teachers.public_add_teacher', _external=True)
+
     return render_template('teachers/list.html',
                          teachers=teachers,
                          pagination=pagination,
                          search=search,
                          status_filter=status_filter,
                          can_view_inactive=is_admin_view,
+                         public_teacher_form_url=public_teacher_form_url,
                          teacher_customer_counts=teacher_customer_counts)
+
+
+@teachers_bp.route('/public-add', methods=['GET', 'POST'])
+def public_add_teacher():
+    """公开老师填写页（无需登录，提交后默认禁用，待后台启用）"""
+    if request.method == 'POST':
+        try:
+            phone = request.form.get('phone', '').strip()
+            if not phone:
+                flash('手机号为必填项', 'error')
+                return render_template('teachers/public_add.html')
+
+            import re
+            if not re.match(r'^1[3-9]\d{9}$', phone):
+                flash('手机号格式不正确', 'error')
+                return render_template('teachers/public_add.html')
+
+            existing = User.query.filter_by(phone=phone).first()
+            if existing:
+                flash('该手机号已被使用', 'error')
+                return render_template('teachers/public_add.html')
+
+            name = request.form.get('chinese_name', '').strip()
+            if not name:
+                flash('中文名为必填项', 'error')
+                return render_template('teachers/public_add.html')
+
+            highest_degree, degree_description = build_education_summary(request.form)
+
+            # 公开填写创建的老师默认禁用，待管理员审核后启用
+            user = User(
+                username=name,
+                phone=phone,
+                role='teacher',
+                status=False,
+                must_change_password=True,
+                password_changed_at=None
+            )
+            user.set_password(User.DEFAULT_PASSWORD)
+            db.session.add(user)
+            db.session.flush()
+
+            teacher = Teacher(
+                user_id=user.id,
+                current_institution=request.form.get('current_institution', '').strip(),
+                major_direction=request.form.get('major_direction', '').strip(),
+                highest_degree=highest_degree,
+                degree_description=degree_description,
+                research_achievements=request.form.get('research_achievements', '').strip(),
+                innovation_coaching_achievements=request.form.get('innovation_coaching_achievements', '').strip(),
+                social_roles=request.form.get('social_roles', '').strip(),
+                email=request.form.get('email', '').strip(),
+                subject=request.form.get('subject', '').strip()
+            )
+            db.session.add(teacher)
+            db.session.commit()
+
+            flash('提交成功，信息已进入后台，账号默认禁用，管理员审核后启用。', 'success')
+            return redirect(url_for('teachers.public_add_teacher'))
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f'提交失败：{str(e)}', 'error')
+            return render_template('teachers/public_add.html')
+
+    return render_template('teachers/public_add.html')
 
 @teachers_bp.route('/add', methods=['GET', 'POST'])
 @login_required
@@ -153,6 +251,8 @@ def add_teacher():
                 flash('中文名为必填项', 'error')
                 return render_template('teachers/add.html')
 
+            highest_degree, degree_description = build_education_summary(request.form)
+
             # 创建用户（role='teacher'）
             user = User(
                 username=name,
@@ -171,8 +271,8 @@ def add_teacher():
                 user_id=user.id,
                 current_institution=request.form.get('current_institution', '').strip(),
                 major_direction=request.form.get('major_direction', '').strip(),
-                highest_degree=request.form.get('highest_degree', '').strip(),
-                degree_description=request.form.get('degree_description', '').strip(),
+                highest_degree=highest_degree,
+                degree_description=degree_description,
                 research_achievements=request.form.get('research_achievements', '').strip(),
                 innovation_coaching_achievements=request.form.get('innovation_coaching_achievements', '').strip(),
                 social_roles=request.form.get('social_roles', '').strip(),
