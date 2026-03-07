@@ -78,6 +78,7 @@
                         <th class="relative px-6 py-3">
                             <span class="sr-only">操作</span>
                         </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">信息更新</th>
                         {% if current_user.is_admin() %}
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">删除</th>
                         {% endif %}
@@ -128,6 +129,17 @@
                             {% endif %}
                             {% endif %}
                         </td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm">
+                            {% if current_user.is_admin() %}
+                                <button type="button"
+                                        class="copyExternalEditLinkBtn inline-flex items-center rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                                        data-generate-url="{{ url_for('teachers.generate_external_edit_link', teacher_id=teacher.user_id) }}">
+                                    复制链接
+                                </button>
+                            {% else %}
+                                <span class="text-gray-400">-</span>
+                            {% endif %}
+                        </td>
                         {% if current_user.is_admin() %}
                         <td class="whitespace-nowrap px-6 py-4 text-sm">
                             {% if teacher_customer_counts.get(teacher.user_id, 0) > 0 %}
@@ -145,7 +157,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="{% if current_user.is_admin() %}9{% else %}8{% endif %}" class="px-6 py-4 text-center text-sm text-gray-500">
+                        <td colspan="{% if current_user.is_admin() %}10{% else %}9{% endif %}" class="px-6 py-4 text-center text-sm text-gray-500">
                             暂无老师数据
                         </td>
                     </tr>
@@ -243,5 +255,28 @@ if (copyTeacherFormLinkBtn) {
         }
     });
 }
+
+document.querySelectorAll('.copyExternalEditLinkBtn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        const generateUrl = btn.dataset.generateUrl || '';
+        if (!generateUrl) {
+            alert('链接生成失败，请刷新页面后重试');
+            return;
+        }
+
+        try {
+            const resp = await fetch(generateUrl, { method: 'POST' });
+            const data = await resp.json();
+            if (!resp.ok || !data.success || !data.link) {
+                throw new Error(data.message || '链接生成失败');
+            }
+
+            await navigator.clipboard.writeText(data.link);
+            alert(`链接已复制（${data.expires_in_minutes || 30}分钟后失效）`);
+        } catch (e) {
+            alert(`复制失败：${e.message || '请稍后重试'}`);
+        }
+    });
+});
 </script>
 {% endblock %}

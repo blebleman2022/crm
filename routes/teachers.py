@@ -1,12 +1,15 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
 from functools import wraps
 from models import User, Customer, Lead, Teacher, TeacherImage, TopicTask, LoginLog, db
-from datetime import datetime
+from datetime import datetime, timedelta
+from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 import os
 from werkzeug.utils import secure_filename
 
 teachers_bp = Blueprint('teachers', __name__)
+EXTERNAL_EDIT_TOKEN_SALT = 'teacher-external-edit'
+EXTERNAL_EDIT_LINK_SECONDS = 30 * 60
 
 
 def build_education_summary(form):
@@ -36,6 +39,80 @@ def build_education_summary(form):
         lines.append(f'{degree_label}：{school_text} / {major_text}')
 
     return highest_degree, '\n'.join(lines)
+
+
+def parse_education_summary(teacher):
+    """将已保存的学历说明解析为三行输入的初始值。"""
+    initial = {
+        'phd': {'school': '', 'major': ''},
+        'master': {'school': '', 'major': ''},
+        'bachelor': {'school': '', 'major': ''},
+    }
+    label_to_key = {
+        '博士': 'phd',
+        '硕士': 'master',
+        '本科': 'bachelor',
+    }
+
+    description = (teacher.degree_description or '').strip()
+    if not description:
+        return initial
+
+    for raw_line in description.splitlines():
+        line = (raw_line or '').strip()
+        if not line:
+            continue
+
+        for label, key in label_to_key.items():
+            prefix = f'{label}：'
+            if not line.startswith(prefix):
+                continue
+
+            tail = line[len(prefix):].strip()
+            if ' / ' in tail:
+                school, major = tail.split(' / ', 1)
+            elif '/' in tail:
+                school, major = tail.split('/', 1)
+            else:
+                school, major = tail, ''
+
+            school = school.strip()
+            major = major.strip()
+            initial[key]['school'] = '' if school == '-' else school
+            initial[key]['major'] = '' if major == '-' else major
+            break
+
+    return initial
+
+
+def _external_edit_serializer():
+    return URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+
+
+def generate_external_edit_token(teacher_id):
+    serializer = _external_edit_serializer()
+    return serializer.dumps({'teacher_id': int(teacher_id)}, salt=EXTERNAL_EDIT_TOKEN_SALT)
+
+
+def load_teacher_from_external_token(token):
+    serializer = _external_edit_serializer()
+    payload = serializer.loads(
+        token,
+        salt=EXTERNAL_EDIT_TOKEN_SALT,
+        max_age=EXTERNAL_EDIT_LINK_SECONDS
+    )
+    teacher_id = int(payload.get('teacher_id', 0))
+    if not teacher_id:
+        raise BadSignature('missing teacher_id')
+
+    user = User.query.get_or_404(teacher_id)
+    if user.role != 'teacher':
+        raise BadSignature('invalid role')
+    teacher = Teacher.query.filter_by(user_id=teacher_id).first()
+    if not teacher:
+        raise BadSignature('teacher profile not found')
+
+    return user, teacher
 
 def admin_required(f):
     """管理员权限装饰器"""
@@ -152,6 +229,92 @@ def list_teachers():
                          can_view_inactive=is_admin_view,
                          public_teacher_form_url=public_teacher_form_url,
                          teacher_customer_counts=teacher_customer_counts)
+
+
+@teachers_bp.route('/generate-external-edit-link/<int:teacher_id>', methods=['POST'])
+@login_required
+@admin_required
+def generate_external_edit_link(teacher_id):
+    """生成老师信息外部更新链接（30分钟有效）"""
+    user = User.query.get_or_404(teacher_id)
+    if user.role != 'teacher':
+        return jsonify({'success': False, 'message': '仅可为老师账号生成链接'}), 400
+
+    token = generate_external_edit_token(teacher_id)
+    external_link = url_for('teachers.external_edit_teacher', token=token, _external=True)
+    expires_at = (datetime.utcnow() + timedelta(seconds=EXTERNAL_EDIT_LINK_SECONDS)).strftime('%Y-%m-%d %H:%M:%S')
+
+    return jsonify({
+        'success': True,
+        'link': external_link,
+        'expires_in_minutes': EXTERNAL_EDIT_LINK_SECONDS // 60,
+        'expires_at': expires_at
+    })
+
+
+@teachers_bp.route('/external-edit/<token>', methods=['GET', 'POST'])
+def external_edit_teacher(token):
+    """老师信息外部更新页（临时签名链接）"""
+    try:
+        user, teacher = load_teacher_from_external_token(token)
+    except SignatureExpired:
+        return render_template(
+            'teachers/external_edit.html',
+            token_valid=False,
+            error_message='链接已过期（30分钟）。请联系管理员重新获取。',
+            expires_in_minutes=EXTERNAL_EDIT_LINK_SECONDS // 60
+        ), 410
+    except (BadSignature, ValueError):
+        return render_template(
+            'teachers/external_edit.html',
+            token_valid=False,
+            error_message='链接无效，请联系管理员重新获取。',
+            expires_in_minutes=EXTERNAL_EDIT_LINK_SECONDS // 60
+        ), 400
+
+    if request.method == 'POST':
+        try:
+            name = request.form.get('chinese_name', '').strip()
+            if not name:
+                flash('姓名为必填项', 'error')
+                education_initial = parse_education_summary(teacher)
+                return render_template(
+                    'teachers/external_edit.html',
+                    token_valid=True,
+                    user=user,
+                    teacher=teacher,
+                    education_initial=education_initial,
+                    expires_in_minutes=EXTERNAL_EDIT_LINK_SECONDS // 60
+                )
+
+            highest_degree, degree_description = build_education_summary(request.form)
+
+            user.username = name
+            teacher.current_institution = request.form.get('current_institution', '').strip()
+            teacher.major_direction = request.form.get('major_direction', '').strip()
+            teacher.highest_degree = highest_degree
+            teacher.degree_description = degree_description
+            teacher.research_achievements = request.form.get('research_achievements', '').strip()
+            teacher.innovation_coaching_achievements = request.form.get('innovation_coaching_achievements', '').strip()
+            teacher.social_roles = request.form.get('social_roles', '').strip()
+            teacher.updated_at = datetime.utcnow()
+
+            db.session.commit()
+            flash('信息更新成功', 'success')
+            return redirect(url_for('teachers.external_edit_teacher', token=token))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'更新失败：{str(e)}', 'error')
+
+    education_initial = parse_education_summary(teacher)
+    return render_template(
+        'teachers/external_edit.html',
+        token_valid=True,
+        user=user,
+        teacher=teacher,
+        education_initial=education_initial,
+        expires_in_minutes=EXTERNAL_EDIT_LINK_SECONDS // 60
+    )
 
 
 @teachers_bp.route('/public-add', methods=['GET', 'POST'])
