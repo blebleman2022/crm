@@ -505,11 +505,30 @@ def edit_teacher(teacher_id):
                 education_initial = parse_education_summary(teacher)
                 return render_template('teachers/edit.html', teacher=teacher, user=user, education_initial=education_initial)
 
+            phone = request.form.get('phone', '').strip()
+            if not phone:
+                flash('手机号为必填项', 'error')
+                education_initial = parse_education_summary(teacher)
+                return render_template('teachers/edit.html', teacher=teacher, user=user, education_initial=education_initial)
+
+            import re
+            if not re.match(r'^1[3-9]\d{9}$', phone):
+                flash('手机号格式不正确', 'error')
+                education_initial = parse_education_summary(teacher)
+                return render_template('teachers/edit.html', teacher=teacher, user=user, education_initial=education_initial)
+
+            existing = User.query.filter(User.phone == phone, User.id != user.id).first()
+            if existing:
+                flash('该手机号已被使用', 'error')
+                education_initial = parse_education_summary(teacher)
+                return render_template('teachers/edit.html', teacher=teacher, user=user, education_initial=education_initial)
+
             education_updated = education_form_has_updates(request.form)
             highest_degree, degree_description = build_education_summary(request.form)
 
             # 更新 User 表
             user.username = name
+            user.phone = phone
             teacher.current_institution = request.form.get('current_institution', '').strip()
             teacher.major_direction = request.form.get('major_direction', '').strip()
             if education_updated:

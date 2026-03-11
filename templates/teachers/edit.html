@@ -30,6 +30,22 @@
                         </div>
 
                         <div>
+                            <label for="phone" class="block text-sm font-medium text-gray-700">
+                                登录手机号 <span class="text-red-500">*</span>
+                            </label>
+                            <input type="tel"
+                                   name="phone"
+                                   id="phone"
+                                   required
+                                   maxlength="11"
+                                   pattern="[0-9]{11}"
+                                   value="{{ request.form.get('phone', user.phone or '') }}"
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                   placeholder="请输入11位登录手机号">
+                            <p class="mt-1 text-xs text-gray-500">该手机号将用于老师端登录。</p>
+                        </div>
+
+                        <div>
                             <label for="current_institution" class="block text-sm font-medium text-gray-700">
                                 现单位
                             </label>
@@ -302,6 +318,28 @@ function removeEducationRow(level) {
     });
     row.classList.add('hidden');
     removedInput.value = '1';
+}
+
+const phoneInput = document.getElementById('phone');
+if (phoneInput) {
+    phoneInput.addEventListener('input', function(e) {
+        let value = e.target.value.replace(/\D/g, '');
+        if (value.length > 11) {
+            value = value.slice(0, 11);
+        }
+        e.target.value = value;
+    });
+}
+
+const teacherEditForm = document.querySelector('form');
+if (teacherEditForm && phoneInput) {
+    teacherEditForm.addEventListener('submit', function(e) {
+        const phone = phoneInput.value.trim();
+        if (!/^1[3-9]\d{9}$/.test(phone)) {
+            e.preventDefault();
+            alert('请输入正确的11位手机号');
+        }
+    });
 }
 
 // 图片上传相关变量
