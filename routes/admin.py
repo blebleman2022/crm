@@ -704,6 +704,31 @@ def delete_user(user_id):
         db.session.rollback()
         return jsonify({'success': False, 'message': f'删除失败: {str(e)}'})
 
+
+@admin_bp.route('/users/<int:user_id>/reset-password', methods=['POST'])
+@login_required
+@admin_required
+def reset_user_password(user_id):
+    """重置用户密码为系统默认密码"""
+    user = User.query.get_or_404(user_id)
+
+    if user.id == current_user.id:
+        return jsonify({'success': False, 'message': '不能重置当前登录账号密码'})
+
+    try:
+        user.set_password(User.DEFAULT_PASSWORD)
+        user.must_change_password = True
+        user.password_changed_at = None
+        user.updated_at = datetime.utcnow()
+        db.session.commit()
+        return jsonify({
+            'success': True,
+            'message': f'用户 {user.username} 密码已重置为 {User.DEFAULT_PASSWORD}'
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'重置失败: {str(e)}'})
+
 @admin_bp.route('/login_logs')
 @login_required
 @admin_required

@@ -125,6 +125,10 @@
                                 </form>
                             {% endif %}
                             {% if user.id != current_user.id %}
+                                <button onclick="resetUserPassword({{ user.id }}, '{{ user.username }}')"
+                                        class="mr-3 text-orange-600 hover:text-orange-800">
+                                    重置密码
+                                </button>
                                 <button onclick="deleteUser({{ user.id }}, '{{ user.username }}')"
                                         class="text-red-600 hover:text-red-800">
                                     删除
@@ -222,6 +226,28 @@ function deleteUser(userId, username) {
         })
         .catch(error => {
             alert('操作失败，请重试');
+        });
+    }
+}
+
+function resetUserPassword(userId, username) {
+    if (confirm(`确定要将用户 ${username} 的密码重置为 123456 吗？`)) {
+        fetch(`/admin/users/${userId}/reset-password`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+            } else {
+                alert(data.message);
+            }
+        })
+        .catch(error => {
+            alert('重置失败，请重试');
         });
     }
 }
