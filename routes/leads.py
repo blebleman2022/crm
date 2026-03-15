@@ -850,7 +850,7 @@ def add_lead():
                 private_owner_id=current_user.id if is_private_mode else None,
                 stage='获取联系方式',  # 临时设置，稍后会自动更新
                 contract_amount=None,  # 合同金额在后续通过专门接口设置
-                service_types='["tutoring"]'  # 默认设置为课题辅导
+                service_types='[]'  # 默认设置为课题辅导
             )
 
             # 设置时间字段
