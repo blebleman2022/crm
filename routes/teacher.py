@@ -444,7 +444,7 @@ def manage_communication_records(customer_id):
 
 # 允许的文件扩展名
 ALLOWED_EXTENSIONS = {'doc', 'docx', 'pdf', 'ppt', 'pptx'}
-MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
 
 # 文档类型映射
 DOC_TYPE_NAMES = {
@@ -747,5 +747,4 @@ def update_course_progress(customer_id):
     db.session.commit()
 
     return jsonify({'success': True, 'message': '保存成功'})
-
 

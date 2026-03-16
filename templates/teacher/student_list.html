@@ -189,12 +189,12 @@
                             <span class="material-symbols-outlined text-blue-600 mr-2">description</span>
                             <h4 class="text-sm font-semibold text-gray-900">文档上传</h4>
                         </div>
-                        <span class="text-xs text-gray-500">可拖拽上传，单文件≤10MB</span>
+                        <span class="text-xs text-gray-500">可拖拽上传，单文件≤50MB</span>
                     </div>
                     <div id="documentsList" class="grid grid-cols-2 gap-3">
                         <!-- 文档上传项将动态生成 -->
                     </div>
-                    <div class="mt-2 text-xs text-gray-500">可选格式：doc、docx、pdf、ppt、pptx；大小限制：单文件不超过10MB</div>
+                    <div class="mt-2 text-xs text-gray-500">可选格式：doc、docx、pdf、ppt、pptx；大小限制：单文件不超过50MB</div>
                 </div>
 
                 <!-- 按钮组 -->
@@ -815,7 +815,7 @@ function showToast(message) {
 
 // ========== 文档上传功能 ==========
 
-const DOC_UPLOAD_MAX_SIZE = 10 * 1024 * 1024; // 10MB
+const DOC_UPLOAD_MAX_SIZE = 50 * 1024 * 1024; // 50MB
 const DOC_UPLOAD_ALLOWED_EXTENSIONS = ['doc', 'docx', 'pdf', 'ppt', 'pptx'];
 
 function getDocFileValidationError(file) {
@@ -828,7 +828,7 @@ function getDocFileValidationError(file) {
         return '不支持的文件格式，仅支持: doc, docx, pdf, ppt, pptx';
     }
     if (file.size > DOC_UPLOAD_MAX_SIZE) {
-        return '文件大小超过限制（最大10MB）';
+        return '文件大小超过限制（最大50MB）';
     }
     return '';
 }

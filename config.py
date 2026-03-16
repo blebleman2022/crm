@@ -31,7 +31,8 @@ class BaseConfig:
     LOG_LEVEL = os.environ.get('LOG_LEVEL') or 'INFO'
 
     # 文件上传配置
-    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB
+    # 允许 50MB 文档上传（预留 multipart/form-data 头部开销）
+    MAX_CONTENT_LENGTH = 55 * 1024 * 1024  # 55MB
 
     # 应用信息
     APP_NAME = 'EduConnect CRM'

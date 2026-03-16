@@ -796,7 +796,7 @@ def view_customer_documents(customer_id):
 # ==================== 班主任文档上传/删除 ====================
 
 ALLOWED_DOC_EXTENSIONS = {'doc', 'docx', 'pdf', 'ppt', 'pptx'}
-MAX_DOC_SIZE = 10 * 1024 * 1024  # 10MB
+MAX_DOC_SIZE = 50 * 1024 * 1024  # 50MB
 
 DOC_TYPE_NAMES = {
     'thesis_draft': '课题初稿',
