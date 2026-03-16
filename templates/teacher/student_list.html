@@ -994,13 +994,36 @@ async function uploadDocumentFile(file, customerId, docType) {
             method: 'POST',
             body: formData
         });
-        const data = await response.json();
-
-        if (data.success) {
-            await refreshDocumentsList(customerId);
+        let data = null;
+        let rawText = '';
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+            data = await response.json();
         } else {
-            updateDocUploadStatus(docType, 'error', data.message);
+            rawText = await response.text();
         }
+
+        if (!response.ok) {
+            let errorMessage = '';
+            if (response.status === 413) {
+                errorMessage = '文件超过服务器上传限制，请联系管理员调整服务器配置';
+            } else if (data && data.message) {
+                errorMessage = data.message;
+            } else if (rawText && rawText.trim().startsWith('<')) {
+                errorMessage = `服务器返回非JSON响应（HTTP ${response.status}），请重试或联系管理员`;
+            } else {
+                errorMessage = `上传失败（HTTP ${response.status}）`;
+            }
+            updateDocUploadStatus(docType, 'error', errorMessage);
+            return;
+        }
+
+        if (data && data.success) {
+            await refreshDocumentsList(customerId);
+            return;
+        }
+
+        updateDocUploadStatus(docType, 'error', (data && data.message) || '上传失败');
     } catch (error) {
         updateDocUploadStatus(docType, 'error', error.message);
     }
