@@ -826,14 +826,31 @@ function closeProgressModal() {
 
 function updateProgress() {
     const customerId = document.getElementById('progressCustomerId').value;
-    const thesisName = document.getElementById('thesisName').value;
-    const totalSessions = document.getElementById('totalSessions').value;
-    const completedSessions = document.getElementById('completedSessions').value;
+    const courseProgressSection = document.getElementById('courseProgressSection');
+    const hasVisibleCourseSection = courseProgressSection && !courseProgressSection.classList.contains('hidden');
 
-    // 验证数据
-    if (parseInt(completedSessions) > parseInt(totalSessions)) {
-        alert('已完成课程数量不能大于总课程数量');
-        return;
+    const payload = {};
+    if (hasVisibleCourseSection) {
+        const thesisInput = document.getElementById('thesisName');
+        payload.thesis_name = thesisInput ? thesisInput.value : '';
+
+        const totalSessionsRaw = document.getElementById('totalSessions').value;
+        const completedSessionsRaw = document.getElementById('completedSessions').value;
+        const totalSessions = parseInt(totalSessionsRaw, 10);
+        const completedSessions = parseInt(completedSessionsRaw, 10);
+
+        if (Number.isNaN(totalSessions) || Number.isNaN(completedSessions)) {
+            alert('课程数量格式错误，请填写数字');
+            return;
+        }
+
+        if (completedSessions > totalSessions) {
+            alert('已完成课程数量不能大于总课程数量');
+            return;
+        }
+
+        payload.total_sessions = totalSessions;
+        payload.completed_sessions = completedSessions;
     }
 
     fetch(`/customers/${customerId}/update_progress`, {
@@ -841,11 +858,7 @@ function updateProgress() {
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-            thesis_name: thesisName,
-            total_sessions: parseInt(totalSessions),
-            completed_sessions: parseInt(completedSessions)
-        })
+        body: JSON.stringify(payload)
     })
     .then(response => response.json())
     .then(data => {
@@ -996,7 +1009,7 @@ function togglePriorityCustomer() {
         <!-- 弹窗内容 -->
         <div class="p-6">
 
-            <form onsubmit="event.preventDefault(); updateProgress();">
+            <form onsubmit="event.preventDefault();">
                 <input type="hidden" id="progressCustomerId">
 
                 <!-- 课程进度 -->
@@ -1107,7 +1120,7 @@ function togglePriorityCustomer() {
                             class="px-5 py-2.5 border-2 border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all">
                         取消
                     </button>
-                    <button type="submit"
+                    <button type="button" onclick="updateProgress()"
                             class="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 border-0 rounded-lg text-sm font-medium text-white hover:from-blue-600 hover:to-blue-700 shadow-md hover:shadow-lg transition-all">
                         <span class="material-symbols-outlined text-sm mr-1 align-middle">save</span>
                         <span class="align-middle">保存</span>
@@ -1450,7 +1463,7 @@ function updateDocUploadStatus(docKey, status, message = '') {
                 <span class="material-symbols-outlined text-red-600 mr-1.5">error</span>
                 <span class="text-sm text-red-600 truncate flex-1">${message || '上传失败'}</span>
             </div>
-            <button onclick="resetDocUpload('${docKey}')" class="text-xs text-blue-600 hover:underline">重试</button>
+            <button type="button" onclick="resetDocUpload('${docKey}')" class="text-xs text-blue-600 hover:underline">重试</button>
         `;
     }
 }
@@ -1619,7 +1632,7 @@ function renderProgressCompetitions(competitions) {
         <div class="border rounded-md p-2 bg-white">
             <div class="flex items-center justify-between mb-2">
                 <div class="font-medium text-gray-900 text-sm">🏆 ${comp.competition_name}</div>
-                <button onclick="deleteProgressCompetition(${comp.id}, '${comp.competition_name}')"
+                <button type="button" onclick="deleteProgressCompetition(${comp.id}, '${comp.competition_name}')"
                         class="text-red-600 hover:text-red-800 text-xs">
                     删除
                 </button>

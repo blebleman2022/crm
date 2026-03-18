@@ -788,9 +788,9 @@ def update_customer_progress(customer_id):
     try:
         data = request.get_json() or {}
         requested_total_sessions = data.get('total_sessions')
-        completed_sessions = data.get('completed_sessions', 0)
+        completed_sessions = data.get('completed_sessions')
         notes = data.get('notes', '')
-        thesis_name = data.get('thesis_name', '')
+        thesis_name = data.get('thesis_name')
 
         # 如果备注有变化，添加为沟通记录
         if notes and notes != customer.customer_notes:
@@ -804,7 +804,8 @@ def update_customer_progress(customer_id):
 
         # 更新客户备注和课题名
         customer.customer_notes = notes
-        customer.thesis_name = thesis_name if thesis_name else None
+        if thesis_name is not None:
+            customer.thesis_name = thesis_name if thesis_name else None
         customer.updated_at = datetime.utcnow()
 
         # 更新或创建课程进度记录
@@ -830,6 +831,9 @@ def update_customer_progress(customer_id):
                     total_sessions = int(requested_total_sessions)
                 except (TypeError, ValueError):
                     return jsonify({'success': False, 'message': '总课程数量格式错误'}), 400
+
+        if completed_sessions in (None, ''):
+            completed_sessions = customer.tutoring_delivery.completed_sessions or 0
 
         try:
             completed_sessions = int(completed_sessions)
