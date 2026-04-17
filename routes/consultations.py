@@ -8,9 +8,33 @@ from models import db, Lead, Customer, CommunicationRecord, User
 from datetime import datetime
 import functools
 from communication_utils import CommunicationManager
+from lead_visibility import (
+    apply_special_public_lead_visibility,
+    can_user_view_public_sales_lead,
+    get_public_sales_user_ids_subquery,
+)
 
 # 创建蓝图
 consultations_bp = Blueprint('consultations', __name__)
+
+
+def can_access_sales_consultation_lead(lead):
+    if current_user.role == 'admin':
+        return True
+
+    if current_user.role not in ['sales_manager', 'salesperson']:
+        return False
+
+    if current_user.is_private_owner:
+        return (
+            lead.customer_scope == Lead.SCOPE_PRIVATE
+            and lead.private_owner_id == current_user.id
+        )
+
+    return (
+        lead.customer_scope == Lead.SCOPE_PUBLIC
+        and can_user_view_public_sales_lead(current_user, lead)
+    )
 
 def sales_required(f):
     """装饰器：要求销售权限"""
@@ -45,14 +69,17 @@ def list_consultations():
         if current_user.is_sales_manager():
             if current_user.is_private_owner:
                 # 私域销售管理只能看到自己负责的线索
-                query = query.filter(Lead.sales_user_id == current_user.id)
+                query = query.filter(
+                    Lead.customer_scope == Lead.SCOPE_PRIVATE,
+                    Lead.private_owner_id == current_user.id
+                )
             else:
                 # 公域销售管理可以看到所有公域销售的线索
-                allowed_ids = db.session.query(User.id).filter(
-                    User.role.in_(['sales_manager', 'salesperson']),
-                    User.status == True
-                ).subquery()
-                query = query.filter(Lead.sales_user_id.in_(allowed_ids))
+                query = query.filter(
+                    Lead.sales_user_id.in_(get_public_sales_user_ids_subquery()),
+                    Lead.customer_scope == Lead.SCOPE_PUBLIC
+                )
+                query = apply_special_public_lead_visibility(query, current_user)
         # admin角色可以看到所有
 
         leads_with_meetings = query.order_by(Lead.meeting_at.desc()).all()
@@ -73,6 +100,10 @@ def consultation_details(lead_id):
     try:
         # 获取线索信息
         lead = Lead.query.get_or_404(lead_id)
+
+        if not can_access_sales_consultation_lead(lead):
+            flash('您没有权限查看该线索', 'error')
+            return redirect(url_for('consultations.list_consultations'))
 
         # 获取该线索对应的客户记录（如果存在）
         customer = Customer.query.filter_by(lead_id=lead_id).first()
@@ -100,6 +131,12 @@ def consultation_details_data(lead_id):
     try:
         # 获取线索信息
         lead = Lead.query.get_or_404(lead_id)
+
+        if current_user.role in ['sales_manager', 'salesperson', 'admin'] and not can_access_sales_consultation_lead(lead):
+            return jsonify({
+                'success': False,
+                'message': '您没有权限查看此线索的沟通记录'
+            }), 403
 
         # 获取该线索对应的客户记录（如果存在）
         customer = Customer.query.filter_by(lead_id=lead_id).first()
@@ -194,6 +231,15 @@ def add_communication_record(lead_id):
         # 获取线索信息
         lead = Lead.query.get_or_404(lead_id)
 
+        if current_user.role in ['sales_manager', 'salesperson', 'admin'] and not can_access_sales_consultation_lead(lead):
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or 'application/json' in request.headers.get('Accept', ''):
+                return jsonify({
+                    'success': False,
+                    'message': '您没有权限为此线索添加沟通记录'
+                }), 403
+            flash('您没有权限为此线索添加沟通记录', 'error')
+            return redirect(url_for('consultations.list_consultations'))
+
         # 获取该线索对应的客户记录（如果存在）
         customer = Customer.query.filter_by(lead_id=lead_id).first()
 
@@ -279,6 +325,10 @@ def update_meeting_time(lead_id):
     """更新约见时间"""
     try:
         lead = Lead.query.get_or_404(lead_id)
+
+        if not can_access_sales_consultation_lead(lead):
+            flash('您没有权限更新该线索的约见时间', 'error')
+            return redirect(url_for('consultations.list_consultations'))
         
         meeting_date = request.form.get('meeting_date', '').strip()
         meeting_hour = request.form.get('meeting_hour', '').strip()
@@ -312,4 +362,3 @@ def update_meeting_time(lead_id):
         db.session.rollback()
         flash(f'更新约见时间失败: {str(e)}', 'error')
         return redirect(url_for('consultations.list_consultations'))
-

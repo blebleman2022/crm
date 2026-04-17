@@ -6,6 +6,13 @@ from datetime import datetime, date, timedelta
 from decimal import Decimal
 from sqlalchemy import func, and_
 import re
+from lead_visibility import (
+    apply_special_public_lead_visibility,
+    can_user_view_public_sales_lead,
+    get_public_sales_user_ids_subquery,
+    is_special_public_lead_user,
+    special_public_lead_visibility_condition,
+)
 
 leads_bp = Blueprint('leads', __name__)
 PUBLIC_SCOPE = Lead.SCOPE_PUBLIC
@@ -71,7 +78,7 @@ def can_view_lead_record(lead):
     if current_user.is_sales_manager():
         if is_private_owner_user(current_user):
             return False
-        return bool(lead.sales_user and lead.sales_user.is_sales())
+        return can_user_view_public_sales_lead(current_user, lead)
 
     return False
 
@@ -97,10 +104,19 @@ def apply_sales_dashboard_scope(query):
     if not current_user.is_sales():
         return query
 
-    query = query.filter(Lead.sales_user_id == current_user.id)
     if is_private_owner_user(current_user):
-        return query.filter(Lead.customer_scope == PRIVATE_SCOPE, Lead.private_owner_id == current_user.id)
-    return query.filter(Lead.customer_scope == PUBLIC_SCOPE)
+        return query.filter(
+            Lead.sales_user_id == current_user.id,
+            Lead.customer_scope == PRIVATE_SCOPE,
+            Lead.private_owner_id == current_user.id
+        )
+
+    query = query.filter(Lead.customer_scope == PUBLIC_SCOPE)
+    if is_special_public_lead_user(current_user):
+        query = query.filter(Lead.sales_user_id.in_(get_public_sales_user_ids_subquery()))
+        return query.filter(special_public_lead_visibility_condition(current_user))
+
+    return query.filter(Lead.sales_user_id == current_user.id)
 
 def sales_required(f):
     """销售管理权限装饰器"""
@@ -386,14 +402,12 @@ def list_leads():
         effective_scope_filter = PRIVATE_SCOPE
     elif current_user.is_sales_manager():
         # 公域销售管理可看所有公域销售的线索（只读，只能编辑自己的）
-        allowed_ids = db.session.query(User.id).filter(
-            User.role.in_(['sales_manager', 'salesperson']),
-            User.status == True
-        ).subquery()
+        allowed_ids = get_public_sales_user_ids_subquery()
         query = query.filter(
             Lead.sales_user_id.in_(allowed_ids),
             Lead.customer_scope == PUBLIC_SCOPE
         )
+        query = apply_special_public_lead_visibility(query, current_user)
         effective_scope_filter = PUBLIC_SCOPE
     elif current_user.is_teacher_supervisor():
         # 班主任在线索管理只看公域，私域通过独立客户入口查看
@@ -622,14 +636,12 @@ def brainstorm_list():
         )
     elif current_user.is_sales_manager():
         # 公域销售管理可看所有公域销售的线索
-        allowed_ids = db.session.query(User.id).filter(
-            User.role.in_(['sales_manager', 'salesperson']),
-            User.status == True
-        ).subquery()
+        allowed_ids = get_public_sales_user_ids_subquery()
         query = query.filter(
             Lead.sales_user_id.in_(allowed_ids),
             Lead.customer_scope == PUBLIC_SCOPE
         )
+        query = apply_special_public_lead_visibility(query, current_user)
 
     # 搜索过滤（学员姓名或家长微信名）
     if search:
@@ -918,6 +930,7 @@ def check_phone():
         )
     else:
         query = query.filter(Lead.customer_scope == PUBLIC_SCOPE)
+        query = apply_special_public_lead_visibility(query, current_user)
     existing_lead = query.first()
 
     if existing_lead:
@@ -950,6 +963,7 @@ def check_wechat():
         )
     else:
         query = query.filter(Lead.customer_scope == PUBLIC_SCOPE)
+        query = apply_special_public_lead_visibility(query, current_user)
     if lead_id:
         query = query.filter(Lead.id != lead_id)
 
