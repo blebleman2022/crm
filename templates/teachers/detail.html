@@ -166,12 +166,12 @@
         </div>
         {% endif %}
 
-        <!-- 科创辅导成果 -->
+        <!-- 辅导成果 -->
         {% if teacher.innovation_coaching_achievements and teacher.innovation_coaching_achievements != '-' %}
         <div class="bg-white rounded-xl shadow-lg p-6 info-card">
             <h3 class="section-title text-xl font-bold text-gray-900 mb-4">
                 <span class="material-symbols-outlined align-middle mr-2 text-blue-800">emoji_events</span>
-                科创辅导成果
+                辅导成果
             </h3>
             <div class="space-y-3">
                 {% for achievement in teacher.innovation_coaching_achievements.split('\n') %}

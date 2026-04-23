@@ -67,7 +67,7 @@ EXPORTABLE_TABLES = {
                    'highest_degree', 'degree_description', 'research_achievements',
                    'innovation_coaching_achievements', 'social_roles', 'status', 'created_at', 'updated_at'],
         'column_names': ['用户ID', '现单位', '专业方向', '最高学历', '学历说明',
-                        '科研成果', '科创辅导成果', '社会角色', '账号状态', '创建时间', '更新时间']
+                        '科研成果', '辅导成果', '社会角色', '账号状态', '创建时间', '更新时间']
     },
     'tutoring_deliveries': {
         'name': '课题辅导交付表',

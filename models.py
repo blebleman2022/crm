@@ -589,7 +589,7 @@ class Teacher(db.Model):
     highest_degree = db.Column(db.String(50), comment='最高学历')
     degree_description = db.Column(db.Text, comment='学历说明')
     research_achievements = db.Column(db.Text, comment='科研成果')
-    innovation_coaching_achievements = db.Column(db.Text, comment='科创辅导成果')
+    innovation_coaching_achievements = db.Column(db.Text, comment='辅导成果')
     social_roles = db.Column(db.Text, comment='个人荣誉')
     wechat = db.Column(db.String(100), comment='微信号')
     subject = db.Column(db.String(50), comment='擅长学科')
