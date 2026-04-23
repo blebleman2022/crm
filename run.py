@@ -487,6 +487,23 @@ def init_database(app):
             def _column_exists(table_name, column_name):
                 return column_name in _table_columns(table_name)
 
+            # teachers.email -> teachers.wechat
+            try:
+                teacher_columns = _table_columns('teachers')
+                if 'wechat' not in teacher_columns and 'email' in teacher_columns:
+                    db.session.execute(text("ALTER TABLE teachers RENAME COLUMN email TO wechat"))
+                    db.session.commit()
+                    print("✅ teachers.email 已重命名为 teachers.wechat")
+                elif 'wechat' not in teacher_columns:
+                    db.session.execute(text("ALTER TABLE teachers ADD COLUMN wechat VARCHAR(100)"))
+                    db.session.commit()
+                    print("✅ teachers.wechat字段添加成功")
+                else:
+                    print("✅ teachers.wechat字段已存在")
+            except Exception as e:
+                print(f"⚠️ teachers.wechat字段迁移失败: {e}")
+                db.session.rollback()
+
             # 添加meeting_location字段
             try:
                 db.session.execute(text("ALTER TABLE leads ADD COLUMN meeting_location VARCHAR(20)"))

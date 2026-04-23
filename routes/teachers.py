@@ -320,6 +320,7 @@ def external_edit_teacher(token):
             teacher.research_achievements = request.form.get('research_achievements', '').strip()
             teacher.innovation_coaching_achievements = request.form.get('innovation_coaching_achievements', '').strip()
             teacher.social_roles = request.form.get('social_roles', '').strip()
+            teacher.wechat = request.form.get('wechat', '').strip()
             teacher.updated_at = datetime.utcnow()
 
             db.session.commit()
@@ -389,7 +390,7 @@ def public_add_teacher():
                 research_achievements=request.form.get('research_achievements', '').strip(),
                 innovation_coaching_achievements=request.form.get('innovation_coaching_achievements', '').strip(),
                 social_roles=request.form.get('social_roles', '').strip(),
-                email=request.form.get('email', '').strip(),
+                wechat=request.form.get('wechat', '').strip(),
                 subject=request.form.get('subject', '').strip()
             )
             db.session.add(teacher)
@@ -462,7 +463,7 @@ def add_teacher():
                 research_achievements=request.form.get('research_achievements', '').strip(),
                 innovation_coaching_achievements=request.form.get('innovation_coaching_achievements', '').strip(),
                 social_roles=request.form.get('social_roles', '').strip(),
-                email=request.form.get('email', '').strip(),
+                wechat=request.form.get('wechat', '').strip(),
                 subject=request.form.get('subject', '').strip()
             )
             db.session.add(teacher)
@@ -537,6 +538,7 @@ def edit_teacher(teacher_id):
             teacher.research_achievements = request.form.get('research_achievements', '').strip()
             teacher.innovation_coaching_achievements = request.form.get('innovation_coaching_achievements', '').strip()
             teacher.social_roles = request.form.get('social_roles', '').strip()
+            teacher.wechat = request.form.get('wechat', '').strip()
             teacher.updated_at = datetime.utcnow()
 
             db.session.commit()

@@ -56,6 +56,14 @@
                                    class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
                         </div>
                         <div>
+                            <label for="wechat" class="block text-sm font-medium text-slate-700">微信号</label>
+                            <input type="text"
+                                   id="wechat"
+                                   name="wechat"
+                                   value="{{ request.form.get('wechat', teacher.wechat if teacher else '') }}"
+                                   class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        </div>
+                        <div>
                             <label for="current_institution" class="block text-sm font-medium text-slate-700">现单位</label>
                             <input type="text"
                                    id="current_institution"

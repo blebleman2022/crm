@@ -591,7 +591,7 @@ class Teacher(db.Model):
     research_achievements = db.Column(db.Text, comment='科研成果')
     innovation_coaching_achievements = db.Column(db.Text, comment='科创辅导成果')
     social_roles = db.Column(db.Text, comment='个人荣誉')
-    email = db.Column(db.String(100), comment='邮箱')
+    wechat = db.Column(db.String(100), comment='微信号')
     subject = db.Column(db.String(50), comment='擅长学科')
     created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')

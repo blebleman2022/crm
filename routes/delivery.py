@@ -640,7 +640,7 @@ def create_teacher():
     if request.method == 'POST':
         name = request.form.get('name', '').strip()
         phone = request.form.get('phone', '').strip()
-        email = request.form.get('email', '').strip()
+        wechat = request.form.get('wechat', '').strip()
         subject = request.form.get('subject', '').strip()
 
         # 验证输入
@@ -676,7 +676,7 @@ def create_teacher():
 
             teacher = Teacher(
                 user_id=user.id,
-                email=email,
+                wechat=wechat,
                 subject=subject
             )
             db.session.add(teacher)
@@ -708,7 +708,7 @@ def edit_teacher(teacher_id):
 
     if request.method == 'POST':
         name = request.form.get('name', '').strip()
-        email = request.form.get('email', '').strip()
+        wechat = request.form.get('wechat', '').strip()
         subject = request.form.get('subject', '').strip()
 
         if not name:
@@ -717,7 +717,7 @@ def edit_teacher(teacher_id):
 
         try:
             user.username = name
-            teacher.email = email
+            teacher.wechat = wechat
             teacher.subject = subject
             teacher.updated_at = datetime.utcnow()
             db.session.commit()
