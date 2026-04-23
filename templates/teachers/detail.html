@@ -28,6 +28,13 @@
         transform: translateY(-2px);
         box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
     }
+    .teacher-contact-toggle {
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+    }
+    .teacher-contact-toggle:hover {
+        background: rgba(255, 255, 255, 0.2);
+    }
 </style>
 
 <div class="max-w-7xl mx-auto">
@@ -60,11 +67,34 @@
     <div class="bg-white rounded-xl shadow-lg overflow-hidden mb-6">
         <!-- 头部深蓝色区域 - 显示名字 -->
         <div class="bg-blue-800 px-8 py-8">
-            <h1 class="text-4xl font-bold text-white mb-2">
-                {% if teacher.user %}
-                    {{ teacher.user.username[0] }}老师
+            <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <h1 class="text-4xl font-bold text-white">
+                    {% if teacher.user %}
+                        {{ teacher.user.username[0] }}老师
+                    {% endif %}
+                </h1>
+                {% if current_user.is_admin() %}
+                <div class="flex flex-wrap items-center gap-3">
+                    <button type="button"
+                            id="teacherContactToggle"
+                            class="teacher-contact-toggle inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-white transition-colors">
+                        <span id="teacherContactToggleIcon" class="material-symbols-outlined text-lg">visibility</span>
+                        <span id="teacherContactToggleText">显示联系方式</span>
+                    </button>
+                    <div id="teacherContactMasked" class="text-sm text-blue-100">
+                        手机号、微信号已隐藏
+                    </div>
+                    <div id="teacherContactDetail" class="hidden flex-wrap items-center gap-3 text-sm text-blue-50">
+                        <span class="rounded-full bg-white/10 px-3 py-1.5">
+                            手机号：{{ teacher.user.phone if teacher.user and teacher.user.phone else '-' }}
+                        </span>
+                        <span class="rounded-full bg-white/10 px-3 py-1.5">
+                            微信号：{{ teacher.wechat or '-' }}
+                        </span>
+                    </div>
+                </div>
                 {% endif %}
-            </h1>
+            </div>
         </div>
 
         <!-- 基本信息白色区域 - 三个信息同一排 -->
@@ -210,4 +240,24 @@
     </div>
     {% endif %}
 </div>
+
+{% if current_user.is_admin() %}
+<script>
+const teacherContactToggle = document.getElementById('teacherContactToggle');
+const teacherContactToggleIcon = document.getElementById('teacherContactToggleIcon');
+const teacherContactToggleText = document.getElementById('teacherContactToggleText');
+const teacherContactMasked = document.getElementById('teacherContactMasked');
+const teacherContactDetail = document.getElementById('teacherContactDetail');
+
+if (teacherContactToggle && teacherContactToggleIcon && teacherContactToggleText && teacherContactMasked && teacherContactDetail) {
+    teacherContactToggle.addEventListener('click', function() {
+        const isHidden = teacherContactDetail.classList.contains('hidden');
+        teacherContactDetail.classList.toggle('hidden', !isHidden);
+        teacherContactMasked.classList.toggle('hidden', isHidden);
+        teacherContactToggleIcon.textContent = isHidden ? 'visibility_off' : 'visibility';
+        teacherContactToggleText.textContent = isHidden ? '隐藏联系方式' : '显示联系方式';
+    });
+}
+</script>
+{% endif %}
 {% endblock %}
