@@ -51,8 +51,8 @@
                         </svg>
                     </div>
                     <div class="ml-5">
-                        <p class="text-sm font-medium text-gray-500">已上传初稿</p>
-                        <p class="text-2xl font-semibold text-gray-900">{{ doc_stats.thesis_draft }}</p>
+                        <p class="text-sm font-medium text-gray-500">已上传论文终稿</p>
+                        <p class="text-2xl font-semibold text-gray-900">{{ doc_stats.thesis_final }}</p>
                     </div>
                 </div>
             </div>
@@ -65,8 +65,8 @@
                         </svg>
                     </div>
                     <div class="ml-5">
-                        <p class="text-sm font-medium text-gray-500">已上传终稿</p>
-                        <p class="text-2xl font-semibold text-gray-900">{{ doc_stats.thesis_final }}</p>
+                        <p class="text-sm font-medium text-gray-500">已上传PPT</p>
+                        <p class="text-2xl font-semibold text-gray-900">{{ doc_stats.presentation }}</p>
                     </div>
                 </div>
             </div>
@@ -81,17 +81,7 @@
                 <div class="space-y-4">
                     <div>
                         <div class="flex justify-between text-sm mb-1">
-                            <span class="text-gray-700">课题初稿</span>
-                            <span class="text-gray-600">{{ doc_stats.thesis_draft }}/{{ total_students }} ({{ doc_completion_rates.thesis_draft }}%)</span>
-                        </div>
-                        <div class="w-full bg-gray-200 rounded-full h-2">
-                            <div class="bg-blue-600 h-2 rounded-full" style="width: {{ doc_completion_rates.thesis_draft }}%"></div>
-                        </div>
-                    </div>
-
-                    <div>
-                        <div class="flex justify-between text-sm mb-1">
-                            <span class="text-gray-700">终稿</span>
+                            <span class="text-gray-700">论文终稿</span>
                             <span class="text-gray-600">{{ doc_stats.thesis_final }}/{{ total_students }} ({{ doc_completion_rates.thesis_final }}%)</span>
                         </div>
                         <div class="w-full bg-gray-200 rounded-full h-2">
@@ -101,7 +91,7 @@
 
                     <div>
                         <div class="flex justify-between text-sm mb-1">
-                            <span class="text-gray-700">演示方案</span>
+                            <span class="text-gray-700">PPT</span>
                             <span class="text-gray-600">{{ doc_stats.presentation }}/{{ total_students }} ({{ doc_completion_rates.presentation }}%)</span>
                         </div>
                         <div class="w-full bg-gray-200 rounded-full h-2">
@@ -111,17 +101,7 @@
 
                     <div>
                         <div class="flex justify-between text-sm mb-1">
-                            <span class="text-gray-700">查新报告</span>
-                            <span class="text-gray-600">{{ doc_stats.novelty_report }}/{{ total_students }} ({{ doc_completion_rates.novelty_report }}%)</span>
-                        </div>
-                        <div class="w-full bg-gray-200 rounded-full h-2">
-                            <div class="bg-yellow-600 h-2 rounded-full" style="width: {{ doc_completion_rates.novelty_report }}%"></div>
-                        </div>
-                    </div>
-
-                    <div>
-                        <div class="flex justify-between text-sm mb-1">
-                            <span class="text-gray-700">查重报告</span>
+                            <span class="text-gray-700">查重</span>
                             <span class="text-gray-600">{{ doc_stats.plagiarism_report }}/{{ total_students }} ({{ doc_completion_rates.plagiarism_report }}%)</span>
                         </div>
                         <div class="w-full bg-gray-200 rounded-full h-2">
@@ -131,7 +111,7 @@
 
                     <div>
                         <div class="flex justify-between text-sm mb-1">
-                            <span class="text-gray-700">高三综评材料</span>
+                            <span class="text-gray-700">综评材料</span>
                             <span class="text-gray-600">{{ doc_stats.evaluation_material }}/{{ total_students }} ({{ doc_completion_rates.evaluation_material }}%)</span>
                         </div>
                         <div class="w-full bg-gray-200 rounded-full h-2">
@@ -204,4 +184,3 @@
     </div>
 </div>
 {% endblock %}
-

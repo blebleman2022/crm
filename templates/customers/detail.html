@@ -127,12 +127,10 @@
 <script>
 // 文档类型映射
 const DOC_TYPE_NAMES = {
-    'thesis_draft': '课题初稿',
-    'thesis_final': '终稿',
-    'presentation': '演示方案',
-    'novelty_report': '查新报告',
-    'plagiarism_report': '查重报告',
-    'evaluation_material': '高三综评材料'
+    'thesis_final': '论文终稿',
+    'presentation': 'PPT',
+    'plagiarism_report': '查重',
+    'evaluation_material': '综评材料'
 };
 
 // 页面加载时获取文档列表
@@ -163,7 +161,7 @@ function loadDocuments() {
 // 显示文档列表
 function displayDocuments(documents) {
     const container = document.getElementById('documentsContainer');
-    const docTypes = ['thesis_draft', 'thesis_final', 'presentation', 'novelty_report', 'plagiarism_report', 'evaluation_material'];
+    const docTypes = ['thesis_final', 'presentation', 'plagiarism_report', 'evaluation_material'];
 
     let html = '';
     docTypes.forEach(docType => {
@@ -201,4 +199,3 @@ function displayDocuments(documents) {
 }
 </script>
 {% endblock %}
-

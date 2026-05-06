@@ -90,33 +90,10 @@
             </div>
             <div class="px-6 py-4">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- 课题初稿 -->
-                    <div class="border border-gray-200 rounded-lg p-4" id="doc-thesis_draft">
-                        <div class="flex items-center justify-between mb-3">
-                            <h3 class="text-sm font-medium text-gray-900">课题初稿</h3>
-                            <span class="doc-status px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">未上传</span>
-                        </div>
-                        <div class="doc-info hidden text-sm text-gray-600 space-y-1 mb-3">
-                            <p class="doc-filename"></p>
-                            <p class="doc-version"></p>
-                            <p class="doc-time"></p>
-                        </div>
-                        <div class="doc-actions hidden space-x-2 mb-3">
-                            <a href="#" class="doc-download text-sm text-blue-600 hover:text-blue-800">下载</a>
-                            <button class="doc-delete text-sm text-red-600 hover:text-red-800">删除</button>
-                        </div>
-                        <div class="doc-upload-form">
-                            <input type="file" class="hidden" id="file-thesis_draft" accept=".doc,.docx,.pdf">
-                            <button onclick="document.getElementById('file-thesis_draft').click()" class="w-full px-4 py-2 border border-blue-600 text-sm font-medium rounded-md text-blue-600 bg-white hover:bg-blue-50">
-                                上传初稿
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- 终稿 -->
+                    <!-- 论文终稿 -->
                     <div class="border border-gray-200 rounded-lg p-4" id="doc-thesis_final">
                         <div class="flex items-center justify-between mb-3">
-                            <h3 class="text-sm font-medium text-gray-900">终稿</h3>
+                            <h3 class="text-sm font-medium text-gray-900">论文终稿</h3>
                             <span class="doc-status px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">未上传</span>
                         </div>
                         <div class="doc-info hidden text-sm text-gray-600 space-y-1 mb-3">
@@ -129,17 +106,17 @@
                             <button class="doc-delete text-sm text-red-600 hover:text-red-800">删除</button>
                         </div>
                         <div class="doc-upload-form">
-                            <input type="file" class="hidden" id="file-thesis_final" accept=".doc,.docx,.pdf">
+                            <input type="file" class="hidden" id="file-thesis_final" accept=".doc,.docx,.pdf,.ppt,.pptx">
                             <button onclick="document.getElementById('file-thesis_final').click()" class="w-full px-4 py-2 border border-blue-600 text-sm font-medium rounded-md text-blue-600 bg-white hover:bg-blue-50">
-                                上传终稿
+                                上传论文终稿
                             </button>
                         </div>
                     </div>
 
-                    <!-- 演示方案 -->
+                    <!-- PPT -->
                     <div class="border border-gray-200 rounded-lg p-4" id="doc-presentation">
                         <div class="flex items-center justify-between mb-3">
-                            <h3 class="text-sm font-medium text-gray-900">演示方案</h3>
+                            <h3 class="text-sm font-medium text-gray-900">PPT</h3>
                             <span class="doc-status px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">未上传</span>
                         </div>
                         <div class="doc-info hidden text-sm text-gray-600 space-y-1 mb-3">
@@ -154,38 +131,15 @@
                         <div class="doc-upload-form">
                             <input type="file" class="hidden" id="file-presentation" accept=".doc,.docx,.pdf,.ppt,.pptx">
                             <button onclick="document.getElementById('file-presentation').click()" class="w-full px-4 py-2 border border-blue-600 text-sm font-medium rounded-md text-blue-600 bg-white hover:bg-blue-50">
-                                上传演示方案
+                                上传PPT
                             </button>
                         </div>
                     </div>
 
-                    <!-- 查新报告 -->
-                    <div class="border border-gray-200 rounded-lg p-4" id="doc-novelty_report">
-                        <div class="flex items-center justify-between mb-3">
-                            <h3 class="text-sm font-medium text-gray-900">查新报告</h3>
-                            <span class="doc-status px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">未上传</span>
-                        </div>
-                        <div class="doc-info hidden text-sm text-gray-600 space-y-1 mb-3">
-                            <p class="doc-filename"></p>
-                            <p class="doc-version"></p>
-                            <p class="doc-time"></p>
-                        </div>
-                        <div class="doc-actions hidden space-x-2 mb-3">
-                            <a href="#" class="doc-download text-sm text-blue-600 hover:text-blue-800">下载</a>
-                            <button class="doc-delete text-sm text-red-600 hover:text-red-800">删除</button>
-                        </div>
-                        <div class="doc-upload-form">
-                            <input type="file" class="hidden" id="file-novelty_report" accept=".doc,.docx,.pdf">
-                            <button onclick="document.getElementById('file-novelty_report').click()" class="w-full px-4 py-2 border border-blue-600 text-sm font-medium rounded-md text-blue-600 bg-white hover:bg-blue-50">
-                                上传查新报告
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- 查重报告 -->
+                    <!-- 查重 -->
                     <div class="border border-gray-200 rounded-lg p-4" id="doc-plagiarism_report">
                         <div class="flex items-center justify-between mb-3">
-                            <h3 class="text-sm font-medium text-gray-900">查重报告</h3>
+                            <h3 class="text-sm font-medium text-gray-900">查重</h3>
                             <span class="doc-status px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">未上传</span>
                         </div>
                         <div class="doc-info hidden text-sm text-gray-600 space-y-1 mb-3">
@@ -198,17 +152,17 @@
                             <button class="doc-delete text-sm text-red-600 hover:text-red-800">删除</button>
                         </div>
                         <div class="doc-upload-form">
-                            <input type="file" class="hidden" id="file-plagiarism_report" accept=".doc,.docx,.pdf">
+                            <input type="file" class="hidden" id="file-plagiarism_report" accept=".doc,.docx,.pdf,.ppt,.pptx">
                             <button onclick="document.getElementById('file-plagiarism_report').click()" class="w-full px-4 py-2 border border-blue-600 text-sm font-medium rounded-md text-blue-600 bg-white hover:bg-blue-50">
-                                上传查重报告
+                                上传查重
                             </button>
                         </div>
                     </div>
 
-                    <!-- 高三综评材料 -->
+                    <!-- 综评材料 -->
                     <div class="border border-gray-200 rounded-lg p-4" id="doc-evaluation_material">
                         <div class="flex items-center justify-between mb-3">
-                            <h3 class="text-sm font-medium text-gray-900">高三综评材料</h3>
+                            <h3 class="text-sm font-medium text-gray-900">综评材料</h3>
                             <span class="doc-status px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">未上传</span>
                         </div>
                         <div class="doc-info hidden text-sm text-gray-600 space-y-1 mb-3">
@@ -221,7 +175,7 @@
                             <button class="doc-delete text-sm text-red-600 hover:text-red-800">删除</button>
                         </div>
                         <div class="doc-upload-form">
-                            <input type="file" class="hidden" id="file-evaluation_material" accept=".doc,.docx,.pdf,.zip,.rar">
+                            <input type="file" class="hidden" id="file-evaluation_material" accept=".doc,.docx,.pdf,.ppt,.pptx">
                             <button onclick="document.getElementById('file-evaluation_material').click()" class="w-full px-4 py-2 border border-blue-600 text-sm font-medium rounded-md text-blue-600 bg-white hover:bg-blue-50">
                                 上传综评材料
                             </button>
@@ -247,7 +201,7 @@
                     <h3 class="text-sm font-medium text-blue-800">权限说明</h3>
                     <div class="mt-2 text-sm text-blue-700">
                         <ul class="list-disc list-inside space-y-1">
-                            <li>您可以上传和删除所有文档（初稿、终稿、演示方案、报告等）</li>
+                            <li>您可以上传和删除论文终稿、PPT、查重、综评材料</li>
                             <li>班主任可以查看和下载您上传的文档，但不能修改</li>
                             <li>课题名称可由您编辑，其他基本信息由班主任管理</li>
                         </ul>
@@ -260,7 +214,7 @@
 
 <script>
 // 文档类型列表
-const docTypes = ['thesis_draft', 'thesis_final', 'presentation', 'novelty_report', 'plagiarism_report', 'evaluation_material'];
+const docTypes = ['thesis_final', 'presentation', 'plagiarism_report', 'evaluation_material'];
 const customerId = {{ student.id }};
 
 // 页面加载时获取所有文档状态
@@ -408,11 +362,9 @@ function resetDocumentUI(docType) {
     // 重置上传按钮文本
     const uploadBtn = container.querySelector('.doc-upload-form button');
     const docNames = {
-        'thesis_draft': '上传初稿',
-        'thesis_final': '上传终稿',
-        'presentation': '上传演示方案',
-        'novelty_report': '上传查新报告',
-        'plagiarism_report': '上传查重报告',
+        'thesis_final': '上传论文终稿',
+        'presentation': '上传PPT',
+        'plagiarism_report': '上传查重',
         'evaluation_material': '上传综评材料'
     };
     uploadBtn.textContent = docNames[docType] || '上传文档';
@@ -467,4 +419,3 @@ function saveThesisName() {
 }
 </script>
 {% endblock %}
-

@@ -792,14 +792,10 @@ class DeliveryDocument(db.Model):
     # 文档类型
     doc_type = db.Column(db.String(50), nullable=False, comment='文档类型')
     # 枚举值：
-    # - thesis_draft: 课题初稿
-    # - thesis_final: 终稿
-    # - presentation: 演示方案
-    # - novelty_report: 查新报告
-    # - plagiarism_report: 查重报告
-    # - evaluation_material: 高三综评材料
-    # - preview_material: 预习材料
-    # - other_materials: 其他材料（可多份）
+    # - thesis_final: 论文终稿
+    # - presentation: PPT
+    # - plagiarism_report: 查重
+    # - evaluation_material: 综评材料
 
     file_name = db.Column(db.String(200), nullable=False, comment='文件名')
     file_path = db.Column(db.String(500), nullable=False, comment='文件存储路径')

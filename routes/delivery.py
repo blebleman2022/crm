@@ -766,7 +766,7 @@ def view_customer_documents(customer_id):
     if customer.supervisor_user_id not in get_visible_teacher_supervisor_ids():
         return jsonify({'success': False, 'message': '您无权查看此客户的文档'}), 403
 
-    # 获取所有文档（其他材料允许多份）
+    # 获取所有文档
     documents = DeliveryDocument.query.filter_by(
         customer_id=customer_id
     ).order_by(DeliveryDocument.created_at.desc()).all()
@@ -781,11 +781,8 @@ def view_customer_documents(customer_id):
             'created_at': doc.created_at.isoformat(),
             'uploaded_by_name': doc.uploaded_by_name
         }
-        if doc.doc_type == 'other_materials':
-            docs_by_type.setdefault(doc.doc_type, []).append(payload)
-        else:
-            if doc.is_latest or doc.doc_type not in docs_by_type:
-                docs_by_type[doc.doc_type] = payload
+        if doc.is_latest or doc.doc_type not in docs_by_type:
+            docs_by_type[doc.doc_type] = payload
 
     return jsonify({
         'success': True,
@@ -799,14 +796,10 @@ ALLOWED_DOC_EXTENSIONS = {'doc', 'docx', 'pdf', 'ppt', 'pptx'}
 MAX_DOC_SIZE = 50 * 1024 * 1024  # 50MB
 
 DOC_TYPE_NAMES = {
-    'thesis_draft': '课题初稿',
-    'thesis_final': '终稿',
-    'presentation': '演示方案',
-    'novelty_report': '查新报告',
-    'plagiarism_report': '查重报告',
-    'evaluation_material': '综评材料',
-    'preview_material': '预习材料',
-    'other_materials': '其他材料'
+    'thesis_final': '论文终稿',
+    'presentation': 'PPT',
+    'plagiarism_report': '查重',
+    'evaluation_material': '综评材料'
 }
 
 def allowed_doc_file(filename):
@@ -854,19 +847,13 @@ def upload_customer_document(customer_id, doc_type):
         if not original_filename:
             original_filename = secure_filename(file.filename) or f"upload.{file_ext}"
 
-        if doc_type == 'other_materials':
-            latest_doc = DeliveryDocument.query.filter_by(
-                customer_id=customer_id,
-                doc_type=doc_type
-            ).order_by(DeliveryDocument.version.desc()).first()
-        else:
-            latest_doc = DeliveryDocument.query.filter_by(
-                customer_id=customer_id,
-                doc_type=doc_type,
-                is_latest=True
-            ).first()
+        latest_doc = DeliveryDocument.query.filter_by(
+            customer_id=customer_id,
+            doc_type=doc_type,
+            is_latest=True
+        ).first()
 
-        if doc_type != 'other_materials' and latest_doc:
+        if latest_doc:
             old_file_path = latest_doc.file_path
             if os.path.exists(old_file_path):
                 try:
@@ -880,12 +867,10 @@ def upload_customer_document(customer_id, doc_type):
         file_path = os.path.join(upload_folder, new_filename)
         file.save(file_path)
 
-        if doc_type != 'other_materials' and latest_doc:
+        if latest_doc:
             db.session.delete(latest_doc)
 
         next_version = 1
-        if doc_type == 'other_materials' and latest_doc:
-            next_version = (latest_doc.version or 1) + 1
 
         new_doc = DeliveryDocument(
             customer_id=customer_id,

@@ -1349,56 +1349,14 @@ function getDocFileValidationError(file) {
 function renderDocuments(customerId, uploadedDocs = {}) {
     const container = document.getElementById('documentsList');
     const docTypes = [
-        { key: 'preview_material', name: '预习材料' },
-        { key: 'thesis_draft', name: '课题初稿' },
-        { key: 'thesis_final', name: '终稿' },
-        { key: 'presentation', name: '演示方案' },
-        { key: 'novelty_report', name: '查新报告' },
-        { key: 'plagiarism_report', name: '查重报告' },
-        { key: 'evaluation_material', name: '综评材料' },
-        { key: 'other_materials', name: '其他材料' }
+        { key: 'thesis_final', name: '论文终稿' },
+        { key: 'presentation', name: 'PPT' },
+        { key: 'plagiarism_report', name: '查重' },
+        { key: 'evaluation_material', name: '综评材料' }
     ];
 
     container.innerHTML = docTypes.map(doc => {
         const uploaded = uploadedDocs[doc.key];
-        if (doc.key === 'other_materials') {
-            const files = Array.isArray(uploaded) ? uploaded : [];
-            const listHtml = files.length
-                ? files.map(file => `
-                    <div class="flex items-start justify-between gap-2 py-1">
-                        <span class="text-xs text-gray-600 truncate flex-1 min-w-0">${file.file_name}</span>
-                        <div class="flex items-center gap-1.5 shrink-0">
-                            <a href="/delivery/documents/${file.id}/download"
-                               class="inline-flex items-center px-2.5 py-1 border border-green-600 text-sm font-medium rounded text-green-700 bg-white hover:bg-green-50"
-                               title="下载">
-                                <span class="material-symbols-outlined text-sm">download</span>
-                            </a>
-                            <button type="button" onclick="deleteDocument(${file.id}, '${doc.key}')"
-                                    class="inline-flex items-center px-2.5 py-1 border border-red-600 text-sm font-medium rounded text-red-700 bg-white hover:bg-red-50"
-                                    title="删除">
-                                <span class="material-symbols-outlined text-sm">delete</span>
-                            </button>
-                        </div>
-                    </div>
-                `).join('')
-                : '<div class="text-xs text-gray-400">暂无已上传文件</div>';
-
-            return `
-                <div id="doc-${doc.key}" class="doc-dropzone bg-white p-2.5 border border-gray-200 rounded min-h-[42px]" data-doc-key="${doc.key}" data-customer-id="${customerId}">
-                    <div class="flex items-start justify-between gap-2 mb-2">
-                        <span class="text-sm text-gray-900 font-medium">${doc.name}</span>
-                        <label class="cursor-pointer inline-flex items-center px-2.5 py-1.5 border border-blue-600 text-sm font-medium rounded text-blue-600 bg-white hover:bg-blue-50">
-                            <span class="material-symbols-outlined text-sm">upload</span>
-                            <input type="file" class="hidden" accept=".doc,.docx,.pdf,.ppt,.pptx"
-                                   onchange="uploadDocument(this, ${customerId}, '${doc.key}')">
-                        </label>
-                    </div>
-                    <div class="space-y-1">
-                        ${listHtml}
-                    </div>
-                </div>
-            `;
-        }
         if (uploaded) {
             return `
                 <div id="doc-${doc.key}" class="doc-dropzone flex items-start justify-between gap-2 p-2.5 border border-green-200 rounded bg-green-50" style="min-height: 42px;" data-doc-key="${doc.key}" data-customer-id="${customerId}">

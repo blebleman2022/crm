@@ -37,10 +37,8 @@ def teacher_required(f):
 #
 #     # 统计文档完成情况
 #     doc_stats = {
-#         'thesis_draft': 0,
 #         'thesis_final': 0,
 #         'presentation': 0,
-#         'novelty_report': 0,
 #         'plagiarism_report': 0,
 #         'evaluation_material': 0
 #     }
@@ -242,7 +240,7 @@ def student_detail(customer_id):
         flash('您无权查看此学生信息', 'error')
         return redirect(url_for('teacher.student_list'))
     
-    # 获取该学生的所有文档（其他材料允许多份）
+    # 获取该学生的所有文档
     documents = DeliveryDocument.query.filter_by(
         customer_id=customer_id
     ).order_by(DeliveryDocument.created_at.desc()).all()
@@ -250,11 +248,8 @@ def student_detail(customer_id):
     # 按文档类型分组
     docs_by_type = {}
     for doc in documents:
-        if doc.doc_type == 'other_materials':
-            docs_by_type.setdefault(doc.doc_type, []).append(doc)
-        else:
-            if doc.is_latest or doc.doc_type not in docs_by_type:
-                docs_by_type[doc.doc_type] = doc
+        if doc.is_latest or doc.doc_type not in docs_by_type:
+            docs_by_type[doc.doc_type] = doc
     
     return render_template('teacher/student_detail.html',
                          student=student,
@@ -291,7 +286,7 @@ def get_student_api(customer_id):
             'status': cc.status,
         })
 
-    # 获取文档（其他材料允许多份）
+    # 获取文档
     documents = DeliveryDocument.query.filter_by(
         customer_id=customer_id
     ).order_by(DeliveryDocument.created_at.desc()).all()
@@ -304,11 +299,8 @@ def get_student_api(customer_id):
             'version': doc.version,
             'created_at': doc.created_at.strftime('%Y-%m-%d %H:%M:%S')
         }
-        if doc.doc_type == 'other_materials':
-            docs_by_type.setdefault(doc.doc_type, []).append(doc_payload)
-        else:
-            if doc.is_latest or doc.doc_type not in docs_by_type:
-                docs_by_type[doc.doc_type] = doc_payload
+        if doc.is_latest or doc.doc_type not in docs_by_type:
+            docs_by_type[doc.doc_type] = doc_payload
 
     # 安全获取 lead 信息（处理 lead 为空的情况）
     lead_info = {}
@@ -448,14 +440,10 @@ MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
 
 # 文档类型映射
 DOC_TYPE_NAMES = {
-    'thesis_draft': '课题初稿',
-    'thesis_final': '终稿',
-    'presentation': '演示方案',
-    'novelty_report': '查新报告',
-    'plagiarism_report': '查重报告',
-    'evaluation_material': '高三综评材料',
-    'preview_material': '预习材料',
-    'other_materials': '其他材料'
+    'thesis_final': '论文终稿',
+    'presentation': 'PPT',
+    'plagiarism_report': '查重',
+    'evaluation_material': '综评材料'
 }
 
 def allowed_file(filename):
@@ -516,20 +504,13 @@ def upload_document(customer_id, doc_type):
             original_filename = secure_filename(file.filename) or f"upload.{file_ext}"
 
         # 获取当前该类型文档的最新版本
-        if doc_type == 'other_materials':
-            latest_doc = DeliveryDocument.query.filter_by(
-                customer_id=customer_id,
-                doc_type=doc_type
-            ).order_by(DeliveryDocument.version.desc()).first()
-        else:
-            latest_doc = DeliveryDocument.query.filter_by(
-                customer_id=customer_id,
-                doc_type=doc_type,
-                is_latest=True
-            ).first()
+        latest_doc = DeliveryDocument.query.filter_by(
+            customer_id=customer_id,
+            doc_type=doc_type,
+            is_latest=True
+        ).first()
 
-        # "其他材料"允许多份，不删除旧文件
-        if doc_type != 'other_materials' and latest_doc:
+        if latest_doc:
             old_file_path = latest_doc.file_path
             if os.path.exists(old_file_path):
                 try:
@@ -547,13 +528,11 @@ def upload_document(customer_id, doc_type):
         file.save(file_path)
 
         # 删除旧版本的数据库记录（只保留最新版本）
-        if doc_type != 'other_materials' and latest_doc:
+        if latest_doc:
             db.session.delete(latest_doc)
 
-        # 版本号：其他材料递增，其它类型固定为1（只保留最新）
+        # 版本号固定为1（只保留最新）
         next_version = 1
-        if doc_type == 'other_materials' and latest_doc:
-            next_version = (latest_doc.version or 1) + 1
 
         # 创建新的文档记录
         description = request.form.get('description', '').strip()
@@ -668,6 +647,9 @@ def get_documents(customer_id, doc_type):
     if not teacher:
         return jsonify({'success': False, 'message': '未找到老师信息'}), 403
 
+    if doc_type not in DOC_TYPE_NAMES:
+        return jsonify({'success': False, 'message': '无效的文档类型'}), 400
+
     # 验证学生是否属于当前老师
     student = Customer.query.get_or_404(customer_id)
     if student.tutor_user_id != teacher.user_id:
@@ -747,4 +729,3 @@ def update_course_progress(customer_id):
     db.session.commit()
 
     return jsonify({'success': True, 'message': '保存成功'})
-
